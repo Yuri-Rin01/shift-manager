@@ -271,15 +271,32 @@ class _Generator:
         self.locks.pop((staff_id, rest_date), None)
         self._set_symbol(staff_id, rest_date, self.off_symbol, lock="rest")
 
+    def _morning_off_target_date(self, night_date: str) -> str | None:
+        morning = morning_off_symbol(self.settings)
+        if not morning:
+            return None
+        idx = self.date_index.get(night_date)
+        if idx is None or idx + 1 >= len(self.period_dates):
+            return None
+        return self.period_dates[idx + 1]
+
+    def _morning_off_blocked_by_leave(self, staff_id: int, night_date: str) -> bool:
+        """明け日が希望休・確保済み公休なら夜勤を入れない（公休日数を守る）。"""
+        next_date = self._morning_off_target_date(night_date)
+        if next_date is None:
+            return False
+        lock = self.locks.get((staff_id, next_date))
+        return lock in ("manual", "leave")
+
     def _sync_morning_off_after_night(self, staff_id: int, night_date: str) -> None:
         morning = morning_off_symbol(self.settings)
         if not morning:
             return
-        idx = self.date_index.get(night_date)
-        if idx is None or idx + 1 >= len(self.period_dates):
+        next_date = self._morning_off_target_date(night_date)
+        if next_date is None:
             return
-        next_date = self.period_dates[idx + 1]
-        if self.locks.get((staff_id, next_date)) == "manual":
+        # 手動・公休ロックは明けで上書きしない（指定公休日数を維持）
+        if self.locks.get((staff_id, next_date)) in ("manual", "leave"):
             return
         existing = self._get_symbol(staff_id, next_date)
         if existing and is_morning_off_symbol(existing, self.settings):
@@ -449,6 +466,8 @@ class _Generator:
             if not staff.get("can_work_night"):
                 return False
             if self._night_incompatible_on_day(sid, shift_date):
+                return False
+            if self._morning_off_blocked_by_leave(sid, shift_date):
                 return False
             max_week = int(self.settings.get("max_night_per_week", 7))
             week = self.period_days[self.date_index[shift_date]]["week_number"]
@@ -1226,7 +1245,7 @@ class _Generator:
             self._sync_morning_off_after_night(staff_id, shift_date)
 
     def _phase_exact_off(self) -> int:
-        """設定休み日数ちょうどになるよう公休を均等配置。"""
+        """設定休み日数ちょうどになるよう公休を均等配置（先に確保して勤務で上書きしない）。"""
         count = 0
         for staff in self.staff_list:
             sid = staff["id"]
@@ -1249,15 +1268,48 @@ class _Generator:
         return count
 
     def _phase_pad_empty(self) -> int:
-        """勤務・公休の割当後も記号がないセルを公休で埋める（休み日数カウント対象外）。"""
+        """公休確保後の空きセルを昼間勤務で埋める（公休の追加はしない）。"""
         count = 0
+        work_order = [k for k in ("early", "day", "late") if k in self.work_keys]
+        if not work_order:
+            return 0
+        unfilled: list[str] = []
         for staff in self.staff_list:
             sid = staff["id"]
             for shift_date in self.period_dates:
                 if self._is_locked(sid, shift_date) or self._get_symbol(sid, shift_date):
                     continue
-                self._set_symbol(sid, shift_date, self.off_symbol, lock="padding")
-                count += 1
+                ranked = sorted(
+                    work_order,
+                    key=lambda key: (
+                        self._ratio_deficit(staff, key),
+                        -self._workload_balance_penalty(sid),
+                    ),
+                    reverse=True,
+                )
+                placed = False
+                for work_key in ranked:
+                    if not self._can_work(staff, work_key, shift_date):
+                        continue
+                    symbol = self._preferred_symbol_for_staff(staff, work_key)
+                    if not symbol:
+                        continue
+                    self._set_symbol(sid, shift_date, symbol)
+                    count += 1
+                    placed = True
+                    break
+                if not placed:
+                    unfilled.append(f"{staff['name']}@{shift_date}")
+        if unfilled:
+            sample = "、".join(unfilled[:8])
+            suffix = f" ほか {len(unfilled) - 8} 件" if len(unfilled) > 8 else ""
+            self.warnings.append(
+                _warning(
+                    "warn",
+                    "empty_cells_unfilled",
+                    f"勤務制約のため埋められなかった空きがあります（{len(unfilled)} 件: {sample}{suffix}）。",
+                )
+            )
         return count
 
     def _validate_off_exact(self) -> None:
@@ -1305,6 +1357,9 @@ class _Generator:
         manual = self._phase_manual(existing)
         leave = self._phase_leave()
         self._validate_staff_capacity()
+        # 公休を先に指定日数ぶん確保し、残りを勤務配置で埋める
+        off_placed = self._phase_exact_off()
+        leave += off_placed
         if self.staffing_mode == "time_slot":
             # 時間帯モードは必要人数の充足を優先。夜勤回数の事前充填は日勤帯を圧迫し偏りの原因になるため行わない。
             self._phase_time_slot_staffing()
@@ -1315,8 +1370,8 @@ class _Generator:
             self._phase_morning_off_after_night()
             self._phase_capacity_day_assign()
             self._phase_coverage_and_basis()
-        off_placed = self._phase_exact_off()
-        leave += off_placed
+        # 勤務配置後に不足があれば空きへ公休を補充し、それでも残る空きは勤務で埋める
+        leave += self._phase_exact_off()
         self._phase_pad_empty()
         self._validate_off_exact()
         self._validate_staff_ratio_results()
