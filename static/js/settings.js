@@ -62,7 +62,6 @@ const NIGHT_WORK_KEYS = new Set(["night", "semi_night"]);
 const FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
 const DEFAULT_NIGHT_LEADER_GROUPS = [
   { label: "1・2階", floors: ["1F", "2F"], min_leaders: 1 },
-  { label: "2・3階", floors: ["2F", "3F"], min_leaders: 1 },
 ];
 
 const INT_FIELDS = new Set([

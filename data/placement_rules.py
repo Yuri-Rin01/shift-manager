@@ -351,7 +351,6 @@ def validate_time_slot_staffing_rules(settings: dict) -> None:
 
 DEFAULT_NIGHT_LEADER_GROUPS: list[dict] = [
     {"label": "1・2階", "floors": ["1F", "2F"], "min_leaders": 1},
-    {"label": "2・3階", "floors": ["2F", "3F"], "min_leaders": 1},
 ]
 
 

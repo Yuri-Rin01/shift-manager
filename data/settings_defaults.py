@@ -56,7 +56,6 @@ DEFAULT_SETTINGS: dict = {
     "require_leader_on_night": True,
     "night_leader_groups": [
         {"label": "1・2階", "floors": ["1F", "2F"], "min_leaders": 1},
-        {"label": "2・3階", "floors": ["2F", "3F"], "min_leaders": 1},
     ],
     # アラート
     "leave_alert_threshold": 72,

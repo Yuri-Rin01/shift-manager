@@ -650,6 +650,7 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
 
 
 def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
+    """テスト要因の担当・配置フロアをシード定義で置き換える。"""
     from data.staff_seed import SEED_STAFF
 
     seed_by_name = {row["name"]: row for row in SEED_STAFF}
@@ -660,18 +661,24 @@ def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
         floors = _staff_seed_floors(seed)
         if not floors:
             continue
-        for floor in floors:
-            conn.execute(
-                "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
-                (staff["id"], floor),
-            )
+        placement_floors = _staff_seed_placement_floors(seed)
         primary = floors[0]
         if primary and staff["department"] != primary:
             conn.execute(
                 "UPDATE staff SET department = ? WHERE id = ?",
                 (primary, staff["id"]),
             )
-        for floor in _staff_seed_placement_floors(seed):
+        conn.execute("DELETE FROM staff_floors WHERE staff_id = ?", (staff["id"],))
+        for floor in floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+        conn.execute(
+            "DELETE FROM staff_placement_floors WHERE staff_id = ?",
+            (staff["id"],),
+        )
+        for floor in placement_floors:
             conn.execute(
                 "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
                 (staff["id"], floor),
