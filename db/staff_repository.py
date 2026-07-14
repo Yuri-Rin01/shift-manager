@@ -124,10 +124,17 @@ def _row_to_dict(
     night_incompatible_ids: list[int] | None = None,
     day_incompatible_ids: list[int] | None = None,
 ) -> dict:
-    departments = floors or ([row["department"]] if row["department"] else [])
-    placement = placement_floors if placement_floors is not None else list(departments)
+    raw_floors = floors or ([row["department"]] if row["department"] else [])
+    # 担当フロアは表示用に1つのみ。過去データで複数ある場合は先頭を採用し余剰は配置可能へ。
+    primary = row["department"] if row["department"] in raw_floors else (raw_floors[0] if raw_floors else "")
+    departments = [primary] if primary else []
+    placement = placement_floors if placement_floors is not None else list(raw_floors)
     if not placement:
-        placement = list(departments)
+        placement = list(raw_floors) or list(departments)
+    else:
+        # 旧・担当の余剰フロアを配置可能から落とさない
+        merged = list(dict.fromkeys([*placement, *raw_floors]))
+        placement = merged
     keys = row.keys()
     return {
         "id": row["id"],

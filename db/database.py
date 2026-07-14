@@ -138,6 +138,7 @@ def init_db() -> None:
             )
         _migrate_staff_floors(conn)
         _migrate_staff_placement_floors(conn)
+        _migrate_display_floors_to_single(conn)
         _migrate_night_leader_flags(conn)
         _migrate_staffing_defaults(conn)
         _migrate_removed_staffing_basis(conn)
@@ -217,6 +218,38 @@ def _migrate_staff_placement_floors(conn: sqlite3.Connection) -> None:
             conn.execute(
                 "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
                 (staff["id"], floor),
+            )
+
+
+def _migrate_display_floors_to_single(conn: sqlite3.Connection) -> None:
+    """担当フロア（表示用）が複数残っている職員を1つに揃える。余剰は配置可能へ移す。"""
+    staff_rows = conn.execute("SELECT id, department FROM staff").fetchall()
+    for staff in staff_rows:
+        floors = [
+            row["floor"]
+            for row in conn.execute(
+                "SELECT floor FROM staff_floors WHERE staff_id = ? ORDER BY floor",
+                (staff["id"],),
+            ).fetchall()
+        ]
+        if len(floors) <= 1:
+            continue
+        # 余剰フロアは配置可能へ残す
+        for floor in floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+        primary = staff["department"] if staff["department"] in floors else floors[0]
+        conn.execute("DELETE FROM staff_floors WHERE staff_id = ?", (staff["id"],))
+        conn.execute(
+            "INSERT INTO staff_floors (staff_id, floor) VALUES (?, ?)",
+            (staff["id"], primary),
+        )
+        if staff["department"] != primary:
+            conn.execute(
+                "UPDATE staff SET department = ? WHERE id = ?",
+                (primary, staff["id"]),
             )
 
 
