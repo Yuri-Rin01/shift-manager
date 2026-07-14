@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=54">
+  <link rel="stylesheet" href="/static/css/style.css?v=55">
 </head>
 <body>
   <div class="app">
@@ -117,7 +117,7 @@
                 <div class="home-toolbar-actions">
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
-                  <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
+                  <button class="btn btn-danger" type="button" id="btn-clear-shifts">全クリア</button>
                   <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
                 </div>
               </div>
