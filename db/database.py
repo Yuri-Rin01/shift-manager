@@ -149,6 +149,7 @@ def init_db() -> None:
             )
         _seed_staff_if_empty(conn)
         _sync_seed_staff_floors(conn)
+        _sync_seed_staff_night_flags(conn)
         _migrate_departments_to_floors(conn)
         conn.commit()
     get_settings()
@@ -517,3 +518,14 @@ def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
                 "UPDATE staff SET department = ? WHERE id = ?",
                 (primary, staff["id"]),
             )
+
+
+def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
+    """テスト要因: シード定義の夜勤可否を既存レコードへ反映する。"""
+    from data.staff_seed import SEED_STAFF
+
+    for row in SEED_STAFF:
+        conn.execute(
+            "UPDATE staff SET can_work_night = ? WHERE name = ?",
+            (int(row["can_work_night"]), row["name"]),
+        )
