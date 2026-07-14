@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from data.facility import get_facility_context
 from data.masters import get_departments, get_job_types, get_positions
 from data.staffing_basis import (
-    filter_visible_staffing_basis_options,
+    filter_ratio_staffing_basis_options,
     get_default_staffing_basis_ratios,
     get_staffing_basis_hours_map,
 )
@@ -91,7 +91,7 @@ def _staff_editor_context() -> dict:
         app_settings, today.year, today.month, calendar_start_day
     )
     return {
-        "staffing_basis_options": filter_visible_staffing_basis_options(settings=app_settings),
+        "staffing_basis_options": filter_ratio_staffing_basis_options(settings=app_settings),
         "default_staffing_basis": get_default_staffing_basis_ratios(),
         "staffing_period_days": period_days,
         "staffing_period_off_days": default_off_days,

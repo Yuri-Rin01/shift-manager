@@ -40,7 +40,7 @@ PRIORITY_ORDER = [
     "手動選択分",
     "希望休",
     "配置可能フロア",
-    "夜勤必要人員（勤務割合）",
+    "夜勤必要人員（固定回数）",
     "夜勤回数",
     "各時間の必要人員数と勤務割合",
     "日勤各割合ごとの配置",
@@ -841,6 +841,7 @@ class _Generator:
         return max(0, self._slot_b(staff["id"]) - night_target - (night_target * 2))
 
     def _configured_night_target(self, staff: dict) -> int:
+        """夜勤目標は固定回数のみ（勤務割合からは算出しない）。"""
         if not staff.get("can_work_night") and self.settings.get("consider_night_eligibility", True):
             return 0
         pool = self._distribution_pool(staff)
@@ -851,11 +852,7 @@ class _Generator:
             if len(self.period_dates) < self.full_period_days:
                 target = self._scaled_off_days(target)
             return max(0, min(target, pool))
-        basis = staff.get("staffing_basis") or {}
-        night_ratio = sum(v for k, v in basis.items() if _base_work_key(k) == "night")
-        if night_ratio <= 0:
-            return 0
-        return max(0, round(pool * night_ratio / 100))
+        return 0
 
     def _night_target(self, staff: dict) -> int:
         configured = self._configured_night_target(staff)
@@ -870,7 +867,11 @@ class _Generator:
         if work_key == "night":
             return float(self._night_target(staff))
         basis = staff.get("staffing_basis") or {}
-        target_pct = sum(v for k, v in basis.items() if _base_work_key(k) == work_key)
+        target_pct = sum(
+            v
+            for k, v in basis.items()
+            if _base_work_key(k) == work_key and _base_work_key(k) != "night"
+        )
         if target_pct <= 0:
             return 0.0
         day_capacity = float(self._day_capacity_for_staff(staff))
@@ -1308,6 +1309,9 @@ class _Generator:
             for work_key in WORK_KEYS:
                 if work_key not in self.work_keys:
                     continue
+                # 夜勤の割合検証は行わない（固定回数のみ）
+                if work_key == "night" and not staff.get("fix_night_shift_count"):
+                    continue
                 expected = self._expected_work_count(staff, work_key)
                 if expected < 1:
                     continue
@@ -1323,8 +1327,6 @@ class _Generator:
                         reason = f"（夜勤上限により最大{assignable}回まで。固定{configured}回）"
                     else:
                         reason = "（必要人数・休み・夜勤明けルールのため）"
-                elif work_key == "night":
-                    reason = "（必要人数・夜勤上限のため）"
                 else:
                     reason = "（必要人数・休み・夜勤明けルールのため）"
                 self.warnings.append(

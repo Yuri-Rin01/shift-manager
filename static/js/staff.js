@@ -22,7 +22,8 @@ const staffingBasisTotal = document.getElementById("staffing-basis-total");
 const staffingBasisTotalWrap = document.getElementById("staffing-basis-total-wrap");
 
 const STAFFING_BASIS_LABELS = window.STAFFING_BASIS_LABELS ?? {};
-const DEFAULT_STAFFING_BASIS = window.DEFAULT_STAFFING_BASIS ?? { early: 34, day: 33, night: 33 };
+const DEFAULT_STAFFING_BASIS = window.DEFAULT_STAFFING_BASIS ?? { early: 50, day: 50 };
+const RATIO_EXCLUDED_KEYS = new Set(["night", "semi_night"]);
 const STAFFING_PERIOD_DAYS = Number(window.STAFFING_PERIOD_DAYS) || 30;
 const STAFFING_DEFAULT_OFF_DAYS = Number(window.STAFFING_DEFAULT_OFF_DAYS) || 0;
 const STAFFING_DEFAULT_WORKING_DAYS = Number(window.STAFFING_DEFAULT_WORKING_DAYS) || STAFFING_PERIOD_DAYS;
@@ -30,7 +31,7 @@ const STAFFING_BASIS_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#dc2
 const STAFFING_BASIS_HOURS = window.STAFFING_BASIS_HOURS ?? {};
 const NIGHT_SHIFT_COUNTS_AS_TWO_DAYS = window.NIGHT_SHIFT_COUNTS_AS_TWO_DAYS !== false;
 const REMOVED_STAFFING_BASIS_KEYS = new Set(["special", "leader"]);
-const STAFFING_DAY_NIGHT_PAIRS = { day: "night", semi_day: "semi_night" };
+const STAFFING_DAY_NIGHT_PAIRS = {};
 const STAFF_SORT_STORAGE_KEY = "staff-list-sort";
 const FLOOR_SORT_ORDER = window.STAFF_FLOOR_ORDER ?? [];
 const JOB_SORT_ORDER = window.STAFF_JOB_ORDER ?? [];
@@ -97,45 +98,27 @@ function syncNightStaffingVisibility() {
   modal.classList.toggle("is-night-eligible", canWorkNightFromForm());
 }
 
-function eligibleStaffingBasisKeys(canWorkNight = canWorkNightFromForm()) {
+function eligibleStaffingBasisKeys(_canWorkNight = canWorkNightFromForm()) {
   if (!staffingBasisPicker) return [];
   return [...staffingBasisPicker.querySelectorAll(".staffing-basis-row")]
     .map((row) => row.dataset.key)
-    .filter((key) => {
-      if (!key) return false;
-      if (!canWorkNight && (key === "night" || key === "semi_night")) {
-        return false;
-      }
-      return true;
-    });
+    .filter((key) => key && !RATIO_EXCLUDED_KEYS.has(key) && !REMOVED_STAFFING_BASIS_KEYS.has(key));
 }
 
 function pruneStaffingBasisRatios(ratios, options = {}) {
-  const canWorkNight = options.canWorkNight ?? canWorkNightFromForm();
-  const allowed = new Set(eligibleStaffingBasisKeys(canWorkNight));
-  if (!canWorkNight) {
-    allowed.delete("night");
-    allowed.delete("semi_night");
-  }
+  const allowed = new Set(eligibleStaffingBasisKeys(options.canWorkNight ?? canWorkNightFromForm()));
   const cleaned = {};
   Object.entries(ratios).forEach(([key, value]) => {
-    if (!allowed.has(key)) return;
-    if (!canWorkNight && (key === "night" || key === "semi_night")) return;
+    if (RATIO_EXCLUDED_KEYS.has(key) || REMOVED_STAFFING_BASIS_KEYS.has(key)) return;
+    if (allowed.size && !allowed.has(key)) return;
     cleaned[key] = value;
   });
   return cleaned;
 }
 
 function clearNightStaffingBasis() {
-  const current = getStaffingBasisRatiosFromForm();
-  if (!("night" in current) && !("semi_night" in current)) return;
-  const next = { ...current };
-  delete next.night;
-  delete next.semi_night;
-  const keys = Object.keys(next);
-  applyStaffingBasisRatios(
-    keys.length ? fixStaffingBasisSum(distributeRemaining(100, keys, next), keys) : {}
-  );
+  // 夜勤は割合対象外。回数固定だけ夜勤可否に連動する。
+  updateNightShiftCountControls(canWorkNightFromForm());
 }
 
 function resetBulkFieldGroup(group) {
@@ -199,7 +182,7 @@ function syncBulkFieldAvailability() {
     }
   });
   if (!isBulk) {
-    updateNightShiftCountControls(getActiveStaffingBasisKeys().includes("night"));
+    updateNightShiftCountControls(canWorkNightFromForm());
   }
 }
 
@@ -499,24 +482,29 @@ function formatPlacementFloors(staff) {
 
 function normalizeStaffingBasisRatios(raw) {
   if (Array.isArray(raw)) {
-    return equalSplitStaffingBasis(raw.filter((key) => !REMOVED_STAFFING_BASIS_KEYS.has(key)));
+    return equalSplitStaffingBasis(
+      raw.filter((key) => !REMOVED_STAFFING_BASIS_KEYS.has(key) && !RATIO_EXCLUDED_KEYS.has(key))
+    );
   }
   if (raw && typeof raw === "object") {
     const ratios = {};
     Object.entries(raw).forEach(([key, value]) => {
-      if (REMOVED_STAFFING_BASIS_KEYS.has(key)) return;
+      if (REMOVED_STAFFING_BASIS_KEYS.has(key) || RATIO_EXCLUDED_KEYS.has(key)) return;
       const ratio = Number(value);
       if (key && Number.isFinite(ratio) && ratio > 0) {
         ratios[key] = Math.min(100, Math.max(1, Math.round(ratio)));
       }
     });
-    return ratios;
+    if (!Object.keys(ratios).length) return { ...DEFAULT_STAFFING_BASIS };
+    const total = Object.values(ratios).reduce((sum, value) => sum + value, 0);
+    if (total === 100) return ratios;
+    return equalSplitStaffingBasis(Object.keys(ratios));
   }
   return { ...DEFAULT_STAFFING_BASIS };
 }
 
 function equalSplitStaffingBasis(keys) {
-  const cleaned = [...new Set(keys.filter(Boolean))];
+  const cleaned = [...new Set(keys.filter((key) => key && !RATIO_EXCLUDED_KEYS.has(key) && !REMOVED_STAFFING_BASIS_KEYS.has(key)))];
   if (!cleaned.length) return {};
   const base = Math.floor(100 / cleaned.length);
   const remainder = 100 - base * cleaned.length;
@@ -591,21 +579,20 @@ function syncNonNightRatioCeilings(ratios) {
 }
 
 function isNightShiftCountLocked() {
-  return (
-    getActiveStaffingBasisKeys().includes("night") &&
-    isNightShiftCountFixed() &&
-    getEffectiveNightShiftCount() != null
-  );
+  // 夜勤は割合外のため、割合スライダーの上限ロックは使わない
+  return false;
 }
 
-function updateNightShiftCountControls(nightActive) {
+function updateNightShiftCountControls(nightEligible = canWorkNightFromForm()) {
   const fixCheckbox = document.getElementById("field-fix-night-shift-count");
   const countInput = document.getElementById("field-night-shift-count");
   if (fixCheckbox) {
-    fixCheckbox.disabled = !nightActive;
+    fixCheckbox.disabled = !nightEligible;
+    if (!nightEligible) fixCheckbox.checked = false;
   }
   if (countInput) {
-    countInput.disabled = !nightActive || !isNightShiftCountFixed();
+    countInput.disabled = !nightEligible || !isNightShiftCountFixed();
+    if (!nightEligible) countInput.value = "";
   }
 }
 
@@ -627,11 +614,8 @@ function resolveNightShiftCount(ratios, overrideOffDays, overrideNightCount, ove
     overrideNightCount !== undefined
       ? overrideNightCount
       : getEffectiveNightShiftCount(overrideNightFixed);
-  if (fixedCount != null) return fixedCount;
-  const pool = getDistributionPool(overrideOffDays);
-  const nightRatio = (ratios.night ?? 0) + (ratios.semi_night ?? 0);
-  if (!nightRatio) return 0;
-  return Math.round((pool * nightRatio) / 100);
+  // 夜勤は割合から算出せず、固定回数のみ使う
+  return fixedCount != null ? fixedCount : 0;
 }
 
 function nonNightDayRatioTotal(ratios) {
@@ -967,11 +951,9 @@ function applyStaffingBasisRatios(ratios) {
     if (valueEl) {
       valueEl.innerHTML = active ? formatStaffingBasisValue(ratio, undefined, key) : "—";
     }
-    if (key === "night") {
-      updateNightShiftCountControls(active);
-    }
   });
 
+  updateNightShiftCountControls(canWorkNightFromForm());
   renderStaffingBasisBar();
   updateStaffingBasisTotal();
 }
@@ -1031,16 +1013,16 @@ function updateStaffingBasisTotal() {
 function formatStaffingBasis(staff) {
   const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
   const entries = Object.entries(ratios);
-  if (!entries.length) return '<span class="text-muted">-</span>';
   const offDays = STAFFING_DEFAULT_OFF_DAYS;
   const labels = entries.map(([key, ratio]) => {
     const label = STAFFING_BASIS_LABELS[key] ?? key;
-    if (key === "night" && staff.fix_night_shift_count && staff.night_shift_count != null) {
-      const days = staff.night_shift_count * staffingBasisDayWeight("night");
-      return `${label}${ratio}%（固定${staff.night_shift_count}回・約${days}日）`;
-    }
     return `${label}${ratio}%（約${approximateStaffingDays(ratio, offDays, key, { ratios })}日）`;
   });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    const days = staff.night_shift_count * staffingBasisDayWeight("night");
+    labels.push(`夜勤固定${staff.night_shift_count}回（約${days}日）`);
+  }
+  if (!labels.length) return '<span class="text-muted">-</span>';
   return escapeHtml(labels.join("、"));
 }
 
@@ -1500,12 +1482,8 @@ function openModal(mode, staff = null) {
     });
   }
   setStaffingBasisRatios(staffingRatios);
-  if (
-    (staff?.fix_night_shift_count || staff?.night_shift_count != null) &&
-    staff?.night_shift_count != null
-  ) {
-    captureNonNightRatioCeilings(staffingRatios);
-  }
+  clearNonNightRatioCeilings();
+  updateNightShiftCountControls(Boolean(staff?.can_work_night));
   refreshStaffingBasisDisplay();
   if (nightIncompatibilitySearch) nightIncompatibilitySearch.value = "";
   if (dayIncompatibilitySearch) dayIncompatibilitySearch.value = "";
@@ -1605,17 +1583,7 @@ async function saveBulkStaff() {
       showAlert(`勤務割合の合計は100%にしてください（現在${staffingTotal}%）。`, "error");
       return;
     }
-    payload.staffing_basis = staffingBasis;
-
-    const nightActive = getActiveStaffingBasisKeys().includes("night");
-    const fixNightCount = nightActive && isNightShiftCountFixed();
-    const nightCount = fixNightCount ? getNightShiftCount() : null;
-    if (fixNightCount && nightCount == null) {
-      showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
-      return;
-    }
-    payload.fix_night_shift_count = fixNightCount;
-    payload.night_shift_count = fixNightCount ? nightCount : null;
+    payload.staffing_basis = pruneStaffingBasisRatios(staffingBasis);
   }
 
   if (applyExclude) {
@@ -1625,6 +1593,15 @@ async function saveBulkStaff() {
   if (applyNight) {
     payload.can_work_night = document.getElementById("field-can-work-night").checked;
     payload.can_be_night_leader = document.getElementById("field-can-be-night-leader").checked;
+    const nightEligible = payload.can_work_night;
+    const fixNightCount = nightEligible && isNightShiftCountFixed();
+    const nightCount = fixNightCount ? getNightShiftCount() : null;
+    if (fixNightCount && nightCount == null) {
+      showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
+      return;
+    }
+    payload.fix_night_shift_count = fixNightCount;
+    payload.night_shift_count = fixNightCount ? nightCount : null;
   }
 
   const response = await fetch(`${API_BASE}/bulk`, {
@@ -1695,8 +1672,8 @@ async function saveStaff(event) {
   }
 
   const id = document.getElementById("staff-id").value;
-  const nightActive = getActiveStaffingBasisKeys().includes("night");
-  const fixNightCount = nightActive && isNightShiftCountFixed();
+  const canWorkNight = document.getElementById("field-can-work-night").checked;
+  const fixNightCount = canWorkNight && isNightShiftCountFixed();
   const nightCount = fixNightCount ? getNightShiftCount() : null;
   if (fixNightCount && nightCount == null) {
     showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
@@ -1709,9 +1686,9 @@ async function saveStaff(event) {
     placement_floors: placementFloors,
     job_type: jobType,
     position: document.getElementById("field-position").value.trim(),
-    can_work_night: document.getElementById("field-can-work-night").checked,
+    can_work_night: canWorkNight,
     can_be_night_leader: document.getElementById("field-can-be-night-leader").checked,
-    staffing_basis: staffingBasis,
+    staffing_basis: pruneStaffingBasisRatios(staffingBasis),
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
     fix_night_shift_count: fixNightCount,
     night_shift_count: fixNightCount ? nightCount : null,
@@ -1805,27 +1782,17 @@ staffingBasisPicker?.addEventListener("input", (event) => {
   balanceStaffingBasisFromSlider(event.target.dataset.key, event.target.value);
 });
 
-document.getElementById("field-can-work-night")?.addEventListener("change", (event) => {
+document.getElementById("field-can-work-night")?.addEventListener("change", () => {
   syncNightStaffingVisibility();
-  if (!event.target.checked) {
-    clearNightStaffingBasis();
-  }
+  updateNightShiftCountControls(canWorkNightFromForm());
 });
 
 document.getElementById("field-fix-night-shift-count")?.addEventListener("change", () => {
-  if (isNightShiftCountFixed()) {
-    syncNonNightRatioCeilings();
-  } else {
-    clearNonNightRatioCeilings();
-  }
-  updateNightShiftCountControls(getActiveStaffingBasisKeys().includes("night"));
-  refreshStaffingBasisDisplay();
+  clearNonNightRatioCeilings();
+  updateNightShiftCountControls(canWorkNightFromForm());
 });
 document.getElementById("field-night-shift-count")?.addEventListener("input", () => {
-  if (isNightShiftCountFixed()) {
-    syncNonNightRatioCeilings();
-  }
-  refreshStaffingBasisDisplay();
+  // 回数表示のみ。割合グラフには反映しない。
 });
 
 form?.addEventListener("submit", saveStaff);

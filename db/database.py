@@ -142,6 +142,7 @@ def init_db() -> None:
         _migrate_night_leader_flags(conn)
         _migrate_staffing_defaults(conn)
         _migrate_removed_staffing_basis(conn)
+        _migrate_night_out_of_staffing_ratios(conn)
         _migrate_staffing_basis_catalog(conn)
         _migrate_staffing_basis_hours(conn)
         _migrate_min_staff_by_work_type(conn)
@@ -369,6 +370,46 @@ def _migrate_removed_staffing_basis(conn: sqlite3.Connection) -> None:
                 "UPDATE staff SET staffing_basis = ? WHERE id = ?",
                 (json.dumps(cleaned, ensure_ascii=False), row["id"]),
             )
+
+
+def _migrate_night_out_of_staffing_ratios(conn: sqlite3.Connection) -> None:
+    """夜勤・準夜を勤務割合から外し、日中区分だけで100%に正規化する。"""
+    import json
+
+    from data.staffing_basis import (
+        RATIO_EXCLUDED_KEYS,
+        equal_split_ratios,
+        normalize_staffing_basis_ratios,
+    )
+
+    rows = conn.execute("SELECT id, staffing_basis FROM staff").fetchall()
+    for row in rows:
+        raw = row["staffing_basis"]
+        if not raw:
+            continue
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        cleaned = {
+            str(key): int(value)
+            for key, value in parsed.items()
+            if str(key).strip() and str(key).strip() not in RATIO_EXCLUDED_KEYS
+        }
+        if cleaned == parsed:
+            continue
+        if not cleaned:
+            cleaned = equal_split_ratios(["early", "day"])
+        elif sum(cleaned.values()) != 100:
+            cleaned = normalize_staffing_basis_ratios(cleaned)
+            if sum(cleaned.values()) != 100:
+                cleaned = equal_split_ratios(list(cleaned.keys()))
+        conn.execute(
+            "UPDATE staff SET staffing_basis = ? WHERE id = ?",
+            (json.dumps(cleaned, ensure_ascii=False), row["id"]),
+        )
 
 
 def _migrate_staffing_basis_catalog(conn: sqlite3.Connection) -> None:

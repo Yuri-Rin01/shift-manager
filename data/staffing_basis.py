@@ -18,8 +18,10 @@ DEFAULT_STAFFING_BASIS_CATALOG: list[dict] = [
 ]
 
 REMOVED_STAFFING_BASIS_KEYS = frozenset({"special", "leader"})
+# 夜勤は回数固定の別枠のため、勤務割合（グラフ）には含めない
+RATIO_EXCLUDED_KEYS = frozenset({"night", "semi_night"})
 
-DEFAULT_STAFFING_BASIS_KEYS = ["early", "day", "night"]
+DEFAULT_STAFFING_BASIS_KEYS = ["early", "day"]
 
 _KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,19}$")
 _TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -106,17 +108,33 @@ def get_default_staffing_basis_keys(settings: dict | None = None) -> list[str]:
     selected = [key for key in DEFAULT_STAFFING_BASIS_KEYS if key in allowed]
     if selected:
         return selected
-    return list(allowed)[:3] or list(allowed)[:1]
+    return [key for key in sorted(allowed) if is_ratio_basis_key(key)][:3] or [
+        key for key in sorted(allowed) if is_ratio_basis_key(key)
+    ][:1]
+
+
+def is_ratio_basis_key(key: str | None) -> bool:
+    cleaned = str(key or "").strip()
+    return bool(cleaned) and cleaned not in REMOVED_STAFFING_BASIS_KEYS and cleaned not in RATIO_EXCLUDED_KEYS
+
+
+def strip_ratio_excluded_keys(ratios: dict[str, int]) -> dict[str, int]:
+    return {
+        str(key).strip(): int(value)
+        for key, value in ratios.items()
+        if is_ratio_basis_key(key)
+    }
 
 
 def equal_split_ratios(keys: list[str]) -> dict[str, int]:
-    if not keys:
+    ratio_keys = [key for key in keys if is_ratio_basis_key(key)]
+    if not ratio_keys:
         return {}
-    count = len(keys)
+    count = len(ratio_keys)
     base = 100 // count
     remainder = 100 - base * count
     ratios: dict[str, int] = {}
-    for index, key in enumerate(keys):
+    for index, key in enumerate(ratio_keys):
         ratios[key] = base + (1 if index < remainder else 0)
     return ratios
 
@@ -137,21 +155,27 @@ def parse_staffing_basis_raw(raw: str | None, settings: dict | None = None) -> d
         return default
 
     if isinstance(parsed, list):
-        keys = [str(item).strip() for item in parsed if str(item).strip()]
+        keys = [
+            str(item).strip()
+            for item in parsed
+            if is_ratio_basis_key(str(item).strip())
+        ]
         return equal_split_ratios(keys) if keys else default
 
     if isinstance(parsed, dict):
         ratios: dict[str, int] = {}
         for key, value in parsed.items():
             cleaned_key = str(key).strip()
-            if not cleaned_key or cleaned_key in REMOVED_STAFFING_BASIS_KEYS:
+            if not is_ratio_basis_key(cleaned_key):
                 continue
             try:
                 ratio = int(value)
             except (TypeError, ValueError):
                 continue
             ratios[cleaned_key] = max(1, min(100, ratio))
-        return ratios if ratios else default
+        if not ratios:
+            return default
+        return normalize_staffing_basis_ratios(ratios)
 
     return default
 
@@ -160,7 +184,7 @@ def normalize_staffing_basis_ratios(ratios: dict[str, int]) -> dict[str, int]:
     cleaned: dict[str, int] = {}
     for key, value in ratios.items():
         cleaned_key = str(key).strip()
-        if not cleaned_key or cleaned_key in REMOVED_STAFFING_BASIS_KEYS:
+        if not is_ratio_basis_key(cleaned_key):
             continue
         cleaned[cleaned_key] = max(1, min(100, int(value)))
 
@@ -188,14 +212,14 @@ def validate_staffing_basis_ratios(
     staffing_basis: dict[str, int],
     settings: dict | None = None,
 ) -> dict[str, int]:
-    allowed = get_staffing_basis_keys(settings)
+    allowed = {key for key in get_staffing_basis_keys(settings) if is_ratio_basis_key(key)}
     if not staffing_basis:
         raise ValueError("勤務割合を1つ以上選択してください。")
 
     cleaned: dict[str, int] = {}
     for key, value in staffing_basis.items():
         cleaned_key = str(key).strip()
-        if not cleaned_key or cleaned_key in REMOVED_STAFFING_BASIS_KEYS:
+        if not is_ratio_basis_key(cleaned_key):
             continue
         try:
             ratio = int(value)
@@ -206,7 +230,7 @@ def validate_staffing_basis_ratios(
         cleaned[cleaned_key] = ratio
 
     if not cleaned:
-        raise ValueError("勤務割合を1つ以上選択してください。")
+        raise ValueError("勤務割合を1つ以上選択してください（夜勤は回数固定のため割合には含めません）。")
 
     invalid = [key for key in cleaned if key not in allowed]
     if invalid:
@@ -289,6 +313,18 @@ def filter_visible_staffing_basis_options(
 
     rows = options if options is not None else get_staffing_basis_options(settings)
     return [item for item in rows if is_work_type_visible(item["key"], settings)]
+
+
+def filter_ratio_staffing_basis_options(
+    options: list[dict] | None = None,
+    settings: dict | None = None,
+) -> list[dict]:
+    """勤務割合編集用。夜勤・準夜は回数固定のため除外する。"""
+    return [
+        item
+        for item in filter_visible_staffing_basis_options(options, settings)
+        if is_ratio_basis_key(item.get("key"))
+    ]
 
 
 def night_shift_day_weight(settings: dict | None = None) -> int:
