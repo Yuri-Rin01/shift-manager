@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=47">
+  <link rel="stylesheet" href="/static/css/style.css?v=48">
 </head>
 <body>
   <div class="app">
@@ -24,20 +24,105 @@
         <section class="card home-shift-card">
           <div class="card-header card-header-stacked">
             <div class="home-toolbar">
+              <div class="home-toolbar-row home-toolbar-row-actions">
+                <div class="home-toolbar-leading">
+                  <div class="home-period-nav" aria-label="表示期間">
+                    <button type="button" class="home-period-skip" id="btn-prev-year" aria-label="前年">«</button>
+                    <button type="button" class="home-period-step" id="btn-prev-month" aria-label="前月">‹</button>
+                    <span class="home-period-label" id="home-period-label">
+                      <span class="home-period-ym">{{ year }}年{{ month }}月</span>{% if calendar_start_day > 1 %}<span class="home-period-sub">（{{ calendar_start_day }}日始まり）</span>{% endif %}
+                    </span>
+                    <button type="button" class="home-period-step" id="btn-next-month" aria-label="翌月">›</button>
+                    <button type="button" class="home-period-skip" id="btn-next-year" aria-label="翌年">»</button>
+                  </div>
+
+                  {% set sort_options = calendar_sort_options if calendar_sort_options else [
+                    {"value": "position", "label": "役職順"},
+                    {"value": "dept", "label": "フロア順"},
+                    {"value": "job", "label": "職種順"},
+                    {"value": "name", "label": "名前順"}
+                  ] %}
+                  {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
+                  <div class="home-toolbar-inline-tools">
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">並び順</span>
+                      <div class="home-segment" role="group" aria-label="並び順">
+                        <span class="home-segment-indicator" aria-hidden="true"></span>
+                        {% for opt in sort_options %}
+                          <button
+                            type="button"
+                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
+                            data-sort-mode="{{ opt.value }}"
+                          >{{ opt.label }}</button>
+                        {% endfor %}
+                      </div>
+                      <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
+                        {% for opt in sort_options %}
+                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">倍率</span>
+                      <div class="home-zoom-group" id="calendar-zoom-controls">
+                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-out" aria-label="縮小">−</button>
+                        <select id="calendar-zoom-select" class="home-zoom-select" aria-label="表示倍率">
+                          {% for zoom in zoom_options %}
+                            <option value="{{ zoom }}"{% if zoom == app_settings.default_table_zoom %} selected{% endif %}>{{ zoom }}%</option>
+                          {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-in" aria-label="拡大">＋</button>
+                      </div>
+                    </div>
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">表示</span>
+                      <div class="home-display-toggles" role="group" aria-label="表示">
+                        <label class="home-toggle-chip" title="セルを色付きで表示">
+                          <input type="checkbox" id="home-color-cells"{% if app_settings.default_color_cells %} checked{% endif %}>
+                          <span>色</span>
+                        </label>
+                        <label class="home-toggle-chip" title="職種列を表示">
+                          <input type="checkbox" id="home-show-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
+                          <span>職種</span>
+                        </label>
+                        <label class="home-toggle-chip" title="フロア列を表示">
+                          <input type="checkbox" id="home-show-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
+                          <span>フロア</span>
+                        </label>
+                        <label class="home-toggle-chip" title="人員集計行を表示">
+                          <input type="checkbox" id="home-show-summary"{% if app_settings.default_show_summary %} checked{% endif %}>
+                          <span>集計</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">絞り込み</span>
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm home-filters-btn"
+                        id="btn-toggle-filters"
+                        aria-expanded="false"
+                        aria-controls="home-filters-body"
+                        title="フロア・職種・役職で表示を絞り込みます"
+                      >
+                        <span class="home-filters-btn-text" id="home-filters-btn-text">開く</span>
+                        <span class="home-filters-btn-badge hidden" id="home-filters-btn-badge"></span>
+                        <span class="home-filters-btn-chevron" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <span class="home-toolbar-note">セル編集は自動保存されます</span>
+                </div>
+                <div class="home-toolbar-actions">
+                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
+                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
+                  <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
+                  <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
+                </div>
+              </div>
+
               <div class="home-filters-collapse is-collapsed" id="home-filters-collapse">
-                <button
-                  type="button"
-                  class="home-filters-toggle"
-                  id="btn-toggle-filters"
-                  aria-expanded="false"
-                  aria-controls="home-filters-body"
-                >
-                  <span class="home-filters-toggle-main">
-                    <span class="home-filters-toggle-label">表示フィルタ</span>
-                    <span class="home-filters-summary" id="home-filters-summary">フロア / 職種 / 役職</span>
-                  </span>
-                  <span class="home-filters-chevron" aria-hidden="true"></span>
-                </button>
                 <div class="home-controls-panel home-controls-panel-filters-only" id="home-filters-body" hidden>
                   <div class="home-controls-checkboxes">
                     <section class="home-check-panel">
@@ -101,101 +186,6 @@
                       </div>
                     </section>
                   </div>
-                </div>
-              </div>
-
-              <div class="home-toolbar-row home-toolbar-row-actions">
-                <div class="home-toolbar-leading">
-                  <div class="home-period-nav" aria-label="表示期間">
-                    <button type="button" class="home-period-skip" id="btn-prev-year" aria-label="前年">«</button>
-                    <button type="button" class="home-period-step" id="btn-prev-month" aria-label="前月">‹</button>
-                    <span class="home-period-label" id="home-period-label">
-                      <span class="home-period-ym">{{ year }}年{{ month }}月</span>{% if calendar_start_day > 1 %}<span class="home-period-sub">（{{ calendar_start_day }}日始まり）</span>{% endif %}
-                    </span>
-                    <button type="button" class="home-period-step" id="btn-next-month" aria-label="翌月">›</button>
-                    <button type="button" class="home-period-skip" id="btn-next-year" aria-label="翌年">»</button>
-                  </div>
-
-                  {% set sort_options = calendar_sort_options if calendar_sort_options else [
-                    {"value": "position", "label": "役職順"},
-                    {"value": "dept", "label": "フロア順"},
-                    {"value": "job", "label": "職種順"},
-                    {"value": "name", "label": "名前順"}
-                  ] %}
-                  {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
-                  <div class="home-toolbar-inline-tools">
-                    <div class="home-toolbar-block home-sort-block" id="home-sort-block">
-                      <button
-                        type="button"
-                        class="home-sort-toggle"
-                        id="btn-toggle-sort"
-                        aria-expanded="true"
-                        aria-controls="home-sort-options"
-                      >
-                        <span class="home-toolbar-label">並び順</span>
-                        <span class="home-sort-summary" id="home-sort-summary">{% for opt in sort_options %}{% if opt.value == calendar_sort_mode %}{{ opt.label }}{% endif %}{% endfor %}</span>
-                        <span class="home-sort-chevron" aria-hidden="true"></span>
-                      </button>
-                      <div class="home-sort-options" id="home-sort-options">
-                        <div class="home-segment" role="group" aria-label="並び順">
-                          <span class="home-segment-indicator" aria-hidden="true"></span>
-                          {% for opt in sort_options %}
-                            <button
-                              type="button"
-                              class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
-                              data-sort-mode="{{ opt.value }}"
-                            >{{ opt.label }}</button>
-                          {% endfor %}
-                        </div>
-                      </div>
-                      <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
-                        {% for opt in sort_options %}
-                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="home-toolbar-block">
-                      <span class="home-toolbar-label">倍率</span>
-                      <div class="home-zoom-group" id="calendar-zoom-controls">
-                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-out" aria-label="縮小">−</button>
-                        <select id="calendar-zoom-select" class="home-zoom-select" aria-label="表示倍率">
-                          {% for zoom in zoom_options %}
-                            <option value="{{ zoom }}"{% if zoom == app_settings.default_table_zoom %} selected{% endif %}>{{ zoom }}%</option>
-                          {% endfor %}
-                        </select>
-                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-in" aria-label="拡大">＋</button>
-                      </div>
-                    </div>
-                    <div class="home-toolbar-block">
-                      <span class="home-toolbar-label">表示</span>
-                      <div class="home-display-toggles" role="group" aria-label="表示">
-                        <label class="home-toggle-chip" title="セルを色付きで表示">
-                          <input type="checkbox" id="home-color-cells"{% if app_settings.default_color_cells %} checked{% endif %}>
-                          <span>色</span>
-                        </label>
-                        <label class="home-toggle-chip" title="職種列を表示">
-                          <input type="checkbox" id="home-show-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
-                          <span>職種</span>
-                        </label>
-                        <label class="home-toggle-chip" title="フロア列を表示">
-                          <input type="checkbox" id="home-show-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
-                          <span>フロア</span>
-                        </label>
-                        <label class="home-toggle-chip" title="人員集計行を表示">
-                          <input type="checkbox" id="home-show-summary"{% if app_settings.default_show_summary %} checked{% endif %}>
-                          <span>集計</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <span class="home-toolbar-note">セル編集は自動保存されます</span>
-                </div>
-                <div class="home-toolbar-actions">
-                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
-                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
-                  <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
-                  <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
                 </div>
               </div>
             </div>
@@ -270,6 +260,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=13"></script>
-  <script src="/static/js/home.js?v=24"></script>
+  <script src="/static/js/home.js?v=25"></script>
 </body>
 </html>

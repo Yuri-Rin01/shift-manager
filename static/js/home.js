@@ -187,50 +187,7 @@ function syncSortSegments(mode = getCurrentSortMode()) {
   document.querySelectorAll("[data-sort-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.sortMode === mode);
   });
-  updateSortSummary(mode);
   updateSortSegmentIndicator(mode);
-}
-
-function updateSortSummary(mode = getCurrentSortMode()) {
-  const summary = document.getElementById("home-sort-summary");
-  const sortSelect = getCalendarSortSelect();
-  if (!summary || !sortSelect) return;
-  const selected = [...sortSelect.options].find((option) => option.value === mode);
-  summary.textContent = selected?.textContent?.trim() || mode;
-}
-
-function setSortPanelCollapsed(collapsed) {
-  const block = document.getElementById("home-sort-block");
-  const toggle = document.getElementById("btn-toggle-sort");
-  const options = document.getElementById("home-sort-options");
-  if (!block || !toggle) return;
-  block.classList.toggle("is-collapsed", collapsed);
-  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  if (options) {
-    options.hidden = collapsed;
-  }
-  savePrefs({
-    ...loadPrefs(),
-    ...getPrefs(),
-    tableZoom,
-    calendarSortMode: getCurrentSortMode(),
-    sortPanelCollapsed: collapsed,
-  });
-  if (!collapsed) {
-    scheduleSortSegmentIndicatorUpdate();
-  }
-}
-
-function initSortPanelCollapse() {
-  const toggle = document.getElementById("btn-toggle-sort");
-  if (!toggle) return;
-  const saved = loadPrefs();
-  const collapsed = saved.sortPanelCollapsed === true;
-  setSortPanelCollapsed(collapsed);
-  toggle.addEventListener("click", () => {
-    const block = document.getElementById("home-sort-block");
-    setSortPanelCollapsed(!block?.classList.contains("is-collapsed"));
-  });
 }
 
 function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
@@ -242,7 +199,6 @@ function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
     segment?.querySelector(`[data-sort-mode="${mode}"]`) ??
     segment?.querySelector(".home-segment-btn.is-active");
   if (!segment || !indicator || !active) return;
-  if (segment.closest(".home-sort-block")?.classList.contains("is-collapsed")) return;
 
   indicator.style.width = `${active.offsetWidth}px`;
   indicator.style.left = `${active.offsetLeft}px`;
@@ -444,20 +400,40 @@ function countCheckedInGroup(group) {
 }
 
 function updateFiltersSummary() {
-  const summary = document.getElementById("home-filters-summary");
-  if (!summary) return;
+  const btnText = document.getElementById("home-filters-btn-text");
+  const badge = document.getElementById("home-filters-btn-badge");
+  const toggle = document.getElementById("btn-toggle-filters");
+  const block = document.getElementById("home-filters-collapse");
+  if (!btnText || !toggle) return;
+
   const dept = countCheckedInGroup("dept");
   const job = countCheckedInGroup("job");
   const position = countCheckedInGroup("position");
-  const parts = [
-    `フロア ${dept.selected}/${dept.total}`,
-    `職種 ${job.selected}/${job.total}`,
-    `役職 ${position.selected}/${position.total}`,
-  ];
-  const isFiltered =
-    dept.selected < dept.total || job.selected < job.total || position.selected < position.total;
-  summary.textContent = parts.join(" · ");
-  summary.classList.toggle("is-filtered", isFiltered);
+  const hiddenCount =
+    Math.max(0, dept.total - dept.selected) +
+    Math.max(0, job.total - job.selected) +
+    Math.max(0, position.total - position.selected);
+  const isFiltered = hiddenCount > 0;
+  const isOpen = !block?.classList.contains("is-collapsed");
+
+  btnText.textContent = isOpen ? "閉じる" : "開く";
+  toggle.classList.toggle("is-open", isOpen);
+  toggle.classList.toggle("is-filtered", isFiltered);
+  toggle.title = isOpen
+    ? "絞り込みパネルを閉じます"
+    : isFiltered
+      ? `絞り込み中（非表示 ${hiddenCount} 項目）`
+      : "フロア・職種・役職で表示を絞り込みます";
+
+  if (badge) {
+    if (isFiltered) {
+      badge.textContent = String(hiddenCount);
+      badge.classList.remove("hidden");
+    } else {
+      badge.textContent = "";
+      badge.classList.add("hidden");
+    }
+  }
 }
 
 function setFiltersPanelCollapsed(collapsed) {
@@ -470,6 +446,7 @@ function setFiltersPanelCollapsed(collapsed) {
   if (body) {
     body.hidden = collapsed;
   }
+  updateFiltersSummary();
   savePrefs({
     ...loadPrefs(),
     ...getPrefs(),
@@ -485,7 +462,6 @@ function initFiltersPanelCollapse() {
   const saved = loadPrefs();
   const collapsed = saved.filtersPanelCollapsed !== false;
   setFiltersPanelCollapsed(collapsed);
-  updateFiltersSummary();
   toggle.addEventListener("click", () => {
     const block = document.getElementById("home-filters-collapse");
     setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
@@ -577,7 +553,6 @@ function initCalendarControls() {
   });
   initRowFilters();
   initSortState();
-  initSortPanelCollapse();
   initFiltersPanelCollapse();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
