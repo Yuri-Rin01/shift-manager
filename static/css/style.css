@@ -3424,6 +3424,18 @@ body {
   margin-top: 8px;
 }
 
+.checkbox-grid.is-display-only {
+  opacity: 0.92;
+}
+
+.checkbox-grid.is-display-only .check-row {
+  cursor: default;
+}
+
+.checkbox-grid.is-display-only input[type="checkbox"] {
+  pointer-events: none;
+}
+
 .staffing-basis-editor {
   margin-top: 8px;
 }

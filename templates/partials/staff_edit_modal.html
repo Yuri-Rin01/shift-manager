@@ -51,22 +51,20 @@
         <div class="bulk-field-group form-field-full" data-bulk-group="departments">
           <label class="bulk-only check-row bulk-apply-toggle">
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="departments">
-            <span>担当フロアを変更する</span>
+            <span>担当フロア（表示）を変更する</span>
           </label>
           <div class="form-field form-field-full bulk-field" data-bulk-field="departments">
           <div class="picker-head">
-            <span class="form-label">担当フロア <em>*</em></span>
+            <span class="form-label">担当フロア（表示のみ）</span>
             <span class="picker-links">
-              <button type="button" class="btn-link" data-select-all="staff-floor">すべて選択</button>
-              <button type="button" class="btn-link" data-clear-all="staff-floor">すべて解除</button>
-              <button type="button" class="btn-link" data-invert-all="staff-floor">反転</button>
+              <button type="button" class="btn-link" id="btn-copy-placement-to-display">配置可能フロアを反映</button>
             </span>
           </div>
-          <p class="field-hint">複数選択できます。一括編集では既存の担当フロアをリセットしてから上書きします。先頭のフロアがカレンダー並び順の基準になります。</p>
-          <div class="checkbox-grid" id="field-departments">
+          <p class="field-hint">カレンダー・名簿の表示用です。自動生成の配置には使いません。変更は上の「配置可能フロアを反映」か、下の配置可能フロア設定後に反映してください。</p>
+          <div class="checkbox-grid is-display-only" id="field-departments">
             {% for dept in departments %}
               <label class="check-row">
-                <input type="checkbox" name="staff-floor" value="{{ dept.label }}">
+                <input type="checkbox" name="staff-floor" value="{{ dept.label }}" disabled>
                 {% set slug = dept.label | lower %}
                 <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}">{{ dept.label }}</span>
               </label>
@@ -74,7 +72,32 @@
           </div>
           </div>
         </div>
-        <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
+        <div class="bulk-field-group form-field-full" data-bulk-group="placement_floors">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="placement_floors">
+            <span>配置可能フロアを変更する</span>
+          </label>
+          <div class="form-field form-field-full bulk-field" data-bulk-field="placement_floors">
+          <div class="picker-head">
+            <span class="form-label">配置可能フロア <em>*</em></span>
+            <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="staff-placement-floor">すべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="staff-placement-floor">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="staff-placement-floor">反転</button>
+            </span>
+          </div>
+          <p class="field-hint">シフト自動生成で配置できるフロアです。担当フロアとは別に指定できます。</p>
+          <div class="checkbox-grid" id="field-placement-floors">
+            {% for dept in departments %}
+              <label class="check-row">
+                <input type="checkbox" name="staff-placement-floor" value="{{ dept.label }}">
+                {% set slug = dept.label | lower %}
+                <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}">{{ dept.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          </div>
+        </div>        <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
           <label class="bulk-only check-row bulk-apply-toggle">
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="staffing">
             <span>勤務割合を変更する</span>
@@ -170,14 +193,18 @@
             <span>夜勤可否を変更する</span>
           </label>
           <div class="form-field bulk-field" data-bulk-field="can_work_night">
-          <span class="form-label">夜勤可</span>
+          <span class="form-label">夜勤</span>
           <label class="check-row" for="field-can-work-night">
             <input type="checkbox" id="field-can-work-night">
             <span>夜勤に入れる</span>
           </label>
+          <label class="check-row" for="field-can-be-night-leader">
+            <input type="checkbox" id="field-can-be-night-leader">
+            <span>夜勤リーダー可</span>
+          </label>
+          <p class="field-hint">夜勤リーダー可にチェックした職員を、夜勤リーダー配置の候補にします。</p>
           </div>
-        </div>
-        <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
+        </div>        <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
           <div class="picker-head">
             <span class="form-label">日勤相性</span>
             <span class="picker-links">
