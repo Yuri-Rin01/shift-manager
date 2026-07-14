@@ -103,6 +103,9 @@ def _legacy_min_staff_totals(settings: dict) -> dict[str, int]:
     mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
     if mode == "time_slot":
         reqs: dict[str, int] = defaultdict(int)
+        # 夜勤は人数固定の別枠（フロア別 min_staff）から取る
+        for floor_values in normalize_min_staff_by_floor(settings.get("min_staff_by_floor"), settings).values():
+            reqs["night"] = max(reqs["night"], int(floor_values.get("night", 0)))
         for rule in settings.get("time_slot_staffing_rules") or []:
             if not isinstance(rule, dict):
                 continue
@@ -112,11 +115,9 @@ def _legacy_min_staff_totals(settings: dict) -> dict[str, int]:
                 continue
             start = str(rule.get("start_time", ""))
             end = str(rule.get("end_time", ""))
-            if not start or not end:
+            if not start or not end or end < start:
                 continue
-            if end < start or start >= "16:00" or end <= "09:00":
-                reqs["night"] = max(reqs["night"], count)
-            elif start >= "12:00":
+            if start >= "12:00":
                 reqs["late"] = max(reqs["late"], count)
             elif start <= "08:00":
                 reqs["early"] = max(reqs["early"], count)
@@ -182,9 +183,15 @@ class _Generator:
         self.min_staff = _legacy_min_staff_totals(settings)
         self.staffing_mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
         self.time_slot_rules = get_time_slot_rules(settings) if self.staffing_mode == "time_slot" else []
-        self.assignable_work_types = (
-            get_assignable_work_types(settings) if self.staffing_mode == "time_slot" else []
-        )
+        # 時間帯配置は日中区分のみ（夜勤は別枠の _phase_night_assignments）
+        if self.staffing_mode == "time_slot":
+            self.assignable_work_types = [
+                item
+                for item in get_assignable_work_types(settings)
+                if item.get("base_key") != "night"
+            ]
+        else:
+            self.assignable_work_types = []
         self.staff_list = [s for s in list_staff() if not s.get("exclude_from_staffing")]
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
 
@@ -525,21 +532,7 @@ class _Generator:
         return list(self.staff_list)
 
     def _period_night_demand(self) -> int:
-        """期間中に必要な夜勤割当のおおよその総数。"""
-        if self.staffing_mode == "time_slot":
-            per_day = 0
-            for rule in self.time_slot_rules:
-                start = str(rule.get("start_time", ""))
-                end = str(rule.get("end_time", ""))
-                if not start or not end:
-                    continue
-                try:
-                    count = int(rule.get("min_staff", 0))
-                except (TypeError, ValueError):
-                    continue
-                if end < start or start >= "16:00" or end <= "09:00":
-                    per_day += count
-            return per_day * len(self.period_dates)
+        """期間中に必要な夜勤割当のおおよその総数（人数固定の別枠）。"""
         total = 0
         for floor in self.floors:
             per_day = self._min_staff_for(floor, "night")
@@ -638,6 +631,10 @@ class _Generator:
                     continue
                 key = floor or "__all__"
                 by_scope[key] = max(by_scope[key], min_staff)
+            for floor in self.floors:
+                night_need = self._min_staff_for(floor, "night")
+                if night_need > 0:
+                    by_scope[floor] = max(by_scope.get(floor, 0), night_need)
             for scope, peak in by_scope.items():
                 available = (
                     self._staff_count_on_floor(scope)
@@ -995,7 +992,7 @@ class _Generator:
                     slot_tasks.append(
                         (calendar_date, cal, rule, label, (seg_start, seg_end), assign_offset)
                     )
-        # 夜勤帯の前日割当（offset -1）を先に処理し、翌日の日勤配置との競合を防ぐ
+        # 夜勤帯の前日割当は別枠のため、時間帯タスクは日中のみ
         slot_tasks.sort(key=lambda item: (item[5], item[0]))
 
         for calendar_date, cal, rule, label, segment, assign_offset in slot_tasks:
@@ -1430,9 +1427,10 @@ class _Generator:
         off_placed = self._phase_exact_off()
         leave += off_placed
         if self.staffing_mode == "time_slot":
-            # 時間帯モードは必要人数の充足を優先。夜勤回数の事前充填は日勤帯を圧迫し偏りの原因になるため行わない。
-            self._phase_time_slot_staffing()
+            # 夜勤は人数固定の別枠。時間帯ルールは日中帯のみ充足する。
+            self._phase_night_assignments()
             self._phase_morning_off_after_night()
+            self._phase_time_slot_staffing()
             self._phase_capacity_day_assign()
         else:
             self._phase_night_assignments()

@@ -48,11 +48,13 @@ const workTypeMinStaffEmpty = document.getElementById("work-type-min-staff-empty
 const syncWorkTypeMinStaffButton = document.getElementById("btn-sync-work-type-min-staff");
 const timeSlotStaffingTbody = document.getElementById("time-slot-staffing-tbody");
 const addTimeSlotButton = document.getElementById("btn-add-time-slot");
+const floorNightMinStaffTbody = document.getElementById("floor-night-min-staff-tbody");
 const workTypeMinStaffPanel = document.getElementById("panel-work-type-min-staff");
 const timeSlotStaffingPanel = document.getElementById("panel-time-slot-staffing");
 const workTypeTemplateSelect = document.getElementById("work-type-template-select");
 const applyWorkTypeTemplateButton = document.getElementById("btn-apply-work-type-template");
 const WORK_TYPE_TEMPLATES = window.WORK_TYPE_TEMPLATES ?? [];
+const NIGHT_WORK_KEYS = new Set(["night", "semi_night"]);
 const FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
 
 const INT_FIELDS = new Set([
@@ -167,11 +169,21 @@ function workTypeCoversSlotSegment(workType, segmentInfo) {
   return false;
 }
 
+function isOvernightTimeRange(startTime, endTime) {
+  return Boolean(startTime && endTime && endTime < startTime);
+}
+
+function isNightWorkKey(key) {
+  return NIGHT_WORK_KEYS.has(String(key || "").trim());
+}
+
 function workTypesCoveringSlot(startTime, endTime, workTypes) {
   if (!startTime || !endTime) return [];
+  // 夜勤は別枠のため、時間帯の対象区分プレビューから除外
+  const dayTypes = workTypes.filter((item) => !isNightWorkKey(item.key));
   const matched = new Set();
   for (const segmentInfo of slotSegmentsForDisplay(startTime, endTime)) {
-    for (const workType of workTypes) {
+    for (const workType of dayTypes) {
       if (workTypeCoversSlotSegment(workType, segmentInfo)) {
         matched.add(workType.label);
       }
@@ -341,22 +353,60 @@ function escapeHtmlFloorBadge(floor) {
 
 function syncWorkTypeMinStaffFromBasis() {
   const workTypes = collectStaffingBasisOptions().filter((item) => item.key && item.label);
-  renderWorkTypeMinStaffRows(workTypes, collectMinStaffByFloor());
+  const byFloor = collectMinStaffByFloor();
+  renderWorkTypeMinStaffRows(workTypes, byFloor);
+  renderFloorNightMinStaffRows(byFloor);
 }
 
 function collectMinStaffByFloor() {
-  if (!workTypeMinStaffTbody) return {};
   const result = {};
-  for (const input of workTypeMinStaffTbody.querySelectorAll(".floor-min-staff")) {
-    if (!(input instanceof HTMLInputElement)) continue;
-    const floor = input.dataset.floor?.trim() ?? "";
-    const key = input.dataset.key?.trim() ?? "";
-    if (!floor || !key) continue;
-    const count = Number.parseInt(input.value, 10);
-    result[floor] ??= {};
-    result[floor][key] = Number.isFinite(count) ? Math.max(0, Math.min(99, count)) : 0;
+  if (workTypeMinStaffTbody) {
+    for (const input of workTypeMinStaffTbody.querySelectorAll(".floor-min-staff")) {
+      if (!(input instanceof HTMLInputElement)) continue;
+      const floor = input.dataset.floor?.trim() ?? "";
+      const key = input.dataset.key?.trim() ?? "";
+      if (!floor || !key) continue;
+      const count = Number.parseInt(input.value, 10);
+      result[floor] ??= {};
+      result[floor][key] = Number.isFinite(count) ? Math.max(0, Math.min(99, count)) : 0;
+    }
+  }
+  // 時間帯モードの夜勤別枠を優先して上書き
+  if (floorNightMinStaffTbody) {
+    for (const input of floorNightMinStaffTbody.querySelectorAll(".floor-night-min-staff")) {
+      if (!(input instanceof HTMLInputElement)) continue;
+      const floor = input.dataset.floor?.trim() ?? "";
+      if (!floor) continue;
+      const count = Number.parseInt(input.value, 10);
+      result[floor] ??= {};
+      result[floor].night = Number.isFinite(count) ? Math.max(0, Math.min(99, count)) : 0;
+    }
   }
   return result;
+}
+
+function renderFloorNightMinStaffRows(minStaffByFloor = {}) {
+  if (!floorNightMinStaffTbody) return;
+  floorNightMinStaffTbody.innerHTML = FLOOR_LABELS.map((floor) => {
+    const floorValues = minStaffByFloor[floor] ?? {};
+    const value = floorValues.night ?? defaultMinStaffForKey("night");
+    return `
+      <tr class="floor-night-min-staff-row" data-floor="${escapeAttr(floor)}">
+        <td class="col-floor">${escapeHtmlFloorBadge(floor)}</td>
+        <td class="staffing-basis-min-staff-cell">
+          <input
+            type="number"
+            class="floor-night-min-staff input-number"
+            data-floor="${escapeAttr(floor)}"
+            data-key="night"
+            min="0"
+            max="99"
+            value="${escapeAttr(String(value))}"
+            aria-label="${escapeAttr(floor)} の夜勤必要人数"
+          >
+        </td>
+      </tr>`;
+  }).join("");
 }
 
 function resolveMinStaffByFloor(data) {
@@ -391,7 +441,11 @@ function collectMinStaffByWorkType() {
 
 function renderTimeSlotRows(rules = []) {
   if (!timeSlotStaffingTbody) return;
-  const rows = rules.length ? rules : [defaultTimeSlotRow()];
+  // 旧・夜勤帯（日跨ぎ）は別枠へ移行済み想定。画面には日中帯のみ出す。
+  const daytime = (rules || []).filter(
+    (item) => !isOvernightTimeRange(item.start_time ?? "", item.end_time ?? "")
+  );
+  const rows = daytime.length ? daytime : [defaultTimeSlotRow()];
   timeSlotStaffingTbody.innerHTML = rows
     .map(
       (item, index) => `
@@ -474,7 +528,8 @@ function collectTimeSlotStaffingRules() {
       end_time: row.querySelector(".time-slot-end")?.value.trim() ?? "",
       min_staff: Number.parseInt(row.querySelector(".time-slot-min-staff")?.value ?? "0", 10) || 0,
     }))
-    .filter((item) => item.start_time || item.end_time || item.label);
+    .filter((item) => item.start_time || item.end_time || item.label)
+    .filter((item) => !isOvernightTimeRange(item.start_time, item.end_time));
 }
 
 function getStaffingRequirementMode() {
@@ -612,17 +667,18 @@ function populateForm(data) {
     }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : []);
+      const byFloor = resolveMinStaffByFloor(data);
       renderWorkTypeMinStaffRows(
         Array.isArray(value) ? value.filter((item) => item.key && item.label) : [],
-        resolveMinStaffByFloor(data)
+        byFloor
       );
+      renderFloorNightMinStaffRows(byFloor);
       continue;
     }
     if (key === "min_staff_by_floor") {
-      renderWorkTypeMinStaffRows(
-        collectRegisteredWorkTypes(),
-        value && typeof value === "object" ? value : {}
-      );
+      const byFloor = value && typeof value === "object" ? value : {};
+      renderWorkTypeMinStaffRows(collectRegisteredWorkTypes(), byFloor);
+      renderFloorNightMinStaffRows(byFloor);
       continue;
     }
     if (key === "min_staff_by_work_type") {

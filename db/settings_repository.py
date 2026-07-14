@@ -4,6 +4,7 @@ from db.database import get_connection
 from data.settings_defaults import DEFAULT_SETTINGS
 from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, validate_shift_symbols
 from data.placement_rules import (
+    apply_overnight_rules_to_night_mins,
     normalize_min_staff_by_floor,
     normalize_min_staff_by_work_type,
     normalize_staffing_requirement_mode,
@@ -42,9 +43,10 @@ def _merge_settings(data: dict | None) -> dict:
         elif key == "min_staff_by_work_type" and isinstance(value, dict):
             merged[key] = normalize_min_staff_by_work_type(value, merged)
         elif key == "min_staff_by_floor" and isinstance(value, dict):
-            merged[key] = normalize_min_staff_by_floor(value, merged)
+            merged[key] = value
         elif key == "time_slot_staffing_rules" and isinstance(value, list):
-            merged[key] = normalize_time_slot_staffing_rules(value)
+            # 正規化前の生データを一旦保持し、夜勤帯→固定人数へ移してから落とす
+            merged[key] = value
         elif key == "staffing_requirement_mode":
             merged[key] = normalize_staffing_requirement_mode(value)
         elif key == "leave_request_visible_types" and isinstance(value, dict):
@@ -58,14 +60,16 @@ def _merge_settings(data: dict | None) -> dict:
     merged["visible_work_types"] = normalize_visible_work_types(merged)
     merged["allow_paid_leave_half"] = merged["visible_work_types"].get("half_leave", True)
     merged["show_training_mark"] = merged["visible_work_types"].get("training", True)
+    merged["staffing_requirement_mode"] = normalize_staffing_requirement_mode(
+        merged.get("staffing_requirement_mode")
+    )
+    # 時間帯ルール内の夜勤帯をフロア別夜勤人数へ移す（人数固定の別枠）
+    apply_overnight_rules_to_night_mins(merged)
     merged["min_staff_by_work_type"] = normalize_min_staff_by_work_type(
         merged.get("min_staff_by_work_type"), merged
     )
     merged["min_staff_by_floor"] = normalize_min_staff_by_floor(
         merged.get("min_staff_by_floor"), merged
-    )
-    merged["staffing_requirement_mode"] = normalize_staffing_requirement_mode(
-        merged.get("staffing_requirement_mode")
     )
     merged["time_slot_staffing_rules"] = normalize_time_slot_staffing_rules(
         merged.get("time_slot_staffing_rules")

@@ -502,6 +502,9 @@ def _migrate_staffing_requirement_mode(conn: sqlite3.Connection) -> None:
     import json
 
     from data.placement_rules import (
+        apply_overnight_rules_to_night_mins,
+        normalize_min_staff_by_floor,
+        normalize_min_staff_by_work_type,
         normalize_staffing_requirement_mode,
         normalize_time_slot_staffing_rules,
     )
@@ -520,9 +523,24 @@ def _migrate_staffing_requirement_mode(conn: sqlite3.Connection) -> None:
         settings["staffing_requirement_mode"] = mode
         updated = True
 
+    before_rules = settings.get("time_slot_staffing_rules")
+    before_floor = settings.get("min_staff_by_floor")
+    before_work = settings.get("min_staff_by_work_type")
+    if apply_overnight_rules_to_night_mins(settings):
+        updated = True
     rules = normalize_time_slot_staffing_rules(settings.get("time_slot_staffing_rules"))
-    if settings.get("time_slot_staffing_rules") != rules:
-        settings["time_slot_staffing_rules"] = rules
+    settings["time_slot_staffing_rules"] = rules
+    settings["min_staff_by_floor"] = normalize_min_staff_by_floor(
+        settings.get("min_staff_by_floor"), settings
+    )
+    settings["min_staff_by_work_type"] = normalize_min_staff_by_work_type(
+        settings.get("min_staff_by_work_type"), settings
+    )
+    if (
+        before_rules != settings.get("time_slot_staffing_rules")
+        or before_floor != settings.get("min_staff_by_floor")
+        or before_work != settings.get("min_staff_by_work_type")
+    ):
         updated = True
 
     if updated:

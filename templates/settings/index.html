@@ -309,7 +309,7 @@
           <section class="card settings-section{% if settings_panel != 'staffing' %} is-hidden-panel{% endif %}" id="section-staffing" data-panel="staffing">
             <div class="card-header">
               <h2>配置ルール</h2>
-              <p class="card-header-note">勤務区分・勤務時間、必要人数（2方式）など、シフト配置に必要な設定です。時間帯モードでは登録済みの勤務区分の時間帯と重なる区分から自動配置します。</p>
+              <p class="card-header-note">勤務区分・勤務時間、必要人数（2方式）など、シフト配置に必要な設定です。時間帯モードでは日中の時間帯と重なる区分から自動配置し、夜勤は人数固定の別枠で設定します。</p>
             </div>
             <div class="card-body">
               <h3 class="settings-subtitle">勤務区分・勤務時間</h3>
@@ -379,7 +379,7 @@
 
               <div id="panel-time-slot-staffing" class="requirement-panel" data-requirement-mode="time_slot">
                 <h4 class="requirement-panel-title">時間帯ごとの必要人数</h4>
-                <p class="field-hint requirement-panel-desc">時間帯ごとに必要人数を設定します。フロアを指定すると、そのフロア担当の職員だけが割り当て対象になります。上で登録した勤務区分のうち、時間が重なる区分から自動配置されます。</p>
+                <p class="field-hint requirement-panel-desc">日中の時間帯ごとに必要人数を設定します。フロアを指定すると、そのフロア担当の職員だけが割り当て対象になります。登録済みの勤務区分のうち、時間が重なる<strong>日中区分</strong>から自動配置されます。<strong>夜勤は人数固定のため下の別枠</strong>で設定します。</p>
                 <div class="staffing-basis-table-wrap">
                   <table class="data-table time-slot-staffing-table" id="time-slot-staffing-table">
                     <thead>
@@ -396,6 +396,20 @@
                   </table>
                 </div>
                 <button type="button" class="btn btn-sm" id="btn-add-time-slot">+ 時間帯を追加</button>
+
+                <h4 class="requirement-panel-title" style="margin-top:1.25rem">夜勤（人数固定・別枠）</h4>
+                <p class="field-hint requirement-panel-desc">夜勤は時間帯ルールではなく、フロアごとの必要人数を固定で設定します。自動生成ではこの人数を優先して配置します。</p>
+                <div class="staffing-basis-table-wrap">
+                  <table class="data-table floor-night-min-staff-table" id="floor-night-min-staff-table">
+                    <thead>
+                      <tr>
+                        <th class="col-floor">フロア</th>
+                        <th class="col-min-staff">夜勤 必要人数</th>
+                      </tr>
+                    </thead>
+                    <tbody id="floor-night-min-staff-tbody"></tbody>
+                  </table>
+                </div>
               </div>
               </div>
 

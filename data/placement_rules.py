@@ -25,8 +25,26 @@ _TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 DEFAULT_TIME_SLOT_STAFFING_RULES: list[dict] = [
     {"label": "早番帯", "start_time": "07:00", "end_time": "16:00", "min_staff": 2},
     {"label": "日勤帯", "start_time": "08:30", "end_time": "17:30", "min_staff": 3},
-    {"label": "夜勤帯", "start_time": "16:30", "end_time": "09:00", "min_staff": 1},
 ]
+
+NIGHT_WORK_KEYS = frozenset({"night", "semi_night"})
+
+
+def is_overnight_time_range(start_time: str, end_time: str) -> bool:
+    """終了が開始より前＝日跨ぎ（夜勤帯）。"""
+    start = str(start_time or "").strip()
+    end = str(end_time or "").strip()
+    return bool(start and end and end < start)
+
+
+def is_overnight_time_slot_rule(rule: dict | None) -> bool:
+    if not isinstance(rule, dict):
+        return False
+    return is_overnight_time_range(rule.get("start_time", ""), rule.get("end_time", ""))
+
+
+def is_night_work_key(key: str | None) -> bool:
+    return str(key or "").strip() in NIGHT_WORK_KEYS
 
 
 def get_floor_labels() -> list[str]:
@@ -51,6 +69,9 @@ def normalize_time_slot_rule(item: dict) -> dict | None:
     if not _TIME_PATTERN.match(start_time) or not _TIME_PATTERN.match(end_time):
         return None
     if start_time == end_time:
+        return None
+    # 夜勤は人数固定の別枠のため、時間帯ルールから除外する
+    if is_overnight_time_range(start_time, end_time):
         return None
     try:
         min_staff = int(item.get("min_staff", 0))
@@ -80,10 +101,86 @@ def normalize_time_slot_staffing_rules(raw: list | None) -> list[dict]:
     return normalized if normalized else [dict(item) for item in DEFAULT_TIME_SLOT_STAFFING_RULES]
 
 
+def extract_overnight_night_requirements(raw_rules: list | None) -> dict[str, int]:
+    """旧・夜勤帯時間帯ルールからフロア別夜勤人数を取り出す（キー空文字＝施設全体）。"""
+    result: dict[str, int] = {}
+    if not isinstance(raw_rules, list):
+        return result
+    for item in raw_rules:
+        if not isinstance(item, dict) or not is_overnight_time_slot_rule(item):
+            continue
+        try:
+            count = int(item.get("min_staff", 0))
+        except (TypeError, ValueError):
+            continue
+        count = max(0, min(99, count))
+        if count <= 0:
+            continue
+        floor = str(item.get("floor", "")).strip()
+        result[floor] = max(result.get(floor, 0), count)
+    return result
+
+
+def apply_overnight_rules_to_night_mins(settings: dict) -> bool:
+    """時間帯ルール内の夜勤帯をフロア別夜勤人数へ移し、時間帯からは外す。変更があれば True。"""
+    raw_rules = settings.get("time_slot_staffing_rules")
+    overnight = extract_overnight_night_requirements(raw_rules if isinstance(raw_rules, list) else None)
+    daytime = normalize_time_slot_staffing_rules(raw_rules if isinstance(raw_rules, list) else None)
+    changed = settings.get("time_slot_staffing_rules") != daytime
+    settings["time_slot_staffing_rules"] = daytime
+    if not overnight:
+        return changed
+
+    floors = get_floor_labels()
+    by_floor = settings.get("min_staff_by_floor")
+    if not isinstance(by_floor, dict):
+        by_floor = {}
+        settings["min_staff_by_floor"] = by_floor
+        changed = True
+
+    global_count = overnight.get("", 0)
+    for floor in floors:
+        floor_count = max(overnight.get(floor, 0), global_count)
+        if floor_count <= 0:
+            continue
+        floor_values = by_floor.get(floor)
+        if not isinstance(floor_values, dict):
+            floor_values = {}
+            by_floor[floor] = floor_values
+            changed = True
+        current = floor_values.get("night")
+        try:
+            current_int = int(current) if current is not None else 0
+        except (TypeError, ValueError):
+            current_int = 0
+        if floor_count > current_int:
+            floor_values["night"] = floor_count
+            changed = True
+
+    work_type = settings.get("min_staff_by_work_type")
+    if not isinstance(work_type, dict):
+        work_type = {}
+        settings["min_staff_by_work_type"] = work_type
+        changed = True
+    primary = max([global_count, *[overnight.get(f, 0) for f in floors]], default=0)
+    if primary > 0:
+        try:
+            current = int(work_type.get("night", 0))
+        except (TypeError, ValueError):
+            current = 0
+        if primary > current:
+            work_type["night"] = primary
+            changed = True
+    return changed
+
+
 def build_time_slots_from_work_types(settings: dict | None = None) -> list[dict]:
     rules: list[dict] = []
     for item in get_staffing_basis_options(settings):
-        min_staff = DEFAULT_MIN_STAFF_BY_WORK_TYPE.get(item["key"], 1)
+        key = str(item.get("key", "")).strip()
+        if is_night_work_key(key):
+            continue
+        min_staff = DEFAULT_MIN_STAFF_BY_WORK_TYPE.get(key, 1)
         rules.append(
             {
                 "label": item["label"],
@@ -164,8 +261,7 @@ def normalize_min_staff_by_floor(raw: dict | None, settings: dict | None = None)
 
 
 def validate_min_staff_by_floor(settings: dict) -> None:
-    if normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode")) != "work_type":
-        return
+    # 勤務区分モードでは全体、時間帯モードでは夜勤人数固定枠として常に検証する
     raw = settings.get("min_staff_by_floor")
     if raw is None:
         return
@@ -173,6 +269,7 @@ def validate_min_staff_by_floor(settings: dict) -> None:
         raise ValueError("フロア別必要人数の形式が不正です。")
     allowed_floors = set(get_floor_labels())
     allowed_keys = get_staffing_basis_keys(settings)
+    mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
     for floor, values in raw.items():
         cleaned_floor = str(floor).strip()
         if cleaned_floor not in allowed_floors:
@@ -183,6 +280,9 @@ def validate_min_staff_by_floor(settings: dict) -> None:
             cleaned_key = str(key).strip()
             if cleaned_key not in allowed_keys:
                 raise ValueError(f"未登録の勤務区分です: {cleaned_key}")
+            if mode == "time_slot" and not is_night_work_key(cleaned_key):
+                # 時間帯モードでは日中は時間帯ルール側。フロア表の夜勤以外は無視してよいが形式は許可。
+                pass
             try:
                 count = int(value)
             except (TypeError, ValueError):
@@ -233,6 +333,10 @@ def validate_time_slot_staffing_rules(settings: dict) -> None:
             raise ValueError(f"時間帯ルール {index} 行目: 時刻は HH:MM 形式（例: 08:30）で入力してください。")
         if start_time == end_time:
             raise ValueError(f"時間帯ルール {index} 行目: 開始と終了時刻は異なる値にしてください。")
+        if is_overnight_time_range(start_time, end_time):
+            raise ValueError(
+                f"時間帯ルール {index} 行目: 夜勤は時間帯ではなく下の「夜勤（人数固定）」で設定してください。"
+            )
         floor = str(item.get("floor", "")).strip()
         allowed_floors = set(get_floor_labels())
         if floor and floor not in allowed_floors:

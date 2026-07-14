@@ -47,7 +47,6 @@ DEFAULT_SETTINGS: dict = {
     "time_slot_staffing_rules": [
         {"label": "早番帯", "start_time": "07:00", "end_time": "16:00", "min_staff": 2, "floor": "1F"},
         {"label": "日勤帯", "start_time": "08:30", "end_time": "17:30", "min_staff": 3, "floor": "1F"},
-        {"label": "夜勤帯", "start_time": "16:30", "end_time": "09:00", "min_staff": 1, "floor": "1F"},
     ],
     "block_work_after_night": True,
     "morning_off_after_night": True,
