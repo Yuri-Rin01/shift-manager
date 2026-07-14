@@ -9,6 +9,6 @@ def get_facility_context() -> dict:
         "facility_name": settings.get("facility_name", "○○施設"),
         "facility_type": facility_type,
         "facility_label": FACILITY_LABELS.get(facility_type, FACILITY_LABELS["care"]),
-        "admin_name": settings.get("admin_name", "テストABC"),
+        "admin_name": settings.get("admin_name", "管理者"),
         "app_settings": settings,
     }

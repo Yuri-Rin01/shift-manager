@@ -166,6 +166,7 @@ def init_db() -> None:
                 (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),),
             )
         _seed_staff_if_empty(conn)
+        _sync_seed_staff_names(conn)
         _sync_seed_staff_floors(conn)
         _sync_seed_staff_night_flags(conn)
         _migrate_departments_to_floors(conn)
@@ -659,6 +660,25 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
                 "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
                 (staff_id, floor),
             )
+
+
+def _sync_seed_staff_names(conn: sqlite3.Connection) -> None:
+    """旧姓名のテスト職員を テストA / テストB / テストC … にリネームする。"""
+    from data.staff_seed import LEGACY_SEED_NAME_MAP
+
+    for legacy_name, new_name in LEGACY_SEED_NAME_MAP.items():
+        if legacy_name == new_name:
+            continue
+        # 既に新名がいる場合は衝突を避ける
+        exists_new = conn.execute(
+            "SELECT 1 FROM staff WHERE name = ? LIMIT 1", (new_name,)
+        ).fetchone()
+        if exists_new:
+            continue
+        conn.execute(
+            "UPDATE staff SET name = ? WHERE name = ?",
+            (new_name, legacy_name),
+        )
 
 
 def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
