@@ -1,0 +1,83 @@
+{% from "partials/floor_badges.html" import floor_badges %}
+<div class="{% if not compact %}table-wrap{% endif %}">
+  <table class="shift-table{% if compact %} shift-table-compact{% endif %}">
+    <thead>
+      {% if show_week_number %}
+        <tr class="week-number-row">
+          <th class="col-name{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
+          <th class="col-job{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
+          <th class="col-dept{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
+          {% for day in days %}
+            <th class="day-col day-week-number{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
+              {{ day.week_number }}週
+            </th>
+          {% endfor %}
+        </tr>
+      {% endif %}
+      <tr>
+        <th class="col-name{% if not compact %} sticky-col{% endif %}">職員名</th>
+        <th class="col-job{% if not compact %} sticky-col{% endif %}">職種</th>
+        <th class="col-dept{% if not compact %} sticky-col{% endif %}">フロア</th>
+        {% for day in days %}
+          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
+            <span class="day-head">
+              <span class="day-head-num">{{ day.day }}</span>
+              <span class="day-head-weekday">{{ day.weekday_label }}</span>
+            </span>
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in staff_rows %}
+        <tr data-dept="{{ row.dept }}" data-floors="{{ row.floors }}" data-job="{{ row.job }}" data-position="{{ row.position }}" data-staff-id="{{ row.id }}">
+          <td class="col-name{% if not compact %} sticky-col{% endif %}{% if editable %} is-staff-name{% endif %}">
+            {% if editable %}
+              <button type="button" class="staff-name-link" data-staff-edit="{{ row.id }}" aria-label="{{ row.name }}の職員情報を編集">{{ row.name }}</button>
+            {% else %}
+              {{ row.name }}
+            {% endif %}
+          </td>
+          <td class="col-job{% if not compact %} sticky-col{% endif %}">{{ row.job }}</td>
+          <td class="col-dept{% if not compact %} sticky-col{% endif %}">
+            {{ floor_badges(row.departments if row.departments else ([row.dept] if row.dept else [])) }}
+          </td>
+          {% for cell in row.cells %}
+            {% if editable %}
+              <td
+                class="day-col shift-td shift-td-editable {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
+                data-staff-id="{{ row.id }}"
+                data-year="{{ cell.year }}"
+                data-month="{{ cell.month }}"
+                data-day="{{ cell.day }}"
+                data-symbol="{{ cell.symbol }}"
+                {% if cell.source %}data-source="{{ cell.source }}"{% endif %}
+                title="クリックで編集"
+              >
+                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}">{{ cell.symbol }}</span>
+              </td>
+            {% else %}
+              <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
+                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}">{{ cell.symbol }}</span>
+              </td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+    {% if show_summary %}
+      <tfoot class="shift-summary">
+        {% for row in shift_daily_summary %}
+          <tr data-summary-symbol="{{ row.symbol }}">
+            <td class="col-name summary-label{% if not compact %} sticky-col{% endif %}">{{ row.label }}</td>
+            <td class="col-job{% if not compact %} sticky-col{% endif %}"></td>
+            <td class="col-dept{% if not compact %} sticky-col{% endif %}"></td>
+            {% for count in row.counts %}
+              <td class="day-col summary-count">{{ count }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tfoot>
+    {% endif %}
+  </table>
+</div>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>休み希望管理 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=32">
+  <link rel="stylesheet" href="/static/css/leave_requests.css?v=1">
+</head>
+<body>
+  <div class="app">
+    {% include "partials/sidebar.html" %}
+
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title-bar">
+          <h1 class="page-title">休み希望管理</h1>
+          <p class="page-subtitle">職員ポータル（:8004）と同期。希望種別・上限・超過メッセージを設定し、承認するとシフト表に反映されます。</p>
+        </div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
+
+      <div class="content content-no-footer leave-requests-page">
+        <section class="card leave-period-card">
+          <div class="card-header leave-period-header">
+            <div class="leave-period-nav">
+              <a class="btn btn-secondary btn-sm" href="/leave-requests?year={{ prev_year }}&month={{ prev_month }}">← 前月</a>
+              <h2 class="leave-period-title">{{ period_label }}</h2>
+              <a class="btn btn-secondary btn-sm" href="/leave-requests?year={{ next_year }}&month={{ next_month }}">次月 →</a>
+            </div>
+            <div class="leave-kpi-row">
+              <div class="leave-kpi">
+                <span class="leave-kpi-label">承認待ち</span>
+                <strong class="leave-kpi-value is-pending">{{ summary.pending }}</strong>
+              </div>
+              <div class="leave-kpi">
+                <span class="leave-kpi-label">承認済み</span>
+                <strong class="leave-kpi-value is-approved">{{ summary.approved }}</strong>
+              </div>
+              <div class="leave-kpi">
+                <span class="leave-kpi-label">上限超過</span>
+                <strong class="leave-kpi-value is-warn">{{ summary.over_limit_staff }}</strong>
+                <span class="leave-kpi-unit">名</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card leave-settings-card">
+          <div class="card-header">
+            <h2>ポータル連携設定</h2>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-settings">設定を開く</button>
+          </div>
+          <div class="card-body leave-settings-body hidden" id="leave-settings-panel">
+            <p class="leave-settings-note">
+              職員用ポータルに表示する希望種別と、1期間あたりの上限を設定します。
+              合計上限が空欄のときは、各種設定の「休み日数」を使います（現在: <strong id="resolved-max-total">{{ leave_settings.leave_request_max_total_resolved }}</strong> 件）。
+            </p>
+            <form id="leave-settings-form" class="leave-settings-form">
+              <fieldset class="leave-settings-fieldset">
+                <legend>表示する希望種別</legend>
+                <div class="leave-type-checks">
+                  {% for item in type_meta %}
+                    <label class="leave-type-check">
+                      <input
+                        type="checkbox"
+                        name="visible_type_{{ item.key }}"
+                        value="1"
+                        {% if leave_settings.leave_request_visible_types[item.key] %}checked{% endif %}
+                      >
+                      <span>{{ item.label }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
+
+              <div class="leave-settings-grid">
+                <label class="form-field">
+                  <span class="form-label">期間あたり合計上限（件）</span>
+                  <input
+                    type="number"
+                    class="input-text"
+                    id="leave-max-total"
+                    name="leave_request_max_total"
+                    min="0"
+                    max="31"
+                    placeholder="未設定＝休み日数"
+                    value="{{ leave_settings.leave_request_max_total if leave_settings.leave_request_max_total is not none else '' }}"
+                  >
+                </label>
+                {% for item in type_meta %}
+                  <label class="form-field">
+                    <span class="form-label">{{ item.label }}上限（0＝制限なし）</span>
+                    <input
+                      type="number"
+                      class="input-text leave-max-by-type"
+                      data-type="{{ item.key }}"
+                      min="0"
+                      max="31"
+                      value="{{ leave_settings.leave_request_max_by_type[item.key] }}"
+                    >
+                  </label>
+                {% endfor %}
+              </div>
+
+              <label class="form-field leave-message-field">
+                <span class="form-label">上限超過メッセージ</span>
+                <textarea
+                  class="input-text"
+                  id="leave-over-limit-message"
+                  name="leave_request_over_limit_message"
+                  rows="3"
+                  maxlength="500"
+                >{{ leave_settings.leave_request_over_limit_message }}</textarea>
+                <span class="form-hint">置換: {count} 現在件数 / {max} 上限 / {staff_name} 職員名 / {type} 種別名</span>
+              </label>
+
+              <div class="leave-settings-actions">
+                <button type="submit" class="btn btn-primary" id="btn-save-settings">設定を保存</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="card leave-requests-card">
+          <div class="card-header leave-requests-header">
+            <h2>希望一覧</h2>
+            <div class="leave-requests-toolbar">
+              <select id="filter-status" class="input-select">
+                <option value="">状態: すべて</option>
+                <option value="pending" selected>承認待ち</option>
+                <option value="approved">承認済み</option>
+                <option value="rejected">却下</option>
+              </select>
+              <input type="search" id="filter-staff" class="input-search" placeholder="職員名で検索">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-bulk-approve" disabled>選択を承認</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-bulk-reject" disabled>選択を却下</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="leave-alert" class="alert hidden" role="alert"></div>
+            <div class="table-scroll">
+              <table class="data-table leave-requests-table" id="leave-requests-table">
+                <thead>
+                  <tr>
+                    <th class="col-check">
+                      <input type="checkbox" id="select-all-requests" aria-label="表示中をすべて選択">
+                    </th>
+                    <th>日付</th>
+                    <th>職員</th>
+                    <th>種別</th>
+                    <th>状態</th>
+                    <th>備考</th>
+                    <th class="col-actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="leave-requests-body">
+                  {% for item in requests %}
+                    <tr
+                      data-id="{{ item.id }}"
+                      data-status="{{ item.status }}"
+                      data-staff="{{ item.staff_name }}"
+                    >
+                      <td class="col-check">
+                        <input type="checkbox" class="request-check" aria-label="選択" {% if item.status != 'pending' %}disabled{% endif %}>
+                      </td>
+                      <td>{{ item.shift_date }}</td>
+                      <td>{{ item.staff_name }}</td>
+                      <td><span class="leave-type-badge leave-type-{{ item.request_type }}">{{ item.type_label }}</span></td>
+                      <td><span class="leave-status leave-status-{{ item.status }}">{% if item.status == 'pending' %}承認待ち{% elif item.status == 'approved' %}承認済み{% elif item.status == 'rejected' %}却下{% else %}{{ item.status }}{% endif %}</span></td>
+                      <td>{{ item.note or '—' }}</td>
+                      <td class="col-actions">
+                        {% if item.status == 'pending' %}
+                          <button type="button" class="btn-link btn-approve-one" data-id="{{ item.id }}">承認</button>
+                          <button type="button" class="btn-link btn-reject-one" data-id="{{ item.id }}">却下</button>
+                        {% else %}
+                          <span class="text-muted">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr class="leave-empty-row">
+                      <td colspan="7">この期間の希望はありません。</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="card leave-staff-summary-card">
+          <div class="card-header">
+            <h2>職員別サマリー</h2>
+          </div>
+          <div class="card-body">
+            <div class="table-scroll">
+              <table class="data-table leave-staff-table" id="leave-staff-table">
+                <thead>
+                  <tr>
+                    <th>職員</th>
+                    <th>フロア</th>
+                    <th>承認待ち</th>
+                    <th>承認済み</th>
+                    <th>合計</th>
+                    <th>上限</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in staff_rows %}
+                    <tr class="{% if row.over_limit %}is-over-limit{% endif %}">
+                      <td>{{ row.name }}</td>
+                      <td>{{ row.departments | join(' / ') }}</td>
+                      <td>{{ row.pending }}</td>
+                      <td>{{ row.approved }}</td>
+                      <td>{{ row.total }}</td>
+                      <td>
+                        {% if row.over_limit %}
+                          <span class="leave-over-badge" title="{{ row.over_limit_message }}">超過</span>
+                        {% else %}
+                          OK
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="6">職員が登録されていません。</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.LEAVE_PAGE = {
+      year: {{ year }},
+      month: {{ month }},
+    };
+  </script>
+  <script src="/static/js/leave_requests.js?v=1"></script>
+</body>
+</html>

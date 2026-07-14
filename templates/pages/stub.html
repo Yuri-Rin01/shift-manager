@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }} - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app">
+    {% include "partials/sidebar.html" %}
+
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title-bar">
+          <h1 class="page-title">{{ page_title }}</h1>
+          {% if page_subtitle %}
+            <p class="page-subtitle">{{ page_subtitle }}</p>
+          {% endif %}
+        </div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
+
+      <div class="content content-no-footer">
+        <section class="card">
+          <div class="card-body stub-message">
+            <p>この画面は準備中です。</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

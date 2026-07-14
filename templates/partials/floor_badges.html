@@ -1,0 +1,12 @@
+{% macro floor_badge(floor) -%}
+  {%- set slug = floor | lower -%}
+  <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}" title="{{ floor }}">{{ floor }}</span>
+{%- endmacro %}
+
+{% macro floor_badges(floors) -%}
+<span class="floor-badges">
+  {%- for floor in floors -%}
+    {{ floor_badge(floor) }}
+  {%- endfor -%}
+</span>
+{%- endmacro %}

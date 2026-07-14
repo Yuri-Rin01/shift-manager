@@ -1,0 +1,18 @@
+<script>
+  window.STAFFING_BASIS_LABELS = {
+    {% for item in staffing_basis_options %}
+    "{{ item.key }}": "{{ item.label }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+  window.DEFAULT_STAFFING_BASIS = {{ default_staffing_basis | tojson }};
+  window.STAFFING_PERIOD_DAYS = {{ staffing_period_days | default(30) }};
+  window.STAFFING_DEFAULT_OFF_DAYS = {{ staffing_period_off_days | default(0) }};
+  window.STAFFING_DEFAULT_WORKING_DAYS = {{ staffing_period_working_days | default(30) }};
+  window.STAFFING_PERIOD_LABEL = {{ staffing_period_label | default('') | tojson }};
+  window.STAFF_FLOOR_ORDER = {{ departments | map(attribute='label') | list | tojson }};
+  window.STAFF_JOB_ORDER = {{ job_types | map(attribute='label') | list | tojson }};
+  window.STAFF_POSITION_ORDER = {{ positions | map(attribute='label') | list | tojson }};
+  window.DEFAULT_STAFF_SORT = {{ default_staff_sort | default('dept') | tojson }};
+  window.NIGHT_SHIFT_COUNTS_AS_TWO_DAYS = {{ night_shift_counts_as_two_days | default(true) | tojson }};
+  window.STAFFING_BASIS_HOURS = {{ staffing_basis_hours | default({}) | tojson }};
+</script>

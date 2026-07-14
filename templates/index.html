@@ -1,0 +1,248 @@
+{% from "partials/floor_badges.html" import floor_badge %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=45">
+</head>
+<body>
+  <div class="app">
+    {% include "partials/sidebar.html" %}
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title">シフトカレンダー</div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
+
+      <div class="content content-home">
+        <section class="card home-shift-card">
+          <div class="card-header card-header-stacked">
+            <div class="home-toolbar">
+              <div class="home-controls-panel home-controls-panel-filters-only">
+                <div class="home-controls-checkboxes">
+                  <section class="home-check-panel">
+                    <div class="home-check-panel-head">
+                      <span class="home-toolbar-label">フロア</span>
+                      <span class="home-filter-actions">
+                        <button type="button" class="home-filter-action" data-select-filter="dept">すべて</button>
+                        <button type="button" class="home-filter-action" data-clear-filter="dept">クリア</button>
+                        <button type="button" class="home-filter-action" data-invert-filter="dept">反転</button>
+                      </span>
+                    </div>
+                    <div class="home-chip-grid" data-filter-group="dept">
+                      {% for dept in departments %}
+                        <label class="home-chip">
+                          <input type="checkbox" class="filter-dept-cb" value="{{ dept.label }}" checked>
+                          {{ floor_badge(dept.label) }}
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </section>
+
+                  <section class="home-check-panel">
+                    <div class="home-check-panel-head">
+                      <span class="home-toolbar-label">職種</span>
+                      <span class="home-filter-actions">
+                        <button type="button" class="home-filter-action" data-select-filter="job">すべて</button>
+                        <button type="button" class="home-filter-action" data-clear-filter="job">クリア</button>
+                        <button type="button" class="home-filter-action" data-invert-filter="job">反転</button>
+                      </span>
+                    </div>
+                    <div class="home-chip-grid" data-filter-group="job">
+                      {% for job in job_types %}
+                        <label class="home-chip">
+                          <input type="checkbox" class="filter-job-cb" value="{{ job.label }}" checked>
+                          <span>{{ job.label }}</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </section>
+
+                  <section class="home-check-panel">
+                    <div class="home-check-panel-head">
+                      <span class="home-toolbar-label">役職ソート</span>
+                      <span class="home-filter-actions">
+                        <button type="button" class="home-filter-action" data-select-filter="position">すべて</button>
+                        <button type="button" class="home-filter-action" data-clear-filter="position">クリア</button>
+                        <button type="button" class="home-filter-action" data-invert-filter="position">反転</button>
+                      </span>
+                    </div>
+                    <div class="home-chip-grid" data-filter-group="position">
+                      <label class="home-chip">
+                        <input type="checkbox" class="filter-position-cb" value="" checked>
+                        <span>（なし）</span>
+                      </label>
+                      {% for position in positions %}
+                        <label class="home-chip">
+                          <input type="checkbox" class="filter-position-cb" value="{{ position.label }}" checked>
+                          <span>{{ position.label }}</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="home-toolbar-row home-toolbar-row-actions">
+                <div class="home-toolbar-leading">
+                  <div class="home-period-nav" aria-label="表示期間">
+                    <button type="button" class="home-period-skip" id="btn-prev-year" aria-label="前年">«</button>
+                    <button type="button" class="home-period-step" id="btn-prev-month" aria-label="前月">‹</button>
+                    <span class="home-period-label" id="home-period-label">
+                      <span class="home-period-ym">{{ year }}年{{ month }}月</span>{% if calendar_start_day > 1 %}<span class="home-period-sub">（{{ calendar_start_day }}日始まり）</span>{% endif %}
+                    </span>
+                    <button type="button" class="home-period-step" id="btn-next-month" aria-label="翌月">›</button>
+                    <button type="button" class="home-period-skip" id="btn-next-year" aria-label="翌年">»</button>
+                  </div>
+
+                  {% set sort_options = calendar_sort_options if calendar_sort_options else [
+                    {"value": "position", "label": "役職順"},
+                    {"value": "dept", "label": "フロア順"},
+                    {"value": "job", "label": "職種順"},
+                    {"value": "name", "label": "名前順"}
+                  ] %}
+                  {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
+                  <div class="home-toolbar-inline-tools">
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">並び順</span>
+                      <div class="home-segment" role="group" aria-label="並び順">
+                        <span class="home-segment-indicator" aria-hidden="true"></span>
+                        {% for opt in sort_options %}
+                          <button
+                            type="button"
+                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
+                            data-sort-mode="{{ opt.value }}"
+                          >{{ opt.label }}</button>
+                        {% endfor %}
+                      </div>
+                      <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
+                        {% for opt in sort_options %}
+                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">倍率</span>
+                      <div class="home-zoom-group" id="calendar-zoom-controls">
+                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-out" aria-label="縮小">−</button>
+                        <select id="calendar-zoom-select" class="home-zoom-select" aria-label="表示倍率">
+                          {% for zoom in zoom_options %}
+                            <option value="{{ zoom }}"{% if zoom == app_settings.default_table_zoom %} selected{% endif %}>{{ zoom }}%</option>
+                          {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-sm btn-icon" id="calendar-zoom-in" aria-label="拡大">＋</button>
+                      </div>
+                    </div>
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">表示</span>
+                      <div class="home-display-toggles" role="group" aria-label="表示">
+                        <label class="home-toggle-chip" title="セルを色付きで表示">
+                          <input type="checkbox" id="home-color-cells"{% if app_settings.default_color_cells %} checked{% endif %}>
+                          <span>色</span>
+                        </label>
+                        <label class="home-toggle-chip" title="職種列を表示">
+                          <input type="checkbox" id="home-show-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
+                          <span>職種</span>
+                        </label>
+                        <label class="home-toggle-chip" title="フロア列を表示">
+                          <input type="checkbox" id="home-show-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
+                          <span>フロア</span>
+                        </label>
+                        <label class="home-toggle-chip" title="人員集計行を表示">
+                          <input type="checkbox" id="home-show-summary"{% if app_settings.default_show_summary %} checked{% endif %}>
+                          <span>集計</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span class="home-toolbar-note">セル編集は自動保存されます</span>
+                </div>
+                <div class="home-toolbar-actions">
+                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
+                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
+                  <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
+                  <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="shift-calendar-shell">
+              <div
+                id="shift-calendar"
+                class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_dept_column %} hide-col-dept{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
+              >
+                {% with show_summary=true, editable=true, show_week_number=app_settings.show_week_number %}
+                  {% include "partials/shift_table.html" %}
+                {% endwith %}
+              </div>
+              {% if app_settings.show_shift_legend %}
+              <div class="legend">
+                {% for item in legend %}
+                  <span class="legend-item">
+                    <span class="legend-symbol {{ item.class }}">{{ item.symbol }}</span>
+                    {{ item.label }}
+                  </span>
+                {% endfor %}
+                <span class="legend-item">
+                  <span class="legend-symbol legend-manual">手</span>
+                  手動入力
+                </span>
+                <span class="legend-item">
+                  <span class="legend-symbol legend-leave-request">休</span>
+                  希望休
+                </span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="home-bottom-bar">
+        {% if app_settings.show_status_bar %}
+        <div class="home-bottom-bar-status">
+          {% for item in status_summary %}
+            <div class="status-item">
+              <span class="label">{{ item.label }}</span>
+              <span class="value {{ item.status }}">{{ item.value }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <button class="btn btn-primary home-bottom-print-btn" type="button" id="btn-print-settings" aria-label="印刷">
+          <span class="home-bottom-print-icon" aria-hidden="true">🖨</span>
+          <span class="home-bottom-print-text">印刷</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  {% include "partials/print_modal.html" %}
+  {% include "partials/auto_generate_modal.html" %}
+  <div id="alert" class="alert alert-floating hidden" role="alert"></div>
+  {% include "partials/staff_edit_modal.html" %}
+  {% include "partials/staff_editor_config.html" %}
+  <script>
+    window.APP_SETTINGS = {{ app_settings | tojson }};
+    window.SHIFT_OPTIONS = {{ legend | tojson }};
+    window.SYMBOL_CLASS_MAP = {{ (symbol_class_map | default({})) | tojson }};
+    window.CALENDAR_YEAR = {{ year }};
+    window.CALENDAR_MONTH = {{ month }};
+    window.DEPT_ORDER = {{ departments | map(attribute='label') | list | tojson }};
+    window.JOB_ORDER = {{ job_types | map(attribute='label') | list | tojson }};
+    window.STAFF_POSITION_ORDER = {{ positions | map(attribute='label') | list | tojson }};
+    window.PERIOD_LABEL = {{ period_label | tojson }};
+    window.STAFF_EDITOR_OVERLAY = true;
+  </script>
+  <script src="/static/js/staff.js?v=13"></script>
+  <script src="/static/js/home.js?v=22"></script>
+</body>
+</html>

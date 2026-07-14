@@ -1,0 +1,118 @@
+{% from "partials/floor_badges.html" import floor_badge %}
+<div class="modal hidden" id="print-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close-print-modal></div>
+  <div class="modal-dialog modal-dialog-wide" role="dialog" aria-labelledby="print-modal-title">
+    <div class="modal-header">
+      <div>
+        <h3 id="print-modal-title">印刷設定</h3>
+        <p class="modal-subtitle">出力範囲と用紙を選び、右のプレビューで確認してください</p>
+      </div>
+      <button type="button" class="modal-close" data-close-print-modal aria-label="閉じる">&times;</button>
+    </div>
+
+    <div class="print-modal-layout">
+      <aside class="print-panel">
+        <section class="print-section">
+          <h4 class="print-section-title">① フロア・職種</h4>
+          <p class="field-hint">フィルターは準備中です。現在はすべての職員が印刷対象です。</p>
+          <div class="print-filter-grid">
+            <div class="print-filter-box">
+              <div class="print-filter-head">
+                <span class="print-filter-label">フロア</span>
+                <span class="print-filter-links">
+                  <button type="button" class="btn-link" data-select-group="dept">すべて選択</button>
+                  <button type="button" class="btn-link" data-clear-group="dept">すべて解除</button>
+                  <button type="button" class="btn-link" data-invert-group="dept">反転</button>
+                </span>
+              </div>
+              <div class="print-filter-list" data-group="dept">
+                {% for dept in departments %}
+                  <label class="check-row"><input type="checkbox" checked>{{ floor_badge(dept.label) }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="print-filter-box">
+              <div class="print-filter-head">
+                <span class="print-filter-label">職種</span>
+                <span class="print-filter-links">
+                  <button type="button" class="btn-link" data-select-group="job">すべて選択</button>
+                  <button type="button" class="btn-link" data-clear-group="job">すべて解除</button>
+                  <button type="button" class="btn-link" data-invert-group="job">反転</button>
+                </span>
+              </div>
+              <div class="print-filter-list" data-group="job">
+                {% for job in job_types %}
+                  <label class="check-row"><input type="checkbox" checked><span>{{ job.label }}</span></label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="print-section">
+          <h4 class="print-section-title">② 用紙・表示</h4>
+          <div class="print-form-grid">
+            <div class="print-form-field">
+              <span>印刷する列</span>
+              <label class="check-row print-form-check" for="print-col-job">
+                <input type="checkbox" id="print-col-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
+                <span>職種</span>
+              </label>
+              <label class="check-row print-form-check" for="print-col-dept">
+                <input type="checkbox" id="print-col-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
+                <span>フロア</span>
+              </label>
+            </div>
+            <label class="print-form-field">
+              <span>表示グループ（準備中）</span>
+              <select disabled aria-disabled="true">
+                {% for group in display_groups %}
+                  <option>{{ group.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="print-form-field">
+              <span>用紙サイズ</span>
+              <select id="print-paper">
+                <option{% if app_settings.print_paper == "A4 横" %} selected{% endif %}>A4 横</option>
+                <option{% if app_settings.print_paper == "A4 縦" %} selected{% endif %}>A4 縦</option>
+                <option{% if app_settings.print_paper == "A3 横" %} selected{% endif %}>A3 横</option>
+              </select>
+            </label>
+            <label class="print-form-field">
+              <span>拡大縮小</span>
+              <select id="print-scale">
+                <option{% if app_settings.print_scale == "100%" %} selected{% endif %}>100%</option>
+                <option{% if app_settings.print_scale == "90%" %} selected{% endif %}>90%</option>
+                <option{% if app_settings.print_scale == "80%" %} selected{% endif %}>80%</option>
+                <option{% if app_settings.print_scale == "70%" %} selected{% endif %}>70%</option>
+              </select>
+            </label>
+            <label class="check-row print-form-check" for="print-color-mode">
+              <input type="checkbox" id="print-color-mode"{% if app_settings.print_color_cells %} checked{% endif %}>
+              <span>セル色付き印刷</span>
+            </label>
+          </div>
+        </section>
+      </aside>
+
+      <section class="print-preview-panel">
+        <div class="print-preview-head">
+          <h4 class="print-section-title">③ プレビュー</h4>
+          <span class="print-preview-note" id="print-preview-note">A4 横 / 100%</span>
+        </div>
+        <div class="print-preview-box color-cells" id="print-preview-box" aria-live="polite">
+          <p class="print-preview-placeholder">「印刷設定」を開くと、左のカレンダーからプレビューを表示します</p>
+        </div>
+      </section>
+    </div>
+
+    <footer class="print-modal-footer">
+      <button type="button" class="btn" data-close-print-modal>閉じる</button>
+      <div class="print-modal-footer-actions">
+        <button class="btn" type="button" id="btn-preview-refresh">プレビュー更新</button>
+        <button class="btn btn-primary" type="button">印刷 / PDF出力</button>
+      </div>
+    </footer>
+  </div>
+</div>

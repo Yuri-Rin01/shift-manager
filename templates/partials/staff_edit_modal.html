@@ -1,0 +1,223 @@
+<div class="modal hidden is-single-mode" id="staff-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close-modal></div>
+  <div class="modal-dialog modal-dialog-staff" role="dialog" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h3 id="modal-title">職員登録</h3>
+      <button type="button" class="modal-close" data-close-modal aria-label="閉じる">&times;</button>
+    </div>
+    <form id="staff-form">
+      <input type="hidden" id="staff-id">
+      <div id="bulk-edit-header" class="bulk-edit-header bulk-only hidden">
+        <p class="bulk-edit-summary"><strong id="bulk-target-count">0</strong>件の職員を一括編集します。</p>
+        <p id="bulk-target-names" class="bulk-target-names field-hint"></p>
+        <p class="field-hint">変更する項目にチェックを入れると、その項目の入力欄がリセットされます。保存時は選択した職員の既存値を置き換えます。</p>
+        <p class="field-hint">変更したい項目にチェックを入れてから値を設定してください。名前・相性は個別編集のみ変更できます。</p>
+      </div>
+      <div class="form-grid">
+        <label class="form-field single-only" id="field-name-wrap">
+          <span>名前 <em>*</em></span>
+          <input type="text" id="field-name" required maxlength="50" placeholder="例: 田中">
+        </label>
+        <div class="bulk-field-group form-field-full" data-bulk-group="job_type">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="job_type">
+            <span>職種を変更する</span>
+          </label>
+          <label class="form-field bulk-field" data-bulk-field="job_type">
+            <span>職種 <em class="single-only">*</em></span>
+            <select id="field-job-type" class="input-select">
+            <option value="">選択してください</option>
+            {% for job in job_types %}
+              <option value="{{ job.label }}">{{ job.label }}</option>
+            {% endfor %}
+          </select>
+          </label>
+        </div>
+        <div class="bulk-field-group form-field-full" data-bulk-group="position">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="position">
+            <span>役職を変更する</span>
+          </label>
+          <label class="form-field bulk-field" data-bulk-field="position">
+            <span>役職</span>
+            <select id="field-position" class="input-select">
+            <option value="">（なし）</option>
+            {% for position in positions %}
+              <option value="{{ position.label }}">{{ position.label }}</option>
+            {% endfor %}
+          </select>
+          </label>
+        </div>
+        <div class="bulk-field-group form-field-full" data-bulk-group="departments">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="departments">
+            <span>担当フロアを変更する</span>
+          </label>
+          <div class="form-field form-field-full bulk-field" data-bulk-field="departments">
+          <div class="picker-head">
+            <span class="form-label">担当フロア <em>*</em></span>
+            <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="staff-floor">すべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="staff-floor">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="staff-floor">反転</button>
+            </span>
+          </div>
+          <p class="field-hint">複数選択できます。一括編集では既存の担当フロアをリセットしてから上書きします。先頭のフロアがカレンダー並び順の基準になります。</p>
+          <div class="checkbox-grid" id="field-departments">
+            {% for dept in departments %}
+              <label class="check-row">
+                <input type="checkbox" name="staff-floor" value="{{ dept.label }}">
+                {% set slug = dept.label | lower %}
+                <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}">{{ dept.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          </div>
+        </div>
+        <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="staffing">
+            <span>勤務割合を変更する</span>
+          </label>
+          <div class="form-field form-field-full bulk-field" data-bulk-field="staffing">
+          <div class="picker-head">
+            <span class="form-label">勤務割合 <em>*</em></span>
+            <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="staffing-basis">すべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="staffing-basis">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="staffing-basis">反転</button>
+            </span>
+          </div>
+          <p class="field-hint staffing-basis-long-hint">区分を選び、スライダーで割合を調整します。日勤・準日を選ぶと、それぞれ夜勤・準夜も自動で選ばれます。夜勤を「固定」すると回数指定が有効になり、他区分は固定時の割合が上限になります（上限までは上下可能、超えると夜勤から調整）。勤務時間・配置ルール（夜勤換算など）は各種設定の配置ルールで変更できます。</p>
+          <p class="field-hint staffing-basis-period">基準期間（本日を基準とした暦月）: {{ staffing_period_label | default('') }} / 全{{ staffing_period_days | default(30) }}日・休み{{ staffing_period_off_days | default(0) }}日・勤務{{ staffing_period_working_days | default(30) }}日（休み日数は各種設定で変更）</p>
+          <div class="staffing-basis-bar" id="staffing-basis-bar" aria-label="割合の内訳"></div>
+          <div class="staffing-basis-list" id="field-staffing-basis">
+            {% for item in staffing_basis_options %}
+              <div class="staffing-basis-row" data-key="{{ item.key }}" data-color-index="{{ loop.index0 }}">
+                <button
+                  type="button"
+                  class="staffing-basis-chip"
+                  data-key="{{ item.key }}"
+                  aria-pressed="false"
+                >
+                  <span class="staffing-basis-chip-label">{{ item.label }}</span>
+                  <span class="staffing-basis-chip-hours">{{ staffing_basis_hours.get(item.key, '') if staffing_basis_hours else '' }}</span>
+                </button>
+                <div class="staffing-basis-slider-wrap">
+                  <input
+                    type="range"
+                    class="staffing-basis-slider"
+                    data-key="{{ item.key }}"
+                    min="1"
+                    max="100"
+                    step="1"
+                    disabled
+                    aria-label="{{ item.label }}の割合"
+                  >
+                </div>
+                <span class="staffing-basis-value" data-key="{{ item.key }}">—</span>
+                {% if item.key == 'night' %}
+                  <div class="staffing-basis-night-controls">
+                    <label class="staffing-basis-fix-wrap" title="チェックすると回数を固定して約日数に反映">
+                      <input
+                        type="checkbox"
+                        id="field-fix-night-shift-count"
+                        disabled
+                      >
+                      <span>固定</span>
+                    </label>
+                    <label class="staffing-basis-count-wrap" title="固定時のみ有効">
+                      <input
+                        type="number"
+                        id="field-night-shift-count"
+                        class="staffing-basis-count input-number"
+                        min="0"
+                        max="{{ staffing_period_days | default(30) }}"
+                        placeholder="—"
+                        disabled
+                      >
+                      <span>回/月</span>
+                    </label>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="staffing-basis-footer">
+            <button type="button" class="btn-link" data-staffing-basis-action="equal">均等に配分</button>
+            <p class="staffing-basis-total is-valid" id="staffing-basis-total-wrap">
+              合計 <strong id="staffing-basis-total">0%</strong>
+            </p>
+          </div>
+          </div>
+        </div>
+        <div class="bulk-field-group form-field-full staff-editor-optional" data-bulk-group="exclude_from_staffing">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="exclude_from_staffing">
+            <span>人員カウントを変更する</span>
+          </label>
+          <div class="form-field form-field-full bulk-field" data-bulk-field="exclude_from_staffing">
+          <span class="form-label">人員カウント</span>
+          <label class="check-row" for="field-exclude-from-staffing">
+            <input type="checkbox" id="field-exclude-from-staffing">
+            <span>人員に含めない（カレンダーの人員数集計行から除外）</span>
+          </label>
+          </div>
+        </div>
+        <div class="bulk-field-group" data-bulk-group="can_work_night">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="can_work_night">
+            <span>夜勤可否を変更する</span>
+          </label>
+          <div class="form-field bulk-field" data-bulk-field="can_work_night">
+          <span class="form-label">夜勤可</span>
+          <label class="check-row" for="field-can-work-night">
+            <input type="checkbox" id="field-can-work-night">
+            <span>夜勤に入れる</span>
+          </label>
+          </div>
+        </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
+          <div class="picker-head">
+            <span class="form-label">日勤相性</span>
+            <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="day-incompatible">表示中をすべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="day-incompatible">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="day-incompatible">反転</button>
+            </span>
+          </div>
+          <p class="field-hint">同じ日勤（早番・日勤・遅出）に組ませたくない職員を選択します。シフト自動生成で同日の日勤配置を避けます。追加すると夜勤相性にも自動で入ります。</p>
+          <input
+            type="search"
+            id="field-day-incompatibility-search"
+            class="input-search incompatibility-search"
+            placeholder="名前・フロアで絞り込み"
+          >
+          <div class="incompatibility-picker" id="field-day-incompatibilities"></div>
+        </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-night-incompat-wrap">
+          <div class="picker-head">
+            <span class="form-label">夜勤相性</span>
+            <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="night-incompatible">表示中をすべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="night-incompatible">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="night-incompatible">反転</button>
+            </span>
+          </div>
+          <p class="field-hint">同じ夜勤に組ませたくない職員を選択します。シフト自動生成で同日の夜勤配置を避けます。</p>
+          <input
+            type="search"
+            id="field-incompatibility-search"
+            class="input-search incompatibility-search"
+            placeholder="名前・フロアで絞り込み"
+          >
+          <div class="incompatibility-picker" id="field-night-incompatibilities"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-close-modal>キャンセル</button>
+        <button type="submit" class="btn btn-primary" id="btn-save">保存</button>
+      </div>
+    </form>
+  </div>
+</div>

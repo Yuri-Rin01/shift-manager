@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>休み希望入力 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/portal.css?v=3">
+</head>
+<body class="leave-portal-page">
+  <div class="leave-portal">
+    <header class="leave-portal-header">
+      <div class="leave-portal-header-main">
+        <p class="leave-portal-eyebrow">職員向け</p>
+        <h1 class="leave-portal-title">休み希望入力</h1>
+        <p class="leave-portal-subtitle">{{ facility_name }}</p>
+      </div>
+      <p class="leave-portal-port-note">管理者用システムとは別ポートで動作します</p>
+    </header>
+
+    <div id="portal-alert" class="portal-alert hidden" role="alert"></div>
+
+    <section class="portal-panel" id="staff-select-panel">
+      <h2 class="portal-panel-title">職員を選択</h2>
+      <p class="portal-panel-desc">端末ごとに一度名前を選ぶと、次回から自動で表示されます。ログインはありません（管理者向けは別途予定）。</p>
+      <label class="portal-field portal-staff-field">
+        <span class="portal-field-label">あなたの名前</span>
+        <div class="portal-staff-picker" id="staff-picker">
+          <input
+            type="text"
+            id="staff-search"
+            class="portal-staff-input"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="読み込み中..."
+            disabled
+            aria-autocomplete="list"
+            aria-controls="staff-suggestions"
+            aria-expanded="false"
+            role="combobox"
+          >
+          <input type="hidden" id="staff-id" value="">
+          <ul
+            id="staff-suggestions"
+            class="portal-staff-suggestions hidden"
+            role="listbox"
+            aria-label="職員候補"
+          ></ul>
+        </div>
+        <p class="portal-staff-hint" id="staff-match-hint">名前の一部を入力すると候補が絞り込まれます。</p>
+      </label>
+      <button type="button" class="portal-btn portal-btn-primary" id="btn-start-portal" disabled>入力を開始</button>
+    </section>
+
+    <section class="portal-panel hidden" id="calendar-panel">
+      <div class="portal-toolbar">
+        <div class="portal-toolbar-left">
+          <p class="portal-staff-name" id="portal-staff-name"></p>
+          <p class="portal-period-label" id="portal-period-label"></p>
+        </div>
+        <div class="portal-toolbar-right">
+          <button type="button" class="portal-btn portal-btn-ghost" id="btn-change-staff">職員を変更</button>
+        </div>
+      </div>
+
+      <div class="portal-month-nav">
+        <button type="button" class="portal-btn portal-btn-ghost" id="btn-prev-month" aria-label="前の期間">‹</button>
+        <span class="portal-month-nav-label" id="portal-month-nav-label"></span>
+        <button type="button" class="portal-btn portal-btn-ghost" id="btn-next-month" aria-label="次の期間">›</button>
+      </div>
+
+      <p class="portal-deadline-note hidden" id="portal-deadline-note"></p>
+
+      <div class="portal-legend" id="portal-legend"></div>
+
+      <div class="portal-calendar-wrap">
+        <div class="portal-calendar-weekdays">
+          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+        </div>
+        <div class="portal-calendar-grid" id="portal-calendar-grid" aria-label="休み希望カレンダー"></div>
+      </div>
+
+      <div class="portal-summary">
+        <p id="portal-request-count">希望: 0件</p>
+        <p class="portal-summary-hint">短くタップで種別を切り替え、長押しでフリック入力が使えます。</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    window.PORTAL_REQUEST_OPTIONS = {{ request_options | tojson }};
+    window.PORTAL_SETTINGS = {{ portal_settings | default({"cell_flick_input_enabled": true, "cell_long_press_ms": 450}, true) | tojson }};
+  </script>
+  <script src="/static/js/leave_portal.js?v=4"></script>
+</body>
+</html>

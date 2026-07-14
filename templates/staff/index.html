@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>職員管理 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=31">
+</head>
+<body>
+  <div class="app">
+    {% include "partials/sidebar.html" %}
+
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title-bar">
+          <h1 class="page-title">職員管理</h1>
+          <p class="page-subtitle">職員マスタの登録・編集・削除（担当フロアは複数選択可）。行をダブルクリックで編集できます。表示順の初期値は各種設定のカレンダー並び順です。</p>
+        </div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
+
+      <div class="content content-no-footer content-staff-page">
+        <section class="card staff-list-card">
+          <div class="card-header staff-list-header">
+            <h2>職員一覧</h2>
+            <div class="staff-list-toolbar">
+              <div class="staff-list-toolbar-filters">
+                <input type="search" id="search-input" class="input-search" placeholder="名前・フロア・職種・役職で検索">
+                <select id="filter-department" class="input-select">
+                  <option value="">フロア: すべて</option>
+                  {% for dept in departments %}
+                    <option value="{{ dept.label }}">{{ dept.label }}</option>
+                  {% endfor %}
+                </select>
+                <select id="filter-job-type" class="input-select">
+                  <option value="">職種: すべて</option>
+                  {% for job in job_types %}
+                    <option value="{{ job.label }}">{{ job.label }}</option>
+                  {% endfor %}
+                </select>
+                <label class="toolbar-sort">
+                  <span class="toolbar-sort-label">表示順</span>
+                  <select id="sort-staff" class="input-select toolbar-select" aria-label="表示順">
+                    {% for opt in staff_sort_options %}
+                      <option value="{{ opt.value }}"{% if opt.value == default_staff_sort %} selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
+              <button class="btn btn-primary btn-add-staff" type="button" id="btn-add">+ 新規登録</button>
+            </div>
+          </div>
+          <div class="card-body staff-list-body">
+            <div id="alert" class="alert hidden staff-list-alert" role="alert"></div>
+            <div id="bulk-action-bar" class="bulk-action-bar staff-list-selection-bar">
+              <span id="bulk-selected-count" class="staff-selection-count" aria-live="polite">選択: 0件</span>
+              <div id="bulk-action-buttons" class="bulk-action-buttons hidden">
+                <button type="button" class="btn btn-primary" id="btn-bulk-edit">一括編集</button>
+                <button type="button" class="btn-link" id="btn-bulk-invert">反転</button>
+                <button type="button" class="btn-link" id="btn-bulk-clear">選択解除</button>
+              </div>
+            </div>
+            <div class="table-scroll staff-table-scroll">
+              <table class="data-table" id="staff-table">
+                <thead>
+                  <tr>
+                    <th class="col-check" scope="col">
+                      <div class="col-check-header">
+                        <input type="checkbox" id="select-all-staff" aria-label="表示中をすべて選択">
+                        <span id="staff-selection-badge" class="staff-selection-badge is-empty" aria-hidden="true">0</span>
+                      </div>
+                    </th>
+                    <th>名前</th>
+                    <th class="col-floor">担当フロア</th>
+                    <th>職種</th>
+                    <th>役職</th>
+                    <th>勤務割合</th>
+                    <th>人員カウント</th>
+                    <th>夜勤可否</th>
+                    <th>日勤相性</th>
+                    <th>夜勤相性</th>
+                    <th class="col-actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="staff-tbody">
+                  <tr><td colspan="11" class="empty-cell">読み込み中...</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr class="staff-add-row">
+                    <td colspan="11">
+                      <button type="button" class="staff-add-row-btn" id="btn-add-footer" aria-label="職員を新規登録">
+                        <span class="staff-add-row-icon" aria-hidden="true">+</span>
+                        <span class="staff-add-row-label">職員を追加</span>
+                      </button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="table-meta staff-table-meta" id="staff-count"></p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  {% include "partials/staff_edit_modal.html" %}
+  {% include "partials/staff_editor_config.html" %}
+  <script src="/static/js/staff.js?v=14"></script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+{% from "partials/floor_badges.html" import floor_badge %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ダッシュボード - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=29">
+</head>
+<body>
+  <div class="app">
+    {% include "partials/sidebar.html" %}
+
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title-bar">
+          <h1 class="page-title">ダッシュボード</h1>
+          <p class="page-subtitle">{{ facility_label }} — {{ period_label }}の概要</p>
+        </div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
+
+      <div class="content content-no-footer">
+        <div class="dashboard-toolbar">
+          <span class="period-badge">{{ period_label }}</span>
+          <span class="dashboard-period-range">{{ period_start }} 〜 {{ period_end }}（{{ period_days }}日 / 勤務日 {{ working_days }}日）</span>
+          <div class="dashboard-toolbar-actions">
+            <a class="btn btn-sm" href="/dashboard?year={{ prev_year }}&month={{ prev_month }}">‹ 前月</a>
+            {% if not is_current_month %}
+              <a class="btn btn-sm" href="/dashboard">今月</a>
+            {% endif %}
+            <a class="btn btn-sm" href="/dashboard?year={{ next_year }}&month={{ next_month }}">翌月 ›</a>
+          </div>
+        </div>
+
+        <section class="dashboard-kpi-grid">
+          <article class="dashboard-kpi-card">
+            <p class="dashboard-kpi-label">登録職員</p>
+            <p class="dashboard-kpi-value">{{ stats.total_staff }}<span class="dashboard-kpi-unit">名</span></p>
+            <p class="dashboard-kpi-note">人員カウント {{ stats.staffing_staff }}名{% if stats.excluded_staff %} / 除外 {{ stats.excluded_staff }}名{% endif %}</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <p class="dashboard-kpi-label">夜勤可</p>
+            <p class="dashboard-kpi-value">{{ stats.night_capable }}<span class="dashboard-kpi-unit">名</span></p>
+            <p class="dashboard-kpi-note">固定回数指定 {{ stats.fixed_night }}名</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <p class="dashboard-kpi-label">シフト入力率</p>
+            <p class="dashboard-kpi-value">{{ stats.fill_rate }}<span class="dashboard-kpi-unit">%</span></p>
+            <p class="dashboard-kpi-note">{{ stats.shift_cells }} / {{ stats.total_cells }} セル</p>
+          </article>
+          <article class="dashboard-kpi-card">
+            <p class="dashboard-kpi-label">当月の有休</p>
+            <p class="dashboard-kpi-value">{{ stats.paid_leave_count }}<span class="dashboard-kpi-unit">件</span></p>
+            <p class="dashboard-kpi-note">夜勤 {{ stats.night_assignments }}件{% if stats.special_assignments %} / 当直 {{ stats.special_assignments }}件{% endif %}</p>
+          </article>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="card">
+            <div class="card-header">
+              <h2>当月シフト内訳</h2>
+            </div>
+            <div class="card-body">
+              {% if shift_counts %}
+                <ul class="dashboard-shift-list">
+                  {% for row in shift_counts %}
+                    <li>
+                      <span class="dashboard-shift-label">{{ row.label }}</span>
+                      <span class="dashboard-shift-count">{{ row.count }}件</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="dashboard-empty">当月のシフトデータはまだありません。</p>
+              {% endif %}
+              <div class="dashboard-progress">
+                <div class="dashboard-progress-head">
+                  <span>入力進捗</span>
+                  <span>{{ stats.fill_rate }}%</span>
+                </div>
+                <div class="dashboard-progress-bar" role="progressbar" aria-valuenow="{{ stats.fill_rate }}" aria-valuemin="0" aria-valuemax="100">
+                  <div class="dashboard-progress-fill" style="width: {{ stats.fill_rate }}%;"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2>クイックアクセス</h2>
+            </div>
+            <div class="card-body">
+              <nav class="dashboard-links">
+                <a class="dashboard-link" href="{{ calendar_href }}">
+                  <strong>シフトカレンダー</strong>
+                  <span>{{ period_label }}を開く</span>
+                </a>
+                <a class="dashboard-link" href="/staff">
+                  <strong>職員管理</strong>
+                  <span>登録・一括編集・勤務割合</span>
+                </a>
+                <a class="dashboard-link" href="/settings">
+                  <strong>各種設定</strong>
+                  <span>施設種別・表示・印刷</span>
+                </a>
+              </nav>
+            </div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="card">
+            <div class="card-header">
+              <h2>フロア別人数</h2>
+            </div>
+            <div class="card-body">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>フロア</th>
+                    <th class="col-num">人数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in floor_breakdown %}
+                    <tr>
+                      <td>{{ floor_badge(row.label) }}</td>
+                      <td class="col-num">{{ row.count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2>職種別人数</h2>
+            </div>
+            <div class="card-body">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>職種</th>
+                    <th class="col-num">人数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in job_breakdown %}
+                    <tr>
+                      <td>{{ row.label }}</td>
+                      <td class="col-num">{{ row.count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <section class="dashboard-checks">
+          {% for item in checks %}
+            <div class="status-item">
+              <span class="label">{{ item.label }}:</span>
+              <span class="value {{ item.status }}">{{ item.value }}</span>
+            </div>
+          {% endfor %}
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

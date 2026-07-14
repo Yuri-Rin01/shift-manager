@@ -1,0 +1,22 @@
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>シフト作成システム</h1>
+  </div>
+  <nav class="sidebar-nav">
+    {% for item in sidebar_menu %}
+      {% if item.children %}
+        <div class="nav-group-title">{{ item.label }}</div>
+        {% for child in item.children %}
+          <a href="{{ child.href }}" class="nav-item nav-child{% if item.key == 'settings' %} nav-settings-child{% endif %}{% if child.active %} active{% endif %}">{{ child.label }}</a>
+        {% endfor %}
+      {% else %}
+        <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <div class="sidebar-footer">
+    <div class="facility">{{ facility_name }}</div>
+    <div>{{ facility_label }} / {{ admin_name }}</div>
+    <button class="btn-logout" type="button" disabled title="管理者ログイン実装後に有効化予定">ログアウト（ログイン実装予定）</button>
+  </div>
+</aside>
