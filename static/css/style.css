@@ -252,6 +252,72 @@ body {
   gap: 4px;
 }
 
+.home-filters-collapse {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.home-filters-btn.is-open {
+  background: #1e3a5f;
+  border-color: #1e3a5f;
+  color: #fff;
+}
+
+.home-filters-btn.is-filtered:not(.is-open) {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.home-filters-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.home-filters-btn.is-open .home-filters-btn-badge {
+  background: #fff;
+  color: #1e3a5f;
+}
+
+.home-filters-btn-chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.home-filters-btn.is-open .home-filters-btn-chevron {
+  transform: rotate(180deg);
+}
+
+.home-filters-collapse.is-collapsed #home-filters-body {
+  display: none;
+}
+
 .home-controls-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

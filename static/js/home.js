@@ -386,7 +386,86 @@ function applyRowFilters() {
     row.hidden = !(matchDept && matchJob && matchPosition);
   });
   refreshSummaryCounts();
+  updateFiltersSummary();
   saveFilterPrefs();
+}
+
+function countCheckedInGroup(group) {
+  const boxes = [...document.querySelectorAll(`[data-filter-group="${group}"] input[type="checkbox"]`)];
+  if (!boxes.length) return { selected: 0, total: 0 };
+  return {
+    selected: boxes.filter((box) => box.checked).length,
+    total: boxes.length,
+  };
+}
+
+function updateFiltersSummary() {
+  const btnText = document.getElementById("home-filters-btn-text");
+  const badge = document.getElementById("home-filters-btn-badge");
+  const toggle = document.getElementById("btn-toggle-filters");
+  const block = document.getElementById("home-filters-collapse");
+  if (!btnText || !toggle) return;
+
+  const dept = countCheckedInGroup("dept");
+  const job = countCheckedInGroup("job");
+  const position = countCheckedInGroup("position");
+  const hiddenCount =
+    Math.max(0, dept.total - dept.selected) +
+    Math.max(0, job.total - job.selected) +
+    Math.max(0, position.total - position.selected);
+  const isFiltered = hiddenCount > 0;
+  const isOpen = !block?.classList.contains("is-collapsed");
+
+  btnText.textContent = isOpen ? "閉じる" : "開く";
+  toggle.classList.toggle("is-open", isOpen);
+  toggle.classList.toggle("is-filtered", isFiltered);
+  toggle.title = isOpen
+    ? "絞り込みパネルを閉じます"
+    : isFiltered
+      ? `絞り込み中（非表示 ${hiddenCount} 項目）`
+      : "フロア・職種・役職で表示を絞り込みます";
+
+  if (badge) {
+    if (isFiltered) {
+      badge.textContent = String(hiddenCount);
+      badge.classList.remove("hidden");
+    } else {
+      badge.textContent = "";
+      badge.classList.add("hidden");
+    }
+  }
+}
+
+function setFiltersPanelCollapsed(collapsed) {
+  const block = document.getElementById("home-filters-collapse");
+  const toggle = document.getElementById("btn-toggle-filters");
+  const body = document.getElementById("home-filters-body");
+  if (!block || !toggle) return;
+  block.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (body) {
+    body.hidden = collapsed;
+  }
+  updateFiltersSummary();
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    calendarSortMode: getCurrentSortMode(),
+    filtersPanelCollapsed: collapsed,
+  });
+}
+
+function initFiltersPanelCollapse() {
+  const toggle = document.getElementById("btn-toggle-filters");
+  if (!toggle) return;
+  const saved = loadPrefs();
+  const collapsed = saved.filtersPanelCollapsed !== false;
+  setFiltersPanelCollapsed(collapsed);
+  toggle.addEventListener("click", () => {
+    const block = document.getElementById("home-filters-collapse");
+    setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
+  });
 }
 
 function initRowFilters() {
@@ -474,6 +553,7 @@ function initCalendarControls() {
   });
   initRowFilters();
   initSortState();
+  initFiltersPanelCollapse();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =
