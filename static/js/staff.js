@@ -181,14 +181,6 @@ function resetBulkApplyFields() {
   syncBulkFieldAvailability();
 }
 
-function syncDisplayFloorEditable() {
-  const inputs = floorPicker?.querySelectorAll('input[name="staff-floor"]') ?? [];
-  const bulkApply = isBulkApplyChecked("departments");
-  inputs.forEach((input) => {
-    input.disabled = !bulkApply;
-  });
-}
-
 function syncBulkFieldAvailability() {
   const isBulk = Boolean(bulkEditIds?.length);
   document.querySelectorAll(".bulk-apply-checkbox").forEach((checkbox) => {
@@ -209,7 +201,6 @@ function syncBulkFieldAvailability() {
   if (!isBulk) {
     updateNightShiftCountControls(getActiveStaffingBasisKeys().includes("night"));
   }
-  syncDisplayFloorEditable();
 }
 
 function isBulkApplyChecked(group) {
@@ -1692,11 +1683,15 @@ async function saveStaff(event) {
   const placementFloors = getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor");
   const staffingBasis = getStaffingBasisRatiosFromForm();
 
+  if (!departments.length) {
+    showAlert("担当フロアを1つ以上選択してください。", "error");
+    return;
+  }
   if (!placementFloors.length) {
     showAlert("配置可能フロアを1つ以上選択してください。", "error");
     return;
   }
-  const displayFloors = departments.length ? departments : placementFloors;
+  const displayFloors = departments;
   if (!Object.keys(staffingBasis).length) {
     showAlert("勤務割合を1つ以上選択してください。", "error");
     return;

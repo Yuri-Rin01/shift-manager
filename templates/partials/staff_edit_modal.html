@@ -55,16 +55,19 @@
           </label>
           <div class="form-field form-field-full bulk-field" data-bulk-field="departments">
           <div class="picker-head">
-            <span class="form-label">担当フロア（表示のみ）</span>
+            <span class="form-label">担当フロア（表示） <em>*</em></span>
             <span class="picker-links">
+              <button type="button" class="btn-link" data-select-all="staff-floor">すべて選択</button>
+              <button type="button" class="btn-link" data-clear-all="staff-floor">すべて解除</button>
+              <button type="button" class="btn-link" data-invert-all="staff-floor">反転</button>
               <button type="button" class="btn-link" id="btn-copy-placement-to-display">配置可能フロアを反映</button>
             </span>
           </div>
-          <p class="field-hint">カレンダー・名簿の表示用です。自動生成の配置には使いません。変更は上の「配置可能フロアを反映」か、下の配置可能フロア設定後に反映してください。</p>
-          <div class="checkbox-grid is-display-only" id="field-departments">
+          <p class="field-hint">カレンダー・名簿の表示用です。自動生成の配置には使いません。先頭のフロアが並び順の基準になります。</p>
+          <div class="checkbox-grid" id="field-departments">
             {% for dept in departments %}
               <label class="check-row">
-                <input type="checkbox" name="staff-floor" value="{{ dept.label }}" disabled>
+                <input type="checkbox" name="staff-floor" value="{{ dept.label }}">
                 {% set slug = dept.label | lower %}
                 <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}">{{ dept.label }}</span>
               </label>
