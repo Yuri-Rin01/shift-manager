@@ -10,7 +10,7 @@ DEFAULT_SETTINGS: dict = {
     # 施設
     "facility_name": "○○施設",
     "facility_type": "care",
-    "admin_name": "管理者",    # 表示ルール
+    "admin_name": "テストABC",    # 表示ルール
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
