@@ -1272,8 +1272,85 @@ class _Generator:
                 count += 1
         return count
 
+    def _clear_auto_symbol(self, staff_id: int, shift_date: str) -> None:
+        """自動配置の記号を削除（手動ロックは触らない）。"""
+        key = self._cell_key(staff_id, shift_date)
+        if self.locks.get(key) == "manual":
+            return
+        previous = self.grid.get(key)
+        if previous:
+            self._adjust_counts_for_symbol(staff_id, shift_date, previous, -1)
+            if _symbol_work_key(previous, self.settings) == "night":
+                self._clear_auto_night_chain(staff_id, shift_date)
+            del self.grid[key]
+        self.locks.pop(key, None)
+
+    def _movable_leave_off_dates(self, staff_id: int) -> list[str]:
+        """自動確保の公休（移動可能）の日付一覧。"""
+        dates: list[str] = []
+        for shift_date in self.period_dates:
+            if self.locks.get((staff_id, shift_date)) != "leave":
+                continue
+            if not self._counts_toward_off_target(staff_id, shift_date):
+                continue
+            dates.append(shift_date)
+        return dates
+
+    def _try_assign_day_work(self, staff: dict, shift_date: str, work_order: list[str]) -> bool:
+        ranked = sorted(
+            work_order,
+            key=lambda key: (
+                self._ratio_deficit(staff, key),
+                -self._workload_balance_penalty(staff["id"]),
+            ),
+            reverse=True,
+        )
+        for work_key in ranked:
+            if not self._can_work(staff, work_key, shift_date):
+                continue
+            symbol = self._preferred_symbol_for_staff(staff, work_key)
+            if not symbol:
+                continue
+            self._set_symbol(staff["id"], shift_date, symbol)
+            return True
+        return False
+
+    def _try_fill_empty_by_relocating_off(
+        self,
+        staff: dict,
+        empty_date: str,
+        work_order: list[str],
+    ) -> bool:
+        """連勤上限などで勤務を入れられない空きに、別日の公休を移して空白を解消する。"""
+        sid = staff["id"]
+        donors = [d for d in self._movable_leave_off_dates(sid) if d != empty_date]
+        if not donors:
+            return False
+
+        empty_idx = self.date_index[empty_date]
+
+        def donor_score(donor: str) -> tuple:
+            # 空き日に近い公休を優先（連勤の切れ目として自然）
+            return (abs(self.date_index[donor] - empty_idx), -self.date_index[donor])
+
+        for donor in sorted(donors, key=donor_score):
+            donor_symbol = self._get_symbol(sid, donor)
+            donor_lock = self.locks.get((sid, donor))
+            # 1) 空きへ公休を移す
+            self._clear_auto_symbol(sid, donor)
+            self._set_symbol(sid, empty_date, self.off_symbol, lock="leave")
+            # 2) 元の公休日を勤務で埋める
+            if self._try_assign_day_work(staff, donor, work_order):
+                return True
+            # 失敗したら元に戻す
+            self._clear_auto_symbol(sid, empty_date)
+            self._clear_auto_symbol(sid, donor)
+            if donor_symbol:
+                self._set_symbol(sid, donor, donor_symbol, lock=donor_lock)
+        return False
+
     def _phase_pad_empty(self) -> int:
-        """公休確保後の空きセルを昼間勤務で埋める（公休の追加はしない）。"""
+        """公休確保後の空きセルを昼間勤務で埋める（公休の追加はしない）。連勤上限で入れられない場合は公休を別日へ移して空白を解消する。"""
         count = 0
         work_order = [k for k in ("early", "day", "late") if k in self.work_keys]
         if not work_order:
@@ -1284,27 +1361,14 @@ class _Generator:
             for shift_date in self.period_dates:
                 if self._is_locked(sid, shift_date) or self._get_symbol(sid, shift_date):
                     continue
-                ranked = sorted(
-                    work_order,
-                    key=lambda key: (
-                        self._ratio_deficit(staff, key),
-                        -self._workload_balance_penalty(sid),
-                    ),
-                    reverse=True,
-                )
-                placed = False
-                for work_key in ranked:
-                    if not self._can_work(staff, work_key, shift_date):
-                        continue
-                    symbol = self._preferred_symbol_for_staff(staff, work_key)
-                    if not symbol:
-                        continue
-                    self._set_symbol(sid, shift_date, symbol)
+                if self._try_assign_day_work(staff, shift_date, work_order):
                     count += 1
-                    placed = True
-                    break
-                if not placed:
-                    unfilled.append(f"{staff['name']}@{shift_date}")
+                    continue
+                # 勤務制約（主に連勤上限）で入れられない → 公休をここに移し、元の公休枠を勤務へ
+                if self._try_fill_empty_by_relocating_off(staff, shift_date, work_order):
+                    count += 1
+                    continue
+                unfilled.append(f"{staff['name']}@{shift_date}")
         if unfilled:
             sample = "、".join(unfilled[:8])
             suffix = f" ほか {len(unfilled) - 8} 件" if len(unfilled) > 8 else ""
