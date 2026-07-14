@@ -187,7 +187,50 @@ function syncSortSegments(mode = getCurrentSortMode()) {
   document.querySelectorAll("[data-sort-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.sortMode === mode);
   });
+  updateSortSummary(mode);
   updateSortSegmentIndicator(mode);
+}
+
+function updateSortSummary(mode = getCurrentSortMode()) {
+  const summary = document.getElementById("home-sort-summary");
+  const sortSelect = getCalendarSortSelect();
+  if (!summary || !sortSelect) return;
+  const selected = [...sortSelect.options].find((option) => option.value === mode);
+  summary.textContent = selected?.textContent?.trim() || mode;
+}
+
+function setSortPanelCollapsed(collapsed) {
+  const block = document.getElementById("home-sort-block");
+  const toggle = document.getElementById("btn-toggle-sort");
+  const options = document.getElementById("home-sort-options");
+  if (!block || !toggle) return;
+  block.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (options) {
+    options.hidden = collapsed;
+  }
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    calendarSortMode: getCurrentSortMode(),
+    sortPanelCollapsed: collapsed,
+  });
+  if (!collapsed) {
+    scheduleSortSegmentIndicatorUpdate();
+  }
+}
+
+function initSortPanelCollapse() {
+  const toggle = document.getElementById("btn-toggle-sort");
+  if (!toggle) return;
+  const saved = loadPrefs();
+  const collapsed = saved.sortPanelCollapsed === true;
+  setSortPanelCollapsed(collapsed);
+  toggle.addEventListener("click", () => {
+    const block = document.getElementById("home-sort-block");
+    setSortPanelCollapsed(!block?.classList.contains("is-collapsed"));
+  });
 }
 
 function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
@@ -199,6 +242,7 @@ function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
     segment?.querySelector(`[data-sort-mode="${mode}"]`) ??
     segment?.querySelector(".home-segment-btn.is-active");
   if (!segment || !indicator || !active) return;
+  if (segment.closest(".home-sort-block")?.classList.contains("is-collapsed")) return;
 
   indicator.style.width = `${active.offsetWidth}px`;
   indicator.style.left = `${active.offsetLeft}px`;
@@ -474,6 +518,7 @@ function initCalendarControls() {
   });
   initRowFilters();
   initSortState();
+  initSortPanelCollapse();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =

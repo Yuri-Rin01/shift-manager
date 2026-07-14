@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=45">
+  <link rel="stylesheet" href="/static/css/style.css?v=46">
 </head>
 <body>
   <div class="app">
@@ -109,17 +109,29 @@
                   ] %}
                   {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
                   <div class="home-toolbar-inline-tools">
-                    <div class="home-toolbar-block">
-                      <span class="home-toolbar-label">並び順</span>
-                      <div class="home-segment" role="group" aria-label="並び順">
-                        <span class="home-segment-indicator" aria-hidden="true"></span>
-                        {% for opt in sort_options %}
-                          <button
-                            type="button"
-                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
-                            data-sort-mode="{{ opt.value }}"
-                          >{{ opt.label }}</button>
-                        {% endfor %}
+                    <div class="home-toolbar-block home-sort-block" id="home-sort-block">
+                      <button
+                        type="button"
+                        class="home-sort-toggle"
+                        id="btn-toggle-sort"
+                        aria-expanded="true"
+                        aria-controls="home-sort-options"
+                      >
+                        <span class="home-toolbar-label">並び順</span>
+                        <span class="home-sort-summary" id="home-sort-summary">{% for opt in sort_options %}{% if opt.value == calendar_sort_mode %}{{ opt.label }}{% endif %}{% endfor %}</span>
+                        <span class="home-sort-chevron" aria-hidden="true"></span>
+                      </button>
+                      <div class="home-sort-options" id="home-sort-options">
+                        <div class="home-segment" role="group" aria-label="並び順">
+                          <span class="home-segment-indicator" aria-hidden="true"></span>
+                          {% for opt in sort_options %}
+                            <button
+                              type="button"
+                              class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
+                              data-sort-mode="{{ opt.value }}"
+                            >{{ opt.label }}</button>
+                          {% endfor %}
+                        </div>
                       </div>
                       <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
                         {% for opt in sort_options %}
@@ -243,6 +255,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=13"></script>
-  <script src="/static/js/home.js?v=22"></script>
+  <script src="/static/js/home.js?v=23"></script>
 </body>
 </html>

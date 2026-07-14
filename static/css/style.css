@@ -667,6 +667,64 @@ body {
   min-width: 0;
 }
 
+.home-sort-block {
+  gap: 4px;
+}
+
+.home-sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  min-height: 20px;
+}
+
+.home-sort-toggle:hover .home-sort-summary,
+.home-sort-toggle:hover .home-sort-chevron {
+  color: var(--text);
+}
+
+.home-sort-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.home-sort-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.home-sort-chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #94a3b8;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.home-sort-block:not(.is-collapsed) .home-sort-chevron {
+  transform: rotate(180deg);
+}
+
+.home-sort-block.is-collapsed .home-sort-options {
+  display: none;
+}
+
+.home-sort-options {
+  min-width: 0;
+}
+
 .home-toolbar-label {
   font-size: 12px;
   font-weight: 600;
