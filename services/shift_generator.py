@@ -364,6 +364,105 @@ class _Generator:
         position = (staff.get("position") or "").strip()
         return bool(position) and position in LEADER_OR_ABOVE_POSITIONS
 
+    def _night_leader_groups(self) -> list[dict]:
+        from data.placement_rules import normalize_night_leader_groups
+
+        if not self.settings.get("require_leader_on_night"):
+            return []
+        return normalize_night_leader_groups(self.settings.get("night_leader_groups"))
+
+    def _staff_covers_night_leader_group(self, staff: dict, group: dict) -> bool:
+        floors = set(self._staff_floors(staff))
+        return bool(floors & set(group.get("floors") or []))
+
+    def _count_night_leaders_for_group(self, shift_date: str, group: dict) -> int:
+        count = 0
+        for (staff_id, shift_day), symbol in self.grid.items():
+            if shift_day != shift_date:
+                continue
+            if _symbol_work_key(symbol, self.settings) != "night":
+                continue
+            staff = self.staff_by_id.get(staff_id)
+            if not staff or not self._is_leader_or_above(staff):
+                continue
+            if self._staff_covers_night_leader_group(staff, group):
+                count += 1
+        return count
+
+    def _night_staff_covers_floors(self, shift_date: str, floors: list[str]) -> bool:
+        floor_set = set(floors or [])
+        if not floor_set:
+            return self._count_work_on_day(shift_date, "night") > 0
+        for (staff_id, shift_day), symbol in self.grid.items():
+            if shift_day != shift_date:
+                continue
+            if _symbol_work_key(symbol, self.settings) != "night":
+                continue
+            staff = self.staff_by_id.get(staff_id)
+            if staff and set(self._staff_floors(staff)) & floor_set:
+                return True
+        return False
+
+    def _night_leader_group_shortfalls(self, shift_date: str) -> list[dict]:
+        groups = self._night_leader_groups()
+        if not groups:
+            # 空グループ＝施設全体でリーダー1人
+            night_count = self._count_work_on_day(shift_date, "night")
+            if night_count <= 0:
+                return []
+            if self._has_leader_on_night(shift_date):
+                return []
+            return [{"label": "施設全体", "floors": list(self.floors), "min_leaders": 1, "actual": 0}]
+        shortfalls: list[dict] = []
+        for group in groups:
+            floors = list(group.get("floors") or [])
+            if not self._night_staff_covers_floors(shift_date, floors):
+                continue
+            actual = self._count_night_leaders_for_group(shift_date, group)
+            need = int(group.get("min_leaders", 1))
+            if actual < need:
+                shortfalls.append({**group, "actual": actual})
+        return shortfalls
+
+    def _night_leader_score_bonus(
+        self,
+        staff: dict,
+        shift_date: str,
+        *,
+        target_floor: str | None = None,
+    ) -> float:
+        if not self.settings.get("require_leader_on_night") or not self._is_leader_or_above(staff):
+            return 0.0
+        groups = self._night_leader_groups()
+        if not groups:
+            if self._count_work_on_day(shift_date, "night") <= 0 and not target_floor:
+                return 0.0
+            if self._has_leader_on_night(shift_date):
+                return 0.0
+            return 1000.0
+
+        bonus = 0.0
+        for group in groups:
+            floors = list(group.get("floors") or [])
+            if not self._staff_covers_night_leader_group(staff, group):
+                continue
+            relevant = self._night_staff_covers_floors(shift_date, floors) or (
+                bool(target_floor) and target_floor in floors
+            )
+            if not relevant:
+                # 当日そのグループにまだ夜勤がなく、今埋めているフロアも対象外ならスキップ
+                # ただしグループ内のいずれかに夜勤必要人数がある日は、最初の配置からリーダーを優先
+                relevant = any(self._min_staff_for(floor, "night") > 0 for floor in floors)
+                if target_floor and target_floor not in floors:
+                    relevant = False
+            if not relevant:
+                continue
+            actual = self._count_night_leaders_for_group(shift_date, group)
+            need = int(group.get("min_leaders", 1))
+            if actual < need:
+                bonus += 1000.0 * (need - actual)
+        return bonus
+
     def _has_leader_on_night(self, shift_date: str) -> bool:
         for (staff_id, shift_day), symbol in self.grid.items():
             if shift_day != shift_date:
@@ -839,8 +938,7 @@ class _Generator:
                 target = self._night_target(staff)
                 score += max(0, target - self.night_counts[staff["id"]]) * 5
             if work_key == "night" and self.settings.get("require_leader_on_night"):
-                if not self._has_leader_on_night(shift_date) and self._is_leader_or_above(staff):
-                    score += 1000
+                score += self._night_leader_score_bonus(staff, shift_date, target_floor=floor)
             score += self._ratio_deficit(staff, work_key) * 8
             score -= self._workload_balance_penalty(staff["id"])
             candidates.append((score, staff))
@@ -908,8 +1006,7 @@ class _Generator:
                 target = self._night_target(staff)
                 score += max(0, target - self.night_counts[staff["id"]]) * 5
             if base_key == "night" and self.settings.get("require_leader_on_night"):
-                if not self._has_leader_on_night(shift_date) and self._is_leader_or_above(staff):
-                    score += 1000
+                score += self._night_leader_score_bonus(staff, shift_date, target_floor=floor)
             score += self._ratio_deficit(staff, base_key) * 8
             score -= self._workload_balance_penalty(staff["id"])
             candidates.append((score, staff))
@@ -1406,18 +1503,18 @@ class _Generator:
         if not self.settings.get("require_leader_on_night") or "night" not in self.work_keys:
             return
         for shift_date in self.period_dates:
-            night_count = self._count_work_on_day(shift_date, "night")
-            if night_count <= 0:
-                continue
-            if self._has_leader_on_night(shift_date):
-                continue
-            self.warnings.append(
-                _warning(
-                    "warn",
-                    "leader_on_night_missing",
-                    f"{shift_date} の夜勤にリーダー以上が配置できませんでした。",
+            shortfalls = self._night_leader_group_shortfalls(shift_date)
+            for group in shortfalls:
+                label = str(group.get("label") or "・".join(group.get("floors") or [])).strip()
+                need = int(group.get("min_leaders", 1))
+                actual = int(group.get("actual", 0))
+                self.warnings.append(
+                    _warning(
+                        "warn",
+                        "leader_on_night_missing",
+                        f"{shift_date} の夜勤リーダー（{label}）が不足しています（必要 {need} 人 / 実際 {actual} 人）。",
+                    )
                 )
-            )
 
     def run(self, existing: dict[tuple[int, str], dict]) -> dict:
         manual = self._phase_manual(existing)

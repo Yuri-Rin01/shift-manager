@@ -8,6 +8,7 @@ from data.leave_request_config import (
 from data.placement_rules import (
     normalize_min_staff_by_floor,
     normalize_min_staff_by_work_type,
+    normalize_night_leader_groups,
     normalize_staffing_requirement_mode,
     normalize_time_slot_staffing_rules,
 )
@@ -61,6 +62,10 @@ class AppSettings(BaseModel):
     max_consecutive_days: int = Field(default=5, ge=1, le=14)
     max_night_per_week: int = Field(default=2, ge=0, le=7)
     require_leader_on_night: bool = True
+    night_leader_groups: list[dict] = Field(
+        default_factory=lambda: normalize_night_leader_groups(None),
+        description="夜勤リーダー必須のフロアグループ（空なら施設全体で1人）",
+    )
 
     leave_alert_threshold: int = Field(default=72, ge=0, le=168)
     leave_fulfill_target: int = Field(default=90, ge=0, le=100)
@@ -122,6 +127,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_time_slot_rules(cls, value: list[dict]) -> list[dict]:
         return normalize_time_slot_staffing_rules(value)
+
+    @field_validator("night_leader_groups")
+    @classmethod
+    def normalize_night_leader_groups_field(cls, value: list[dict]) -> list[dict]:
+        return normalize_night_leader_groups(value)
 
     @field_validator("leave_request_visible_types")
     @classmethod

@@ -49,6 +49,10 @@ const syncWorkTypeMinStaffButton = document.getElementById("btn-sync-work-type-m
 const timeSlotStaffingTbody = document.getElementById("time-slot-staffing-tbody");
 const addTimeSlotButton = document.getElementById("btn-add-time-slot");
 const floorNightMinStaffTbody = document.getElementById("floor-night-min-staff-tbody");
+const nightLeaderGroupsTbody = document.getElementById("night-leader-groups-tbody");
+const addNightLeaderGroupButton = document.getElementById("btn-add-night-leader-group");
+const nightLeaderGroupsPanel = document.getElementById("night-leader-groups-panel");
+const requireLeaderOnNightInput = document.getElementById("require-leader-on-night");
 const workTypeMinStaffPanel = document.getElementById("panel-work-type-min-staff");
 const timeSlotStaffingPanel = document.getElementById("panel-time-slot-staffing");
 const workTypeTemplateSelect = document.getElementById("work-type-template-select");
@@ -56,6 +60,10 @@ const applyWorkTypeTemplateButton = document.getElementById("btn-apply-work-type
 const WORK_TYPE_TEMPLATES = window.WORK_TYPE_TEMPLATES ?? [];
 const NIGHT_WORK_KEYS = new Set(["night", "semi_night"]);
 const FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
+const DEFAULT_NIGHT_LEADER_GROUPS = [
+  { label: "1・2階", floors: ["1F", "2F"], min_leaders: 1 },
+  { label: "2・3階", floors: ["2F", "3F"], min_leaders: 1 },
+];
 
 const INT_FIELDS = new Set([
   "max_consecutive_days",
@@ -409,6 +417,84 @@ function renderFloorNightMinStaffRows(minStaffByFloor = {}) {
   }).join("");
 }
 
+function defaultNightLeaderGroupRow() {
+  return {
+    label: "",
+    floors: FLOOR_LABELS.slice(0, Math.min(2, FLOOR_LABELS.length)),
+    min_leaders: 1,
+  };
+}
+
+function syncNightLeaderGroupsPanelVisibility() {
+  if (!nightLeaderGroupsPanel) return;
+  const enabled = Boolean(requireLeaderOnNightInput?.checked);
+  nightLeaderGroupsPanel.classList.toggle("is-collapsed", !enabled);
+  nightLeaderGroupsPanel.setAttribute("aria-hidden", enabled ? "false" : "true");
+}
+
+function renderNightLeaderGroupRows(groups = []) {
+  if (!nightLeaderGroupsTbody) return;
+  const rows = Array.isArray(groups) ? groups : [];
+  nightLeaderGroupsTbody.innerHTML = rows
+    .map((item, index) => {
+      const selected = new Set(item.floors ?? []);
+      return `
+      <tr class="night-leader-group-row" data-index="${index}">
+        <td>
+          <input
+            type="text"
+            class="input-text night-leader-group-label"
+            maxlength="20"
+            placeholder="例: 1・2階"
+            value="${escapeAttr(item.label ?? "")}"
+            aria-label="グループ名称 ${index + 1}"
+          >
+        </td>
+        <td class="night-leader-floors-cell">
+          <div class="night-leader-floor-checks" role="group" aria-label="対象フロア ${index + 1}">
+            ${FLOOR_LABELS.map(
+              (floor) => `
+              <label class="check-row settings-check night-leader-floor-check">
+                <input
+                  type="checkbox"
+                  class="night-leader-floor"
+                  value="${escapeAttr(floor)}"
+                  ${selected.has(floor) ? "checked" : ""}
+                >
+                <span>${escapeAttr(floor)}</span>
+              </label>`
+            ).join("")}
+          </div>
+        </td>
+        <td class="staffing-basis-min-staff-cell">
+          <input
+            type="number"
+            class="night-leader-min-leaders input-number"
+            min="1"
+            max="99"
+            value="${escapeAttr(String(item.min_leaders ?? 1))}"
+            aria-label="リーダー必要人数 ${index + 1}"
+          >
+        </td>
+        <td class="col-actions">
+          <button type="button" class="btn btn-sm btn-danger" data-remove-night-leader-group>削除</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function collectNightLeaderGroups() {
+  if (!nightLeaderGroupsTbody) return [];
+  return [...nightLeaderGroupsTbody.querySelectorAll(".night-leader-group-row")]
+    .map((row) => ({
+      label: row.querySelector(".night-leader-group-label")?.value.trim() ?? "",
+      floors: [...row.querySelectorAll(".night-leader-floor:checked")].map((input) => input.value),
+      min_leaders: Number.parseInt(row.querySelector(".night-leader-min-leaders")?.value ?? "1", 10) || 1,
+    }))
+    .filter((item) => item.floors.length > 0);
+}
+
 function resolveMinStaffByFloor(data) {
   const byFloor = data.min_staff_by_floor;
   if (byFloor && typeof byFloor === "object" && Object.keys(byFloor).length > 0) {
@@ -688,6 +774,10 @@ function populateForm(data) {
       renderTimeSlotRows(Array.isArray(value) ? value : []);
       continue;
     }
+    if (key === "night_leader_groups") {
+      renderNightLeaderGroupRows(Array.isArray(value) ? value : DEFAULT_NIGHT_LEADER_GROUPS);
+      continue;
+    }
     if (key === "staffing_requirement_mode") {
       setStaffingRequirementMode(value);
       continue;
@@ -709,6 +799,10 @@ function populateForm(data) {
   }
   syncWorkTypeSymbolFields();
   syncStaffingRequirementMode();
+  syncNightLeaderGroupsPanelVisibility();
+  if (nightLeaderGroupsTbody && !nightLeaderGroupsTbody.querySelector(".night-leader-group-row")) {
+    renderNightLeaderGroupRows(DEFAULT_NIGHT_LEADER_GROUPS);
+  }
   refreshStaffingBasisSymbolPreviews();
   refreshTimeSlotCoverageHints();
   syncWorkTypeSymbolBadges();
@@ -775,6 +869,7 @@ function collectFormData() {
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();
+  data.night_leader_groups = collectNightLeaderGroups();
   if (!data.staffing_requirement_mode) {
     data.staffing_requirement_mode = getStaffingRequirementMode();
   }
@@ -834,6 +929,9 @@ form?.addEventListener("change", (event) => {
   if (event.target instanceof HTMLInputElement && event.target.name === "staffing_requirement_mode") {
     syncStaffingRequirementMode();
   }
+  if (event.target instanceof HTMLInputElement && event.target.name === "require_leader_on_night") {
+    syncNightLeaderGroupsPanelVisibility();
+  }
 });
 form?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;
@@ -850,6 +948,19 @@ syncWorkTypeMinStaffButton?.addEventListener("click", () => {
 });
 addTimeSlotButton?.addEventListener("click", () => {
   renderTimeSlotRows([...collectTimeSlotStaffingRules(), defaultTimeSlotRow()]);
+});
+addNightLeaderGroupButton?.addEventListener("click", () => {
+  renderNightLeaderGroupRows([...collectNightLeaderGroups(), defaultNightLeaderGroupRow()]);
+});
+nightLeaderGroupsTbody?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-night-leader-group]");
+  if (!button || !nightLeaderGroupsTbody) return;
+  const row = button.closest(".night-leader-group-row");
+  if (!row) return;
+  const index = [...nightLeaderGroupsTbody.querySelectorAll(".night-leader-group-row")].indexOf(row);
+  const rows = collectNightLeaderGroups();
+  if (index >= 0) rows.splice(index, 1);
+  renderNightLeaderGroupRows(rows);
 });
 addStaffingBasisButton?.addEventListener("click", () => {
   renderStaffingBasisRows([...collectStaffingBasisOptions(), defaultWorkTypeRow()]);

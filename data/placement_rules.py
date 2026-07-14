@@ -347,3 +347,83 @@ def validate_time_slot_staffing_rules(settings: dict) -> None:
             raise ValueError(f"時間帯ルール {index} 行目: 必要人数が不正です。") from None
         if min_staff < 0 or min_staff > 99:
             raise ValueError("必要人数は0〜99で入力してください。")
+
+
+DEFAULT_NIGHT_LEADER_GROUPS: list[dict] = [
+    {"label": "1・2階", "floors": ["1F", "2F"], "min_leaders": 1},
+    {"label": "2・3階", "floors": ["2F", "3F"], "min_leaders": 1},
+]
+
+
+def normalize_night_leader_group(item: dict) -> dict | None:
+    if not isinstance(item, dict):
+        return None
+    label = str(item.get("label", "")).strip()[:20]
+    raw_floors = item.get("floors")
+    if not isinstance(raw_floors, list):
+        return None
+    allowed = set(get_floor_labels())
+    order = {floor: index for index, floor in enumerate(get_floor_labels())}
+    floors = sorted(
+        dict.fromkeys(
+            floor
+            for floor in (str(value).strip() for value in raw_floors)
+            if floor and floor in allowed
+        ),
+        key=lambda floor: order.get(floor, 999),
+    )
+    if not floors:
+        return None
+    try:
+        min_leaders = int(item.get("min_leaders", 1))
+    except (TypeError, ValueError):
+        return None
+    return {
+        "label": label or "・".join(floors),
+        "floors": floors,
+        "min_leaders": max(1, min(99, min_leaders)),
+    }
+
+
+def normalize_night_leader_groups(raw: list | None) -> list[dict]:
+    """空リストは施設全体1人の従来動作。Noneはデフォルト（1・2階 / 2・3階）。"""
+    if raw is None:
+        return [dict(item) for item in DEFAULT_NIGHT_LEADER_GROUPS]
+    if not isinstance(raw, list):
+        return [dict(item) for item in DEFAULT_NIGHT_LEADER_GROUPS]
+    normalized: list[dict] = []
+    for item in raw:
+        group = normalize_night_leader_group(item)
+        if group:
+            normalized.append(group)
+    return normalized
+
+
+def validate_night_leader_groups(settings: dict) -> None:
+    if not settings.get("require_leader_on_night", True):
+        return
+    raw = settings.get("night_leader_groups")
+    if raw is None:
+        return
+    if not isinstance(raw, list):
+        raise ValueError("夜勤リーダー配置グループの形式が不正です。")
+    allowed = set(get_floor_labels())
+    for index, item in enumerate(raw, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"夜勤リーダー配置 {index} 行目の形式が不正です。")
+        label = str(item.get("label", "")).strip()
+        if len(label) > 20:
+            raise ValueError(f"夜勤リーダー配置 {index} 行目: 名称は20文字以内にしてください。")
+        floors = item.get("floors")
+        if not isinstance(floors, list) or not floors:
+            raise ValueError(f"夜勤リーダー配置 {index} 行目: フロアを1つ以上選んでください。")
+        for floor in floors:
+            cleaned = str(floor).strip()
+            if cleaned not in allowed:
+                raise ValueError(f"夜勤リーダー配置 {index} 行目: 未登録のフロアです（{cleaned}）。")
+        try:
+            min_leaders = int(item.get("min_leaders", 1))
+        except (TypeError, ValueError):
+            raise ValueError(f"夜勤リーダー配置 {index} 行目: 必要人数が不正です。") from None
+        if min_leaders < 1 or min_leaders > 99:
+            raise ValueError("夜勤リーダー必要人数は1〜99で入力してください。")

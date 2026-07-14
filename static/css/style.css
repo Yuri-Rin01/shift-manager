@@ -4508,3 +4508,26 @@ input[type="checkbox"]:focus-visible {
     width: 100%;
   }
 }
+
+.night-leader-groups-panel {
+  margin-top: 16px;
+  padding-top: 8px;
+}
+
+.night-leader-groups-panel.is-collapsed {
+  display: none;
+}
+
+.night-leader-floor-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.night-leader-floor-check {
+  margin: 0;
+}
+
+.night-leader-floors-cell {
+  min-width: 200px;
+}

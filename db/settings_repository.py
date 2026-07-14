@@ -7,10 +7,12 @@ from data.placement_rules import (
     apply_overnight_rules_to_night_mins,
     normalize_min_staff_by_floor,
     normalize_min_staff_by_work_type,
+    normalize_night_leader_groups,
     normalize_staffing_requirement_mode,
     normalize_time_slot_staffing_rules,
     validate_min_staff_by_floor,
     validate_min_staff_by_work_type,
+    validate_night_leader_groups,
     validate_time_slot_staffing_rules,
 )
 from data.leave_request_config import (
@@ -47,6 +49,8 @@ def _merge_settings(data: dict | None) -> dict:
         elif key == "time_slot_staffing_rules" and isinstance(value, list):
             # 正規化前の生データを一旦保持し、夜勤帯→固定人数へ移してから落とす
             merged[key] = value
+        elif key == "night_leader_groups" and isinstance(value, list):
+            merged[key] = value
         elif key == "staffing_requirement_mode":
             merged[key] = normalize_staffing_requirement_mode(value)
         elif key == "leave_request_visible_types" and isinstance(value, dict):
@@ -73,6 +77,9 @@ def _merge_settings(data: dict | None) -> dict:
     )
     merged["time_slot_staffing_rules"] = normalize_time_slot_staffing_rules(
         merged.get("time_slot_staffing_rules")
+    )
+    merged["night_leader_groups"] = normalize_night_leader_groups(
+        merged.get("night_leader_groups")
     )
     merged["block_work_after_night"] = True
     merged["morning_off_after_night"] = True
@@ -101,6 +108,7 @@ def save_settings(data: dict) -> dict:
     validate_min_staff_by_work_type(merged)
     validate_min_staff_by_floor(merged)
     validate_time_slot_staffing_rules(merged)
+    validate_night_leader_groups(merged)
     with get_connection() as conn:
         conn.execute(
             """

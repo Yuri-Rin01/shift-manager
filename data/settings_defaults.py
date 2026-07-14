@@ -54,6 +54,10 @@ DEFAULT_SETTINGS: dict = {
     "max_consecutive_days": 5,
     "max_night_per_week": 2,
     "require_leader_on_night": True,
+    "night_leader_groups": [
+        {"label": "1・2階", "floors": ["1F", "2F"], "min_leaders": 1},
+        {"label": "2・3階", "floors": ["2F", "3F"], "min_leaders": 1},
+    ],
     # アラート
     "leave_alert_threshold": 72,
     "leave_fulfill_target": 90,

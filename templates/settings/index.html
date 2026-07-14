@@ -437,9 +437,27 @@
                   <span>夜勤を2日分としてカウント</span>
                 </label>
                 <label class="check-row settings-check">
-                  <input type="checkbox" name="require_leader_on_night">
+                  <input type="checkbox" name="require_leader_on_night" id="require-leader-on-night">
                   <span>夜勤にリーダー以上を必須</span>
                 </label>
+              </div>
+              <div id="night-leader-groups-panel" class="night-leader-groups-panel">
+                <h4 class="requirement-panel-title">夜勤リーダー配置（フロアグループ）</h4>
+                <p class="field-hint requirement-panel-desc">施設に合わせて、夜勤リーダーが必要なフロアの組み合わせを登録します。例: 1・2階で1人、2・3階で1人。グループを空にすると施設全体で1人必須になります。</p>
+                <div class="staffing-basis-table-wrap">
+                  <table class="data-table night-leader-groups-table" id="night-leader-groups-table">
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th>対象フロア</th>
+                        <th class="col-min-staff">リーダー必要人数</th>
+                        <th class="col-actions">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="night-leader-groups-tbody"></tbody>
+                  </table>
+                </div>
+                <button type="button" class="btn btn-sm" id="btn-add-night-leader-group">+ グループを追加</button>
               </div>
             </div>
           </section>
@@ -610,6 +628,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=8"></script>
+  <script src="/static/js/settings.js?v=9"></script>
 </body>
 </html>
