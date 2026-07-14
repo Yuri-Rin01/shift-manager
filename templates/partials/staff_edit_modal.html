@@ -53,27 +53,16 @@
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="departments">
             <span>担当フロア（表示）を変更する</span>
           </label>
-          <div class="form-field form-field-full bulk-field" data-bulk-field="departments">
-          <div class="picker-head">
-            <span class="form-label">担当フロア（表示） <em>*</em></span>
-            <span class="picker-links">
-              <button type="button" class="btn-link" data-select-all="staff-floor">すべて選択</button>
-              <button type="button" class="btn-link" data-clear-all="staff-floor">すべて解除</button>
-              <button type="button" class="btn-link" data-invert-all="staff-floor">反転</button>
-              <button type="button" class="btn-link" id="btn-copy-placement-to-display">配置可能フロアを反映</button>
-            </span>
-          </div>
-          <p class="field-hint">カレンダー・名簿の表示用です。自動生成の配置には使いません。先頭のフロアが並び順の基準になります。</p>
-          <div class="checkbox-grid" id="field-departments">
-            {% for dept in departments %}
-              <label class="check-row">
-                <input type="checkbox" name="staff-floor" value="{{ dept.label }}">
-                {% set slug = dept.label | lower %}
-                <span class="floor-badge floor-badge--{{ slug if slug in ['1f', '2f', '3f', '4f'] else 'default' }}">{{ dept.label }}</span>
-              </label>
-            {% endfor %}
-          </div>
-          </div>
+          <label class="form-field bulk-field" data-bulk-field="departments">
+            <span>担当フロア（表示） <em class="single-only">*</em></span>
+            <select id="field-department" class="input-select" aria-label="担当フロア">
+              <option value="">選択してください</option>
+              {% for dept in departments %}
+                <option value="{{ dept.label }}">{{ dept.label }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-hint">カレンダー・名簿に出す担当フロアは1つだけです。自動生成の配置には使いません。</span>
+          </label>
         </div>
         <div class="bulk-field-group form-field-full" data-bulk-group="placement_floors">
           <label class="bulk-only check-row bulk-apply-toggle">
@@ -82,14 +71,15 @@
           </label>
           <div class="form-field form-field-full bulk-field" data-bulk-field="placement_floors">
           <div class="picker-head">
-            <span class="form-label">配置可能フロア <em>*</em></span>
+            <span class="form-label">配置可能フロア（対応可） <em>*</em></span>
             <span class="picker-links">
               <button type="button" class="btn-link" data-select-all="staff-placement-floor">すべて選択</button>
               <button type="button" class="btn-link" data-clear-all="staff-placement-floor">すべて解除</button>
               <button type="button" class="btn-link" data-invert-all="staff-placement-floor">反転</button>
+              <button type="button" class="btn-link" id="btn-add-department-to-placement">担当フロアを含める</button>
             </span>
           </div>
-          <p class="field-hint">シフト自動生成で配置できるフロアです。担当フロアとは別に指定できます。</p>
+          <p class="field-hint">シフト自動生成で配置できるフロアです。複数選択できます。</p>
           <div class="checkbox-grid" id="field-placement-floors">
             {% for dept in departments %}
               <label class="check-row">
@@ -100,7 +90,8 @@
             {% endfor %}
           </div>
           </div>
-        </div>        <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
+        </div>
+        <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
           <label class="bulk-only check-row bulk-apply-toggle">
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="staffing">
             <span>勤務割合を変更する</span>

@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="page-title-bar">
           <h1 class="page-title">職員管理</h1>
-          <p class="page-subtitle">職員マスタの登録・編集・削除。担当フロアは表示用、配置可能フロアは自動生成の割当に使います。行をダブルクリックで編集できます。</p>
+          <p class="page-subtitle">職員マスタの登録・編集・削除。担当フロアは表示用に1つ、配置可能フロア（対応可）は複数指定できます。</p>
         </div>
         <div class="topbar-actions">
           <span>?</span>
@@ -74,8 +74,8 @@
                       </div>
                     </th>
                     <th>名前</th>
-                    <th class="col-floor">担当フロア（表示）</th>
-                    <th class="col-floor">配置可能フロア</th>
+                    <th class="col-floor">担当フロア</th>
+                    <th class="col-floor">配置可能（対応可）</th>
                     <th>職種</th>
                     <th>役職</th>
                     <th>勤務割合</th>
@@ -110,6 +110,6 @@
 
   {% include "partials/staff_edit_modal.html" %}
   {% include "partials/staff_editor_config.html" %}
-  <script src="/static/js/staff.js?v=15"></script>
+  <script src="/static/js/staff.js?v=16"></script>
 </body>
 </html>

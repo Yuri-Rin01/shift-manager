@@ -24,10 +24,17 @@ def _normalize_floors(value: list[str], *, empty_message: str) -> list[str]:
     return sorted(dict.fromkeys(cleaned), key=lambda item: order.get(item, 999))
 
 
+def _normalize_single_floor(value: list[str]) -> list[str]:
+    floors = _normalize_floors(value, empty_message="担当フロアを選択してください。")
+    if len(floors) != 1:
+        raise ValueError("担当フロアは1つだけ選択してください。")
+    return floors
+
+
 class StaffBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="名前")
-    departments: list[str] = Field(..., min_length=1, description="担当フロア（表示用）")
-    placement_floors: list[str] = Field(..., min_length=1, description="配置可能フロア")
+    departments: list[str] = Field(..., min_length=1, max_length=1, description="担当フロア（表示用・1つのみ）")
+    placement_floors: list[str] = Field(..., min_length=1, description="配置可能フロア（複数可）")
     job_type: str = Field(..., min_length=1, max_length=50, description="職種")
     position: str = Field(default="", max_length=50, description="役職")
     can_work_night: bool = Field(default=False, description="夜勤可否")
@@ -59,7 +66,7 @@ class StaffBase(BaseModel):
     @field_validator("departments")
     @classmethod
     def validate_departments(cls, value: list[str]) -> list[str]:
-        return _normalize_floors(value, empty_message="担当フロアを1つ以上選択してください。")
+        return _normalize_single_floor(value)
 
     @field_validator("placement_floors")
     @classmethod
@@ -78,8 +85,8 @@ class StaffCreate(StaffBase):
 
 class StaffUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=50, description="名前")
-    departments: list[str] | None = Field(default=None, min_length=1, description="担当フロア（表示用）")
-    placement_floors: list[str] | None = Field(default=None, min_length=1, description="配置可能フロア")
+    departments: list[str] | None = Field(default=None, min_length=1, max_length=1, description="担当フロア（表示用・1つのみ）")
+    placement_floors: list[str] | None = Field(default=None, min_length=1, description="配置可能フロア（複数可）")
     job_type: str | None = Field(default=None, min_length=1, max_length=50, description="職種")
     position: str | None = Field(default=None, max_length=50, description="役職")
     can_work_night: bool | None = Field(default=None, description="夜勤可否")
@@ -142,8 +149,8 @@ class StaffBulkUpdate(BaseModel):
     )
     job_type: str | None = Field(default=None, min_length=1, max_length=50, description="職種")
     position: str | None = Field(default=None, max_length=50, description="役職")
-    departments: list[str] | None = Field(default=None, min_length=1, description="担当フロア（表示用）")
-    placement_floors: list[str] | None = Field(default=None, min_length=1, description="配置可能フロア")
+    departments: list[str] | None = Field(default=None, min_length=1, max_length=1, description="担当フロア（表示用・1つのみ）")
+    placement_floors: list[str] | None = Field(default=None, min_length=1, description="配置可能フロア（複数可）")
     can_work_night: bool | None = Field(default=None, description="夜勤可否")
     can_be_night_leader: bool | None = Field(default=None, description="夜勤リーダー可")
     staffing_basis: dict[str, int] | None = Field(default=None, description="勤務割合（キー→割合%）")

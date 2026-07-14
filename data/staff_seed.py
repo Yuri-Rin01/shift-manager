@@ -1,7 +1,7 @@
 """初期投入用のテスト職員データ（介護施設向け）。"""
 
 SEED_STAFF: list[dict] = [
-    {"name": "渡辺", "department": "1F", "departments": ["1F", "2F"], "job_type": "介護士", "position": "主任", "can_work_night": True, "can_be_night_leader": True},
+    {"name": "渡辺", "department": "1F", "job_type": "介護士", "position": "主任", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["1F", "2F"]},
     {"name": "山本", "department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "斉藤", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "中村", "department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
@@ -12,7 +12,7 @@ SEED_STAFF: list[dict] = [
     {"name": "吉田", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "清水", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "藤田", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"name": "岡田", "department": "2F", "departments": ["2F", "3F"], "job_type": "介護士", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True},
+    {"name": "岡田", "department": "2F", "job_type": "介護士", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["2F", "3F"]},
     {"name": "長谷川", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "阿部", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "池田", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
@@ -20,10 +20,10 @@ SEED_STAFF: list[dict] = [
     {"name": "山崎", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "石井", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "前田", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"name": "田中", "department": "1F", "departments": ["1F", "3F"], "job_type": "看護師", "position": "主任", "can_work_night": True, "can_be_night_leader": True},
+    {"name": "田中", "department": "1F", "job_type": "看護師", "position": "主任", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["1F", "3F"]},
     {"name": "佐藤", "department": "1F", "job_type": "看護師", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"name": "山田", "department": "1F", "job_type": "看護師", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True},
-    {"name": "鈴木", "department": "2F", "departments": ["2F", "3F"], "job_type": "看護師", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
+    {"name": "鈴木", "department": "2F", "job_type": "看護師", "position": "一般", "can_work_night": True, "can_be_night_leader": False, "placement_floors": ["2F", "3F"]},
     {"name": "伊藤", "department": "4F", "job_type": "看護師", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True},
     # 日勤中心の職種は夜勤不可のまま
     {"name": "加藤", "department": "3F", "job_type": "理学療法士", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
