@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 from db.database import get_connection
+from data.night_eligibility import resolve_night_flags
 from data.staffing_basis import get_default_staffing_basis_ratios, parse_staffing_basis_raw
 from data.masters import filter_staff_for_facility
 from schemas.staff import StaffBulkUpdate, StaffCreate, StaffUpdate
@@ -136,6 +137,10 @@ def _row_to_dict(
         merged = list(dict.fromkeys([*placement, *raw_floors]))
         placement = merged
     keys = row.keys()
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=bool(row["can_work_night"]),
+        can_be_night_leader=bool(row["can_be_night_leader"]) if "can_be_night_leader" in keys else False,
+    )
     return {
         "id": row["id"],
         "name": row["name"],
@@ -144,8 +149,8 @@ def _row_to_dict(
         "placement_floors": placement,
         "job_type": row["job_type"],
         "position": row["position"],
-        "can_work_night": bool(row["can_work_night"]),
-        "can_be_night_leader": bool(row["can_be_night_leader"]) if "can_be_night_leader" in keys else False,
+        "can_work_night": can_work_night,
+        "can_be_night_leader": can_be_night_leader,
         "staffing_basis": _parse_staffing_basis(row["staffing_basis"]),
         "exclude_from_staffing": bool(row["exclude_from_staffing"]),
         "off_days_per_period": (
@@ -203,6 +208,10 @@ def get_staff(staff_id: int) -> dict | None:
 
 def create_staff(data: StaffCreate) -> dict:
     primary = _primary_department(data.departments)
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=data.can_work_night,
+        can_be_night_leader=data.can_be_night_leader,
+    )
     with get_connection() as conn:
         cursor = conn.execute(
             """
@@ -218,8 +227,8 @@ def create_staff(data: StaffCreate) -> dict:
                 primary,
                 data.job_type,
                 data.position,
-                int(data.can_work_night),
-                int(data.can_be_night_leader),
+                int(can_work_night),
+                int(can_be_night_leader),
                 _serialize_staffing_basis(data.staffing_basis),
                 int(data.exclude_from_staffing),
                 data.off_days_per_period,
@@ -300,6 +309,13 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             else current["day_incompatible_ids"]
         ),
     }
+
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=updated["can_work_night"],
+        can_be_night_leader=updated["can_be_night_leader"],
+    )
+    updated["can_work_night"] = can_work_night
+    updated["can_be_night_leader"] = can_be_night_leader
 
     if not updated["fix_night_shift_count"]:
         updated["night_shift_count"] = None

@@ -89,8 +89,21 @@ function syncEditorSurface() {
   syncNightStaffingVisibility();
 }
 
+function syncNightLeaderImpliesNight() {
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  if (!(nightInput instanceof HTMLInputElement) || !(leaderInput instanceof HTMLInputElement)) {
+    return;
+  }
+  if (leaderInput.checked && !nightInput.checked) {
+    nightInput.checked = true;
+  }
+}
+
 function canWorkNightFromForm() {
-  return Boolean(document.getElementById("field-can-work-night")?.checked);
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  return Boolean(nightInput?.checked || leaderInput?.checked);
 }
 
 function syncNightStaffingVisibility() {
@@ -1451,6 +1464,7 @@ function openModal(mode, staff = null) {
   setSelectValue(document.getElementById("field-position"), staff?.position ?? "");
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
   document.getElementById("field-can-be-night-leader").checked = staff?.can_be_night_leader ?? false;
+  syncNightLeaderImpliesNight();
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
   const offDaysInput = document.getElementById("field-off-days-per-period");
   if (offDaysInput) {
@@ -1600,9 +1614,12 @@ async function saveBulkStaff() {
   }
 
   if (applyNight) {
-    payload.can_work_night = document.getElementById("field-can-work-night").checked;
-    payload.can_be_night_leader = document.getElementById("field-can-be-night-leader").checked;
-    const nightEligible = payload.can_work_night;
+    let canWorkNight = document.getElementById("field-can-work-night").checked;
+    const canBeNightLeader = document.getElementById("field-can-be-night-leader").checked;
+    if (canBeNightLeader) canWorkNight = true;
+    payload.can_work_night = canWorkNight;
+    payload.can_be_night_leader = canBeNightLeader;
+    const nightEligible = canWorkNight;
     const fixNightCount = nightEligible && isNightShiftCountFixed();
     const nightCount = fixNightCount ? getNightShiftCount() : null;
     if (fixNightCount && nightCount == null) {
@@ -1681,7 +1698,9 @@ async function saveStaff(event) {
   }
 
   const id = document.getElementById("staff-id").value;
-  const canWorkNight = document.getElementById("field-can-work-night").checked;
+  syncNightLeaderImpliesNight();
+  const canWorkNight = canWorkNightFromForm();
+  const canBeNightLeader = Boolean(document.getElementById("field-can-be-night-leader")?.checked);
   const fixNightCount = canWorkNight && isNightShiftCountFixed();
   const nightCount = fixNightCount ? getNightShiftCount() : null;
   if (fixNightCount && nightCount == null) {
@@ -1706,7 +1725,7 @@ async function saveStaff(event) {
     job_type: jobType,
     position: document.getElementById("field-position").value.trim(),
     can_work_night: canWorkNight,
-    can_be_night_leader: document.getElementById("field-can-be-night-leader").checked,
+    can_be_night_leader: canBeNightLeader,
     staffing_basis: pruneStaffingBasisRatios(staffingBasis),
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
     off_days_per_period: offDaysPerPeriod,
@@ -1803,6 +1822,17 @@ staffingBasisPicker?.addEventListener("input", (event) => {
 });
 
 document.getElementById("field-can-work-night")?.addEventListener("change", () => {
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  if (nightInput instanceof HTMLInputElement && leaderInput instanceof HTMLInputElement && !nightInput.checked) {
+    leaderInput.checked = false;
+  }
+  syncNightStaffingVisibility();
+  updateNightShiftCountControls(canWorkNightFromForm());
+});
+
+document.getElementById("field-can-be-night-leader")?.addEventListener("change", () => {
+  syncNightLeaderImpliesNight();
   syncNightStaffingVisibility();
   updateNightShiftCountControls(canWorkNightFromForm());
 });

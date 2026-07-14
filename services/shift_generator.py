@@ -14,6 +14,7 @@ from data.calendar_period import (
     period_bounds,
     period_day_count,
 )
+from data.night_eligibility import staff_can_be_night_leader, staff_can_work_night
 from data.placement_rules import (
     get_floor_labels,
     normalize_min_staff_by_floor,
@@ -405,8 +406,8 @@ class _Generator:
         return self._consecutive_work_days_before(staff_id, shift_date) + 1 > max_days
 
     def _can_be_night_leader(self, staff: dict) -> bool:
-        """夜勤リーダー可は職員フラグのみ（役職とは独立）。"""
-        return bool(staff.get("can_be_night_leader"))
+        """夜勤リーダー可は職員フラグのみ（役職とは独立）。リーダー可は夜勤にも入れる。"""
+        return staff_can_be_night_leader(staff)
 
     def _night_leader_groups(self) -> list[dict]:
         from data.placement_rules import normalize_night_leader_groups
@@ -615,7 +616,7 @@ class _Generator:
         if work_key in DAY_WORK_KEYS and self._day_incompatible_on_day(sid, shift_date):
             return False
         if work_key == "night":
-            if not staff.get("can_work_night"):
+            if not staff_can_work_night(staff):
                 return False
             if self._night_incompatible_on_day(sid, shift_date):
                 return False
@@ -671,7 +672,7 @@ class _Generator:
 
     def _night_capable_staff(self) -> list[dict]:
         if self.settings.get("consider_night_eligibility", True):
-            return [s for s in self.staff_list if s.get("can_work_night")]
+            return [s for s in self.staff_list if staff_can_work_night(s)]
         return list(self.staff_list)
 
     def _period_night_demand(self) -> int:
@@ -890,7 +891,7 @@ class _Generator:
 
     def _configured_night_target(self, staff: dict) -> int:
         """夜勤目標は固定回数のみ（勤務割合からは算出しない）。"""
-        if not staff.get("can_work_night") and self.settings.get("consider_night_eligibility", True):
+        if not staff_can_work_night(staff) and self.settings.get("consider_night_eligibility", True):
             return 0
         pool = self._distribution_pool(staff)
         if pool <= 0:
@@ -1267,7 +1268,7 @@ class _Generator:
         if not symbol:
             return
 
-        night_staff = [s for s in self.staff_list if s.get("can_work_night")]
+        night_staff = [s for s in self.staff_list if staff_can_work_night(s)]
         self._rng.shuffle(night_staff)
         for staff in night_staff:
             target = self._night_target(staff)

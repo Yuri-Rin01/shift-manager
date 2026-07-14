@@ -255,8 +255,14 @@ def _migrate_display_floors_to_single(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_night_leader_flags(conn: sqlite3.Connection) -> None:
-    """互換のため残置。夜勤リーダー可は役職ではなく職員フラグのみで判定する。"""
-    return
+    """夜勤リーダー可の職員は夜勤にも入れるよう揃える。"""
+    conn.execute(
+        """
+        UPDATE staff
+        SET can_work_night = 1
+        WHERE can_be_night_leader = 1 AND can_work_night = 0
+        """
+    )
 
 
 def _migrate_staffing_defaults(conn: sqlite3.Connection) -> None:
@@ -620,6 +626,12 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
         floors = _staff_seed_floors(row)
         placement_floors = _staff_seed_placement_floors(row)
         primary = floors[0] if floors else row["department"]
+        from data.night_eligibility import resolve_night_flags
+
+        can_work_night, can_be_night_leader = resolve_night_flags(
+            can_work_night=bool(row.get("can_work_night")),
+            can_be_night_leader=bool(row.get("can_be_night_leader", False)),
+        )
         cursor = conn.execute(
             """
             INSERT INTO staff (
@@ -632,8 +644,8 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
                 primary,
                 row["job_type"],
                 row["position"],
-                int(row["can_work_night"]),
-                int(row.get("can_be_night_leader", False)),
+                int(can_work_night),
+                int(can_be_night_leader),
             ),
         )
         staff_id = cursor.lastrowid
@@ -687,9 +699,14 @@ def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
 
 def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
     """テスト要因: シード定義の夜勤可否・夜勤リーダー可を既存レコードへ反映する。"""
+    from data.night_eligibility import resolve_night_flags
     from data.staff_seed import SEED_STAFF
 
     for row in SEED_STAFF:
+        can_work_night, can_be_night_leader = resolve_night_flags(
+            can_work_night=bool(row.get("can_work_night")),
+            can_be_night_leader=bool(row.get("can_be_night_leader", False)),
+        )
         conn.execute(
             """
             UPDATE staff
@@ -697,8 +714,8 @@ def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
             WHERE name = ?
             """,
             (
-                int(row["can_work_night"]),
-                int(row.get("can_be_night_leader", False)),
+                int(can_work_night),
+                int(can_be_night_leader),
                 row["name"],
             ),
         )

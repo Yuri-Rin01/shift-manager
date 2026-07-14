@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from data.auto_generate_defaults import FACILITY_NIGHT_FLOOR_MINS
+from data.night_eligibility import staff_can_be_night_leader, staff_can_work_night
 from data.night_staffing_guidance import build_night_staffing_guidance
 from data.calendar_period import (
     auto_generate_bounds,
@@ -41,15 +42,11 @@ def _active_staff() -> list[dict]:
 def _night_capable(staff_list: list[dict], settings: dict) -> list[dict]:
     if not settings.get("consider_night_eligibility", True):
         return list(staff_list)
-    return [staff for staff in staff_list if staff.get("can_work_night")]
+    return [staff for staff in staff_list if staff_can_work_night(staff)]
 
 
 def _night_leaders(staff_list: list[dict]) -> list[dict]:
-    return [
-        staff
-        for staff in staff_list
-        if staff.get("can_be_night_leader") and staff.get("can_work_night", True)
-    ]
+    return [staff for staff in staff_list if staff_can_be_night_leader(staff)]
 
 
 def _night_floor_capable(staff_list: list[dict], floor: str, settings: dict) -> list[dict]:

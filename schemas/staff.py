@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import Literal, Self
 
+from data.night_eligibility import resolve_night_flags
 from data.staffing_basis import (
     get_default_staffing_basis_ratios,
     validate_staffing_basis_ratios,
@@ -84,6 +85,16 @@ class StaffBase(BaseModel):
     def validate_staffing_basis(cls, value: dict[str, int]) -> dict[str, int]:
         return validate_staffing_basis_ratios(value)
 
+    @model_validator(mode="after")
+    def night_leader_implies_night(self) -> Self:
+        night, leader = resolve_night_flags(
+            can_work_night=self.can_work_night,
+            can_be_night_leader=self.can_be_night_leader,
+        )
+        self.can_work_night = night
+        self.can_be_night_leader = leader
+        return self
+
 
 class StaffCreate(StaffBase):
     pass
@@ -145,6 +156,12 @@ class StaffUpdate(BaseModel):
             return None
         return StaffBase.validate_staffing_basis(value)
 
+    @model_validator(mode="after")
+    def night_leader_implies_night(self) -> Self:
+        if self.can_be_night_leader:
+            self.can_work_night = True
+        return self
+
 
 class StaffResponse(StaffBase):
     model_config = ConfigDict(from_attributes=True)
@@ -204,6 +221,12 @@ class StaffBulkUpdate(BaseModel):
         if value is None:
             return None
         return StaffBase.validate_staffing_basis(value)
+
+    @model_validator(mode="after")
+    def night_leader_implies_night(self) -> Self:
+        if self.can_be_night_leader:
+            self.can_work_night = True
+        return self
 
 
 class StaffBulkUpdateResponse(BaseModel):

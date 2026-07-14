@@ -494,7 +494,7 @@
                     <input type="checkbox" name="require_leader_on_night" id="require-leader-on-night-auto">
                     <span>夜勤リーダーを毎日置く</span>
                   </label>
-                  <span class="field-hint form-field-full">職員管理の「夜勤リーダー可」の人だけが候補です。役職とは別設定です。</span>
+                  <span class="field-hint form-field-full">職員管理の「夜勤リーダー可」の人だけが候補です。リーダー可の人は夜勤にも入ります（役職とは別設定です）。</span>
                   <div id="auto-gen-leader-guidance" class="auto-gen-guidance form-field-full" aria-live="polite">
                     <p class="auto-gen-guidance-title">夜勤リーダーに必要な人数（目安）</p>
                     <p class="auto-gen-guidance-body" id="auto-gen-leader-guidance-body">読み込み中…</p>
@@ -679,6 +679,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=16"></script>
+  <script src="/static/js/settings.js?v=17"></script>
 </body>
 </html>
