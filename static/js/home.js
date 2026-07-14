@@ -1721,7 +1721,7 @@ function showAutoGenerateConfirm(preflight) {
         <li><span>夜勤リーダー可能者</span><strong>${preflight.night_leader_count} 人</strong></li>
         <li><span>1F夜勤対応</span><strong>${floorCounts["1F"] ?? 0} 人</strong></li>
         <li><span>2F夜勤対応</span><strong>${floorCounts["2F"] ?? 0} 人</strong></li>
-        <li><span>月間公休数</span><strong>${preflight.off_days_per_period ?? "土日相当"} 日</strong></li>
+        <li><span>休みの数</span><strong>${preflight.off_days_per_period ?? "土日相当"} 日</strong></li>
         <li><span>必要人数（夜勤）</span><strong>${needLines || "—"}</strong></li>
         <li><span>使用する詳細設定</span><strong>${advanced}</strong></li>
       </ul>`;

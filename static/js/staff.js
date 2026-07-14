@@ -1419,6 +1419,8 @@ function openBulkModal() {
   setSelectValue(document.getElementById("field-position"), "");
   document.getElementById("field-can-work-night").checked = false;
   document.getElementById("field-exclude-from-staffing").checked = false;
+  const offDaysInput = document.getElementById("field-off-days-per-period");
+  if (offDaysInput) offDaysInput.value = "";
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) fixNightCountCheckbox.checked = false;
@@ -1450,6 +1452,13 @@ function openModal(mode, staff = null) {
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
   document.getElementById("field-can-be-night-leader").checked = staff?.can_be_night_leader ?? false;
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
+  const offDaysInput = document.getElementById("field-off-days-per-period");
+  if (offDaysInput) {
+    offDaysInput.value =
+      staff?.off_days_per_period != null && staff?.off_days_per_period !== ""
+        ? String(staff.off_days_per_period)
+        : "";
+  }
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) {
@@ -1680,6 +1689,16 @@ async function saveStaff(event) {
     return;
   }
 
+  const offDaysRaw = document.getElementById("field-off-days-per-period")?.value.trim() ?? "";
+  let offDaysPerPeriod = null;
+  if (offDaysRaw !== "") {
+    offDaysPerPeriod = Number.parseInt(offDaysRaw, 10);
+    if (!Number.isFinite(offDaysPerPeriod) || offDaysPerPeriod < 0) {
+      showAlert("休みの数は0以上の整数で入力してください。", "error");
+      return;
+    }
+  }
+
   const payload = {
     name: document.getElementById("field-name").value.trim(),
     departments: displayFloors,
@@ -1690,6 +1709,7 @@ async function saveStaff(event) {
     can_be_night_leader: document.getElementById("field-can-be-night-leader").checked,
     staffing_basis: pruneStaffingBasisRatios(staffingBasis),
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
+    off_days_per_period: offDaysPerPeriod,
     fix_night_shift_count: fixNightCount,
     night_shift_count: fixNightCount ? nightCount : null,
     day_incompatible_ids: [...selectedDayIncompatibilities],

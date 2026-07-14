@@ -106,7 +106,22 @@
             </span>
           </div>
           <p class="field-hint staffing-basis-long-hint">区分を選び、スライダーで日中の勤務割合を調整します。夜勤は割合グラフに含めず、下の「夜勤可否」で回数を固定します（優先度が高いため設定回数を優先して配置します）。勤務時間・夜勤必要人数は各種設定の配置ルールで変更できます。</p>
-          <p class="field-hint staffing-basis-period">基準期間（本日を基準とした暦月）: {{ staffing_period_label | default('') }} / 全{{ staffing_period_days | default(30) }}日・休み{{ staffing_period_off_days | default(0) }}日・勤務{{ staffing_period_working_days | default(30) }}日（休み日数は各種設定で変更）</p>
+          <p class="field-hint staffing-basis-period">基準期間（本日を基準とした暦月）: {{ staffing_period_label | default('') }} / 全{{ staffing_period_days | default(30) }}日・休み{{ staffing_period_off_days | default(0) }}日・勤務{{ staffing_period_working_days | default(30) }}日（施設標準の休みの数。下で職員ごとに上書き可）</p>
+          <label class="form-field staffing-basis-off-days">
+            <span class="form-label">休みの数（この職員）</span>
+            <div class="staffing-basis-count-wrap">
+              <input
+                type="number"
+                id="field-off-days-per-period"
+                class="input-number"
+                min="0"
+                max="{{ staffing_period_days | default(30) }}"
+                placeholder="標準（{{ staffing_period_off_days | default(0) }}日）"
+              >
+              <span>日 / 期間</span>
+            </div>
+            <span class="field-hint">空欄＝施設標準（現在 {{ staffing_period_off_days | default(0) }} 日）を使います。自動生成の公休割当に反映されます。</span>
+          </label>
           <div class="staffing-basis-bar" id="staffing-basis-bar" aria-label="割合の内訳"></div>
           <div class="staffing-basis-list" id="field-staffing-basis">
             {% for item in staffing_basis_options %}

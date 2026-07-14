@@ -833,8 +833,12 @@ class _Generator:
                     )
                 )
 
-    def _period_off_target(self) -> int:
+    def _period_off_target(self, staff_id: int | None = None) -> int:
         from data.calendar_period import resolve_configured_period_off_days
+
+        staff = self.staff_by_id.get(staff_id) if staff_id is not None else None
+        if staff is not None and staff.get("off_days_per_period") is not None:
+            return self._scaled_off_days(int(staff["off_days_per_period"]))
 
         _, target_off, _ = resolve_configured_period_off_days(
             self.settings, self.year, self.month, self.start_day
@@ -858,7 +862,7 @@ class _Generator:
         )
 
     def _off_slots_remaining(self, staff_id: int) -> int:
-        return self._period_off_target() - self._count_off_toward_target(staff_id)
+        return self._period_off_target(staff_id) - self._count_off_toward_target(staff_id)
 
     def _slot_a(self, staff_id: int) -> int:
         """A = 表示区間 − 手動マス数"""
@@ -866,7 +870,7 @@ class _Generator:
 
     def _slot_b(self, staff_id: int) -> int:
         """B = A − 設定休み"""
-        return max(0, self._slot_a(staff_id) - self._period_off_target())
+        return max(0, self._slot_a(staff_id) - self._period_off_target(staff_id))
 
     def _manual_cell_count(self, staff_id: int) -> int:
         return sum(
@@ -1524,7 +1528,7 @@ class _Generator:
     def _validate_off_exact(self) -> None:
         for staff in self.staff_list:
             sid = staff["id"]
-            target = self._period_off_target()
+            target = self._period_off_target(sid)
             actual = self._count_off_toward_target(sid)
             if actual == target:
                 continue

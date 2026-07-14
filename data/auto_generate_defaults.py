@@ -35,7 +35,7 @@ AUTO_GENERATE_DEFAULTS: dict = {
 }
 
 AUTO_GENERATE_SETTING_HELP: dict[str, str] = {
-    "off_days_per_period": "1か月（表示期間）あたりの休み日数です。未入力のときは土日の日数を使います。",
+    "off_days_per_period": "自動生成で割り当てる休み（公休）の標準日数です。空欄だと表示期間内の土日数を使います。職員ごとに違う場合は職員管理で上書きできます。",
     "min_staff_by_floor": "各フロア・各勤務帯で1日に必要な人数です。",
     "night_1f": "1階の夜勤に必要な人数です（標準は1人）。",
     "night_2f": "2階の夜勤に必要な人数です（標準は1人）。",

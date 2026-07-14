@@ -44,6 +44,12 @@ class StaffBase(BaseModel):
         description="勤務割合（キー→割合%）",
     )
     exclude_from_staffing: bool = Field(default=False, description="人員に含めない")
+    off_days_per_period: int | None = Field(
+        default=None,
+        ge=0,
+        le=31,
+        description="1期間あたりの休み日数（未設定時は施設の標準）",
+    )
     night_shift_count: int | None = Field(
         default=None,
         ge=0,
@@ -93,6 +99,12 @@ class StaffUpdate(BaseModel):
     can_be_night_leader: bool | None = Field(default=None, description="夜勤リーダー可")
     staffing_basis: dict[str, int] | None = Field(default=None, description="勤務割合（キー→割合%）")
     exclude_from_staffing: bool | None = Field(default=None, description="人員に含めない")
+    off_days_per_period: int | None = Field(
+        default=None,
+        ge=0,
+        le=31,
+        description="1期間あたりの休み日数（未設定時は施設の標準）",
+    )
     night_shift_count: int | None = Field(
         default=None,
         ge=0,
@@ -155,6 +167,12 @@ class StaffBulkUpdate(BaseModel):
     can_be_night_leader: bool | None = Field(default=None, description="夜勤リーダー可")
     staffing_basis: dict[str, int] | None = Field(default=None, description="勤務割合（キー→割合%）")
     exclude_from_staffing: bool | None = Field(default=None, description="人員に含めない")
+    off_days_per_period: int | None = Field(
+        default=None,
+        ge=0,
+        le=31,
+        description="1期間あたりの休み日数（未設定時は施設の標準）",
+    )
     night_shift_count: int | None = Field(
         default=None,
         ge=0,

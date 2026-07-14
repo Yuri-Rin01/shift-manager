@@ -148,6 +148,11 @@ def _row_to_dict(
         "can_be_night_leader": bool(row["can_be_night_leader"]) if "can_be_night_leader" in keys else False,
         "staffing_basis": _parse_staffing_basis(row["staffing_basis"]),
         "exclude_from_staffing": bool(row["exclude_from_staffing"]),
+        "off_days_per_period": (
+            int(row["off_days_per_period"])
+            if "off_days_per_period" in keys and row["off_days_per_period"] is not None
+            else None
+        ),
         "night_shift_count": (
             int(row["night_shift_count"])
             if row["night_shift_count"] is not None
@@ -217,7 +222,7 @@ def create_staff(data: StaffCreate) -> dict:
                 int(data.can_be_night_leader),
                 _serialize_staffing_basis(data.staffing_basis),
                 int(data.exclude_from_staffing),
-                None,
+                data.off_days_per_period,
                 data.night_shift_count if data.fix_night_shift_count else None,
                 int(data.fix_night_shift_count),
             ),
@@ -269,6 +274,11 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             if data.exclude_from_staffing is not None
             else current["exclude_from_staffing"]
         ),
+        "off_days_per_period": (
+            data.off_days_per_period
+            if "off_days_per_period" in fields_set
+            else current.get("off_days_per_period")
+        ),
         "night_shift_count": (
             data.night_shift_count
             if "night_shift_count" in fields_set
@@ -312,7 +322,7 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 int(updated["can_be_night_leader"]),
                 _serialize_staffing_basis(updated["staffing_basis"]),
                 int(updated["exclude_from_staffing"]),
-                None,
+                updated.get("off_days_per_period"),
                 updated["night_shift_count"],
                 int(updated["fix_night_shift_count"]),
                 staff_id,

@@ -171,8 +171,8 @@
                   <span class="field-hint">週番号行の区切りに使用します。</span>
                 </label>
                 <label class="form-field">
-                  <span class="form-label">休み日数（1期間あたり）</span>
-                  <p class="field-hint">月間の公休数は <a href="/settings?panel=auto">自動生成の基本設定</a> で変更します（勤務割合の目安にも使います）。</p>
+                  <span class="form-label">休みの数（1期間あたり）</span>
+                  <p class="field-hint">施設全体の標準は <a href="/settings?panel=auto">自動生成設定の「休みの数」</a> で変更します。職員ごとの上書きは職員管理で設定します。</p>
                 </label>
               </div>
               <div class="settings-checkbox-grid">
@@ -458,9 +458,9 @@
                 <p class="field-hint">標準の夜勤体制は毎日 <strong>1F夜勤1名・2F夜勤1名・夜勤リーダー1名</strong>（計3名）です。</p>
 
                 <label class="form-field">
-                  <span class="form-label">月間の公休数</span>
-                  <input type="number" name="off_days_per_period" min="0" max="31" placeholder="未設定＝土日相当">
-                  <span class="field-hint">1か月（表示期間）あたりの休み日数です。未入力のときは土日の日数を使います。</span>
+                  <span class="form-label">休みの数（公休・1期間あたり）</span>
+                  <input type="number" name="off_days_per_period" min="0" max="31" placeholder="未設定＝土日の日数">
+                  <span class="field-hint">自動生成で割り当てる休み（公休）の標準日数です。空欄だと表示期間内の土日数を使います。職員ごとに違う場合は職員管理で上書きできます。</span>
                 </label>
 
                 <div class="auto-gen-night-model">
@@ -665,6 +665,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=13"></script>
+  <script src="/static/js/settings.js?v=14"></script>
 </body>
 </html>
