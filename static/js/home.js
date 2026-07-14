@@ -1,6 +1,14 @@
 const STORAGE_KEY = "shift-display-prefs";
 const serverDefaults = window.APP_SETTINGS ?? {};
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function defaultPrefs() {
   return {
     showJob: serverDefaults.default_show_job_column ?? true,
@@ -1717,14 +1725,40 @@ function showAutoGenerateConfirm(preflight) {
         <li><span>対象フロア</span><strong>${(preflight.departments || []).join("、") || "—"}</strong></li>
         <li><span>職員数</span><strong>${preflight.staff_count} 人</strong></li>
         <li><span>希望休</span><strong>${preflight.leave_count} 件</strong></li>
-        <li><span>夜勤可能者</span><strong>${preflight.night_capable_count} 人</strong></li>
-        <li><span>夜勤リーダー可能者</span><strong>${preflight.night_leader_count} 人</strong></li>
-        <li><span>1F夜勤対応</span><strong>${floorCounts["1F"] ?? 0} 人</strong></li>
-        <li><span>2F夜勤対応</span><strong>${floorCounts["2F"] ?? 0} 人</strong></li>
+        <li><span>夜勤可能者</span><strong>${preflight.night_capable_count} 人${
+          preflight.night_guidance?.recommended_capable_total != null
+            ? `（目安 ${preflight.night_guidance.recommended_capable_total} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>夜勤リーダー可能者</span><strong>${preflight.night_leader_count} 人${
+          preflight.night_guidance?.recommended_leaders != null
+            ? `（目安 ${preflight.night_guidance.recommended_leaders} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>1F夜勤対応</span><strong>${floorCounts["1F"] ?? 0} 人${
+          preflight.night_guidance?.recommended_by_floor?.["1F"] != null
+            ? `（目安 ${preflight.night_guidance.recommended_by_floor["1F"]} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>2F夜勤対応</span><strong>${floorCounts["2F"] ?? 0} 人${
+          preflight.night_guidance?.recommended_by_floor?.["2F"] != null
+            ? `（目安 ${preflight.night_guidance.recommended_by_floor["2F"]} 人以上）`
+            : ""
+        }</strong></li>
         <li><span>休みの数</span><strong>${preflight.off_days_per_period ?? "土日相当"} 日</strong></li>
         <li><span>必要人数（夜勤）</span><strong>${needLines || "—"}</strong></li>
         <li><span>使用する詳細設定</span><strong>${advanced}</strong></li>
-      </ul>`;
+      </ul>
+      ${
+        preflight.night_guidance?.night_summary
+          ? `<p class="auto-gen-guidance-body" style="margin-top:0.75rem">${escapeHtml(preflight.night_guidance.night_summary)}</p>`
+          : ""
+      }
+      ${
+        preflight.night_guidance?.leader_summary
+          ? `<p class="auto-gen-guidance-body">${escapeHtml(preflight.night_guidance.leader_summary)}</p>`
+          : ""
+      }`;
   }
   if (autoGenerateConfirmWarnings && autoGenerateConfirmWarningsWrap) {
     const warnings = Array.isArray(preflight.warnings) ? preflight.warnings : [];

@@ -78,6 +78,28 @@ class AutoGeneratePreflightWarning(BaseModel):
     action_label: str | None = None
 
 
+class NightStaffingGuidance(BaseModel):
+    period_days: int = 0
+    max_night_per_week: int = 0
+    nights_per_person: int = 0
+    daily_by_floor: dict[str, int] = Field(default_factory=dict)
+    daily_total: int = 0
+    period_slots: int = 0
+    recommended_capable_total: int = 0
+    recommended_by_floor: dict[str, int] = Field(default_factory=dict)
+    actual_capable_total: int = 0
+    actual_by_floor: dict[str, int] = Field(default_factory=dict)
+    capable_sufficient: bool = True
+    leader_daily: int = 0
+    leader_period_slots: int = 0
+    recommended_leaders: int = 0
+    actual_leaders: int = 0
+    leader_sufficient: bool = True
+    floor_lines: list[str] = Field(default_factory=list)
+    night_summary: str = ""
+    leader_summary: str = ""
+
+
 class AutoGeneratePreflightResponse(BaseModel):
     year: int
     month: int
@@ -102,6 +124,7 @@ class AutoGeneratePreflightResponse(BaseModel):
     max_night_per_week: int = 2
     fairness_mode: str = "balance"
     advanced_settings_used: list[str] = Field(default_factory=list)
+    night_guidance: NightStaffingGuidance | None = None
     warnings: list[AutoGeneratePreflightWarning] = Field(default_factory=list)
     suggestions: list[ShiftGenerateSuggestion] = Field(default_factory=list)
     can_generate: bool = True

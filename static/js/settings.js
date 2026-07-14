@@ -448,8 +448,155 @@ function syncFairnessModeFromCheckbox() {
   hiddenFairnessModeInput.value = balanceWorkloadInput?.checked ? "balance" : "off";
 }
 
+const autoGenNightGuidanceBody = document.getElementById("auto-gen-night-guidance-body");
+const autoGenNightGuidanceFloors = document.getElementById("auto-gen-night-guidance-floors");
+const autoGenLeaderGuidanceBody = document.getElementById("auto-gen-leader-guidance-body");
+const staffingNightGuidanceBody = document.getElementById("staffing-night-guidance-body");
+const staffingNightGuidanceFloors = document.getElementById("staffing-night-guidance-floors");
+const autoGenNightGuidanceBox = document.getElementById("auto-gen-night-guidance");
+const autoGenLeaderGuidanceBox = document.getElementById("auto-gen-leader-guidance");
+const staffingNightGuidanceBox = document.getElementById("staffing-night-guidance");
+
+let cachedNightGuidanceContext = null;
+
+function nightsPerPersonCapacity(periodDays, maxNightPerWeek) {
+  const days = Math.max(0, Number(periodDays) || 0);
+  if (days <= 0) return 1;
+  const chainCap = Math.max(1, Math.floor(days / 3));
+  const weekCap = Number(maxNightPerWeek) || 0;
+  if (weekCap <= 0) return chainCap;
+  const weeks = Math.max(1, Math.ceil(days / 7));
+  return Math.max(1, Math.min(weekCap * weeks, chainCap));
+}
+
+function recommendHeadcount(periodSlots, periodDays, maxNightPerWeek) {
+  const slots = Math.max(0, Number(periodSlots) || 0);
+  if (slots <= 0) return 0;
+  const perPerson = nightsPerPersonCapacity(periodDays, maxNightPerWeek);
+  return Math.max(1, Math.ceil(slots / perPerson));
+}
+
+function collectNightMinsFromForm() {
+  const result = {};
+  for (const tbody of [floorNightMinStaffTbody, autoGenNightMinTbody]) {
+    if (!tbody) continue;
+    for (const input of tbody.querySelectorAll(".floor-night-min-staff, .auto-gen-night-min-staff")) {
+      if (!(input instanceof HTMLInputElement)) continue;
+      const floor = input.dataset.floor?.trim() ?? "";
+      if (!floor) continue;
+      const count = Number.parseInt(input.value, 10);
+      result[floor] = Number.isFinite(count) ? Math.max(0, Math.min(99, count)) : 0;
+    }
+  }
+  return result;
+}
+
+function buildLiveNightGuidance() {
+  const ctx = cachedNightGuidanceContext;
+  if (!ctx) return null;
+  const mins = collectNightMinsFromForm();
+  const periodDays = ctx.period_days || 0;
+  const maxWeek =
+    Number.parseInt(form?.elements?.namedItem("max_night_per_week")?.value ?? `${ctx.max_night_per_week || 2}`, 10) ||
+    0;
+  const requireLeader = Boolean(requireLeaderOnNightInput?.checked);
+  const dailyTotal = Object.values(mins).reduce((sum, value) => sum + value, 0);
+  const periodSlots = dailyTotal * periodDays;
+  const perPerson = nightsPerPersonCapacity(periodDays, maxWeek);
+  const recommendedByFloor = {};
+  for (const [floor, daily] of Object.entries(mins)) {
+    if (daily <= 0) {
+      recommendedByFloor[floor] = 0;
+      continue;
+    }
+    recommendedByFloor[floor] = Math.max(
+      daily,
+      recommendHeadcount(daily * periodDays, periodDays, maxWeek)
+    );
+  }
+  const floorNeedSum = Object.values(recommendedByFloor).reduce((sum, value) => sum + value, 0);
+  const recommendedCapable = Math.max(
+    dailyTotal,
+    recommendHeadcount(periodSlots, periodDays, maxWeek),
+    floorNeedSum,
+    0
+  );
+  const leaderDaily = requireLeader && periodSlots > 0 ? Math.max(1, ctx.leader_daily || 1) : 0;
+  const leaderPeriodSlots = leaderDaily * periodDays;
+  const recommendedLeaders =
+    leaderDaily > 0
+      ? Math.max(leaderDaily, recommendHeadcount(leaderPeriodSlots, periodDays, maxWeek))
+      : 0;
+  const actualCapable = ctx.actual_capable_total ?? 0;
+  const actualLeaders = ctx.actual_leaders ?? 0;
+  const actualByFloor = ctx.actual_by_floor || {};
+  const floorLines = Object.keys(mins)
+    .sort()
+    .filter((floor) => (mins[floor] || 0) > 0)
+    .map((floor) => {
+      const daily = mins[floor];
+      const need = recommendedByFloor[floor] || 0;
+      const actual = actualByFloor[floor] || 0;
+      const status = actual >= need ? "足りています" : "不足しています";
+      return `${floor}は1日${daily}人 → 期間およそ${daily * periodDays}枠。目安の夜勤対応者は${need}人以上（いま${actual}人・${status}）。`;
+    });
+  return {
+    night_summary: `いまの設定では1日あたり夜勤${dailyTotal}人（期間${periodDays}日で約${periodSlots}枠）が必要です。週上限${maxWeek || "なし"}・明け休みを踏まえると、夜勤可能者の目安は合計${recommendedCapable}人以上です（1人あたりおおよそ${perPerson}回まで。いま${actualCapable}人）。`,
+    leader_summary:
+      recommendedLeaders > 0
+        ? `夜勤リーダーは1日${leaderDaily}人（期間約${leaderPeriodSlots}枠）必要です。目安のリーダー可能者は${recommendedLeaders}人以上です（いま${actualLeaders}人・${
+            actualLeaders >= recommendedLeaders ? "足りています" : "不足しています"
+          }）。`
+        : "夜勤リーダーの毎日配置はオフです。",
+    floor_lines: floorLines,
+    capable_sufficient: actualCapable >= recommendedCapable,
+    leader_sufficient: recommendedLeaders <= 0 || actualLeaders >= recommendedLeaders,
+    recommended_capable_total: recommendedCapable,
+    recommended_leaders: recommendedLeaders,
+    actual_capable_total: actualCapable,
+    actual_leaders: actualLeaders,
+  };
+}
+
+function renderNightGuidance(guidance) {
+  if (!guidance) return;
+  const nightOk = guidance.capable_sufficient !== false;
+  const leaderOk = guidance.leader_sufficient !== false;
+  if (autoGenNightGuidanceBody) {
+    autoGenNightGuidanceBody.textContent = guidance.night_summary || "";
+  }
+  const floorHtml = (guidance.floor_lines || [])
+    .map((line) => `<li>${escapeAttr(line)}</li>`)
+    .join("");
+  if (autoGenNightGuidanceFloors) {
+    autoGenNightGuidanceFloors.innerHTML = floorHtml;
+  }
+  if (autoGenNightGuidanceBox) {
+    autoGenNightGuidanceBox.classList.toggle("is-insufficient", !nightOk);
+  }
+  if (autoGenLeaderGuidanceBody) {
+    autoGenLeaderGuidanceBody.textContent = guidance.leader_summary || "";
+  }
+  if (autoGenLeaderGuidanceBox) {
+    autoGenLeaderGuidanceBox.classList.toggle("is-insufficient", !leaderOk);
+  }
+  if (staffingNightGuidanceBody) {
+    staffingNightGuidanceBody.textContent = guidance.night_summary || "";
+  }
+  if (staffingNightGuidanceFloors) {
+    staffingNightGuidanceFloors.innerHTML = floorHtml;
+  }
+  if (staffingNightGuidanceBox) {
+    staffingNightGuidanceBox.classList.toggle("is-insufficient", !nightOk);
+  }
+}
+
+function refreshLiveNightGuidance() {
+  renderNightGuidance(buildLiveNightGuidance());
+}
+
 async function loadAutoGenStaffReadiness() {
-  if (!autoGenReadinessList) return;
+  if (!autoGenReadinessList && !autoGenNightGuidanceBody) return;
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -457,14 +604,29 @@ async function loadAutoGenStaffReadiness() {
     const response = await fetch(`/api/shifts/generate/preflight?year=${year}&month=${month}`);
     if (!response.ok) throw new Error("failed");
     const data = await response.json();
+    const guidance = data.night_guidance || null;
+    if (guidance) {
+      cachedNightGuidanceContext = {
+        period_days: guidance.period_days,
+        max_night_per_week: guidance.max_night_per_week,
+        leader_daily: guidance.leader_daily || 1,
+        actual_capable_total: guidance.actual_capable_total,
+        actual_leaders: guidance.actual_leaders,
+        actual_by_floor: guidance.actual_by_floor || data.night_floor_counts || {},
+      };
+      renderNightGuidance(guidance);
+    }
+    if (!autoGenReadinessList) return;
     const floor1 = data.night_floor_counts?.["1F"] ?? 0;
     const floor2 = data.night_floor_counts?.["2F"] ?? 0;
+    const needCapable = guidance?.recommended_capable_total ?? "—";
+    const needLeaders = guidance?.recommended_leaders ?? "—";
     autoGenReadinessList.innerHTML = `
       <li>対象職員: <strong>${data.staff_count ?? 0}</strong> 人</li>
-      <li>夜勤可能者: <strong>${data.night_capable_count ?? 0}</strong> 人</li>
-      <li>夜勤リーダー可能者: <strong>${data.night_leader_count ?? 0}</strong> 人</li>
-      <li>1F夜勤対応可能者: <strong>${floor1}</strong> 人</li>
-      <li>2F夜勤対応可能者: <strong>${floor2}</strong> 人</li>
+      <li>夜勤可能者: <strong>${data.night_capable_count ?? 0}</strong> 人（目安 ${needCapable} 人以上）</li>
+      <li>夜勤リーダー可能者: <strong>${data.night_leader_count ?? 0}</strong> 人（目安 ${needLeaders} 人以上）</li>
+      <li>1F夜勤対応可能者: <strong>${floor1}</strong> 人（目安 ${guidance?.recommended_by_floor?.["1F"] ?? "—"} 人以上）</li>
+      <li>2F夜勤対応可能者: <strong>${floor2}</strong> 人（目安 ${guidance?.recommended_by_floor?.["2F"] ?? "—"} 人以上）</li>
       <li>希望休（期間内・シフト反映済）: <strong>${data.leave_count ?? 0}</strong> 件</li>
     `;
     if (Array.isArray(data.warnings) && data.warnings.length) {
@@ -478,7 +640,12 @@ async function loadAutoGenStaffReadiness() {
       autoGenReadinessList.insertAdjacentHTML("beforeend", warnHtml);
     }
   } catch {
-    autoGenReadinessList.innerHTML = `<li>職員の準備状況を取得できませんでした。カレンダーの自動生成前確認でも確認できます。</li>`;
+    if (autoGenReadinessList) {
+      autoGenReadinessList.innerHTML = `<li>職員の準備状況を取得できませんでした。カレンダーの自動生成前確認でも確認できます。</li>`;
+    }
+    if (autoGenNightGuidanceBody) {
+      autoGenNightGuidanceBody.textContent = "必要人数の目安を取得できませんでした。";
+    }
   }
 }
 
@@ -1068,6 +1235,7 @@ form?.addEventListener("change", (event) => {
   }
   if (event.target instanceof HTMLInputElement && event.target.name === "require_leader_on_night") {
     syncNightLeaderGroupsPanelVisibility();
+    refreshLiveNightGuidance();
   }
   if (event.target instanceof HTMLInputElement && event.target.id === "field-balance-workload") {
     syncFairnessModeFromCheckbox();
@@ -1078,6 +1246,7 @@ form?.addEventListener("change", (event) => {
       event.target.classList.contains("auto-gen-night-min-staff"))
   ) {
     syncNightMinInputs(event.target);
+    refreshLiveNightGuidance();
   }
 });
 form?.addEventListener("input", (event) => {
@@ -1087,6 +1256,10 @@ form?.addEventListener("input", (event) => {
     event.target.classList.contains("auto-gen-night-min-staff")
   ) {
     syncNightMinInputs(event.target);
+    refreshLiveNightGuidance();
+  }
+  if (event.target.name === "max_night_per_week") {
+    refreshLiveNightGuidance();
   }
   if (event.target.name.startsWith(SHIFT_SYMBOL_PREFIX)) {
     syncWorkTypeSymbolBadges();

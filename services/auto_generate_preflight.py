@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from data.auto_generate_defaults import FACILITY_NIGHT_FLOOR_MINS
+from data.night_staffing_guidance import build_night_staffing_guidance
 from data.calendar_period import (
     auto_generate_bounds,
     format_scope_range,
@@ -118,6 +119,17 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
     if settings.get("consider_night_eligibility", True):
         advanced_used.append("夜勤可否を考慮")
 
+    night_guidance = build_night_staffing_guidance(
+        period_days=period_days,
+        night_mins_by_floor=night_mins,
+        night_floor_counts={floor: len(people) for floor, people in floor_caps.items()},
+        night_capable_count=len(night_capable),
+        night_leader_count=len(night_leaders),
+        max_night_per_week=max_night_week,
+        require_leader_on_night=leader_required,
+        night_leader_groups=leader_groups,
+    )
+
     warnings = enrich_warnings(
         _build_warnings(
             settings=settings,
@@ -160,6 +172,7 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
         "max_night_per_week": max_night_week,
         "fairness_mode": fairness,
         "advanced_settings_used": advanced_used,
+        "night_guidance": night_guidance,
         "warnings": warnings,
         "suggestions": unique_suggestions(warnings),
         "can_generate": not any(item.get("blocking") for item in warnings),

@@ -3143,9 +3143,37 @@ body {
   padding: 10px 12px;
 }
 
-.auto-gen-readiness-tip {
-  color: #9a3412;
+.auto-gen-guidance {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.auto-gen-guidance.is-insufficient {
+  border-color: #fdba74;
+  background: #fff7ed;
+}
+
+.auto-gen-guidance-title {
+  margin: 0 0 0.35rem;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auto-gen-guidance-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.auto-gen-guidance-floors {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
   font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
 }
 
 .auto-generate-result-section h4 {
