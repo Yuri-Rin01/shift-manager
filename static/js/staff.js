@@ -14,7 +14,8 @@ const nightIncompatibilityPicker = document.getElementById("field-night-incompat
 const nightIncompatibilitySearch = document.getElementById("field-incompatibility-search");
 const dayIncompatibilityPicker = document.getElementById("field-day-incompatibilities");
 const dayIncompatibilitySearch = document.getElementById("field-day-incompatibility-search");
-const floorPicker = document.getElementById("field-departments");
+const departmentSelect = document.getElementById("field-department");
+const placementFloorPicker = document.getElementById("field-placement-floors");
 const staffingBasisPicker = document.getElementById("field-staffing-basis");
 const staffingBasisBar = document.getElementById("staffing-basis-bar");
 const staffingBasisTotal = document.getElementById("staffing-basis-total");
@@ -36,7 +37,7 @@ const JOB_SORT_ORDER = window.STAFF_JOB_ORDER ?? [];
 const POSITION_SORT_ORDER = window.STAFF_POSITION_ORDER ?? [];
 const DEFAULT_STAFF_SORT = window.DEFAULT_STAFF_SORT ?? "dept";
 
-const TABLE_COLSPAN = 11;
+const TABLE_COLSPAN = 13;
 
 const IS_STAFF_LIST_PAGE = Boolean(tbody);
 const STAFF_EDITOR_OVERLAY = window.STAFF_EDITOR_OVERLAY === true;
@@ -146,7 +147,10 @@ function resetBulkFieldGroup(group) {
       setSelectValue(document.getElementById("field-position"), "");
       break;
     case "departments":
-      setCheckboxGroup(floorPicker, "staff-floor", []);
+      setSelectValue(departmentSelect, "");
+      break;
+    case "placement_floors":
+      setCheckboxGroup(placementFloorPicker, "staff-placement-floor", []);
       break;
     case "staffing": {
       clearNonNightRatioCeilings();
@@ -163,6 +167,7 @@ function resetBulkFieldGroup(group) {
       break;
     case "can_work_night":
       document.getElementById("field-can-work-night").checked = false;
+      document.getElementById("field-can-be-night-leader").checked = false;
       break;
     default:
       break;
@@ -472,6 +477,17 @@ function floorBadgeClass(floor) {
 
 function formatDepartments(staff) {
   const floors = staffFloors(staff);
+  if (!floors.length) return '<span class="text-muted">-</span>';
+  return `<span class="floor-badges">${floors
+    .map(
+      (floor) =>
+        `<span class="floor-badge ${floorBadgeClass(floor)}" title="${escapeHtml(floor)}">${escapeHtml(floor)}</span>`
+    )
+    .join("")}</span>`;
+}
+
+function formatPlacementFloors(staff) {
+  const floors = staffPlacementFloors(staff);
   if (!floors.length) return '<span class="text-muted">-</span>';
   return `<span class="floor-badges">${floors
     .map(
@@ -1046,6 +1062,11 @@ function staffFloors(staff) {
   return staff.departments?.length ? staff.departments : [staff.department].filter(Boolean);
 }
 
+function staffPlacementFloors(staff) {
+  if (staff.placement_floors?.length) return staff.placement_floors;
+  return staffFloors(staff);
+}
+
 function staffSortMode() {
   return sortStaffSelect?.value || DEFAULT_STAFF_SORT;
 }
@@ -1130,6 +1151,7 @@ function renderTable() {
         </td>
         <td>${escapeHtml(staff.name)}</td>
         <td class="col-floor">${formatDepartments(staff)}</td>
+        <td class="col-floor">${formatPlacementFloors(staff)}</td>
         <td>${escapeHtml(staff.job_type)}</td>
         <td>${escapeHtml(staff.position || "-")}</td>
         <td>${formatStaffingBasis(staff)}</td>
@@ -1137,6 +1159,11 @@ function renderTable() {
         <td>
           <span class="badge ${staff.can_work_night ? "badge-ok" : "badge-muted"}">
             ${staff.can_work_night ? "可" : "不可"}
+          </span>
+        </td>
+        <td>
+          <span class="badge ${staff.can_be_night_leader ? "badge-ok" : "badge-muted"}">
+            ${staff.can_be_night_leader ? "可" : "不可"}
           </span>
         </td>
         <td>${formatIncompatibilities(staff.day_incompatible_ids)}</td>
@@ -1242,12 +1269,6 @@ function addDayIncompatibilities(staffIds) {
 }
 
 function setAllCheckboxes(name, checked) {
-  if (name === "staff-floor") {
-    floorPicker?.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-      input.checked = checked;
-    });
-    return;
-  }
   if (name === "staffing-basis") {
     if (checked) {
       if (isNightShiftCountLocked()) {
@@ -1285,12 +1306,6 @@ function setAllCheckboxes(name, checked) {
 }
 
 function invertAllCheckboxes(name) {
-  if (name === "staff-floor") {
-    floorPicker?.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-      input.checked = !input.checked;
-    });
-    return;
-  }
   if (name === "staffing-basis") {
     if (isNightShiftCountLocked()) {
       showAlert("夜勤回数固定中は反転できません。", "error");
@@ -1426,7 +1441,8 @@ function openBulkModal() {
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) fixNightCountCheckbox.checked = false;
   if (nightCountInput) nightCountInput.value = "";
-  setCheckboxGroup(floorPicker, "staff-floor", []);
+  setSelectValue(departmentSelect, "");
+  setCheckboxGroup(placementFloorPicker, "staff-placement-floor", []);
   clearNonNightRatioCeilings();
   applyStaffingBasisRatios({});
   refreshStaffingBasisDisplay();
@@ -1450,6 +1466,7 @@ function openModal(mode, staff = null) {
   setSelectValue(document.getElementById("field-job-type"), staff?.job_type ?? "");
   setSelectValue(document.getElementById("field-position"), staff?.position ?? "");
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
+  document.getElementById("field-can-be-night-leader").checked = staff?.can_be_night_leader ?? false;
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
@@ -1462,7 +1479,16 @@ function openModal(mode, staff = null) {
     nightCountInput.value =
       staff?.night_shift_count != null ? String(staff.night_shift_count) : "";
   }
-  setCheckboxGroup(floorPicker, "staff-floor", staff?.departments ?? []);
+  const primaryFloor = staff?.department || staff?.departments?.[0] || "";
+  setSelectValue(departmentSelect, primaryFloor);
+  setCheckboxGroup(
+    placementFloorPicker,
+    "staff-placement-floor",
+    staff?.placement_floors ?? (primaryFloor ? [primaryFloor] : [])
+  );
+  if (!staff && primaryFloor) {
+    setCheckboxGroup(placementFloorPicker, "staff-placement-floor", [primaryFloor]);
+  }
   clearNonNightRatioCeilings();
   let staffingRatios = pruneStaffingBasisRatios(
     normalizeStaffingBasisRatios(staff?.staffing_basis ?? DEFAULT_STAFFING_BASIS),
@@ -1520,15 +1546,23 @@ async function saveBulkStaff() {
   const applyJobType = isBulkApplyChecked("job_type");
   const applyPosition = isBulkApplyChecked("position");
   const applyDepartments = isBulkApplyChecked("departments");
+  const applyPlacementFloors = isBulkApplyChecked("placement_floors");
   const applyStaffing = isBulkApplyChecked("staffing");
   const applyExclude = isBulkApplyChecked("exclude_from_staffing");
   const applyNight = isBulkApplyChecked("can_work_night");
 
-  if (!applyJobType && !applyPosition && !applyDepartments && !applyStaffing && !applyExclude && !applyNight) {
+  if (
+    !applyJobType &&
+    !applyPosition &&
+    !applyDepartments &&
+    !applyPlacementFloors &&
+    !applyStaffing &&
+    !applyExclude &&
+    !applyNight
+  ) {
     showAlert("変更する項目を1つ以上選択してください。", "error");
     return;
   }
-
   if (applyJobType) {
     const jobType = document.getElementById("field-job-type").value.trim();
     if (!jobType) {
@@ -1543,12 +1577,21 @@ async function saveBulkStaff() {
   }
 
   if (applyDepartments) {
-    const departments = getCheckboxGroupValues(floorPicker, "staff-floor");
-    if (!departments.length) {
-      showAlert("担当フロアを1つ以上選択してください。", "error");
+    const department = departmentSelect?.value.trim() ?? "";
+    if (!department) {
+      showAlert("担当フロアを選択してください。", "error");
       return;
     }
-    payload.departments = departments;
+    payload.departments = [department];
+  }
+
+  if (applyPlacementFloors) {
+    const placementFloors = getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor");
+    if (!placementFloors.length) {
+      showAlert("配置可能フロアを1つ以上選択してください。", "error");
+      return;
+    }
+    payload.placement_floors = placementFloors;
   }
 
   if (applyStaffing) {
@@ -1581,6 +1624,7 @@ async function saveBulkStaff() {
 
   if (applyNight) {
     payload.can_work_night = document.getElementById("field-can-work-night").checked;
+    payload.can_be_night_leader = document.getElementById("field-can-be-night-leader").checked;
   }
 
   const response = await fetch(`${API_BASE}/bulk`, {
@@ -1621,13 +1665,19 @@ async function saveStaff(event) {
     return;
   }
 
-  const departments = getCheckboxGroupValues(floorPicker, "staff-floor");
+  const department = departmentSelect?.value.trim() ?? "";
+  const placementFloors = getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor");
   const staffingBasis = getStaffingBasisRatiosFromForm();
 
-  if (!departments.length) {
-    showAlert("担当フロアを1つ以上選択してください。", "error");
+  if (!department) {
+    showAlert("担当フロアを選択してください。", "error");
     return;
   }
+  if (!placementFloors.length) {
+    showAlert("配置可能フロアを1つ以上選択してください。", "error");
+    return;
+  }
+  const displayFloors = [department];
   if (!Object.keys(staffingBasis).length) {
     showAlert("勤務割合を1つ以上選択してください。", "error");
     return;
@@ -1655,10 +1705,12 @@ async function saveStaff(event) {
 
   const payload = {
     name: document.getElementById("field-name").value.trim(),
-    departments,
+    departments: displayFloors,
+    placement_floors: placementFloors,
     job_type: jobType,
     position: document.getElementById("field-position").value.trim(),
     can_work_night: document.getElementById("field-can-work-night").checked,
+    can_be_night_leader: document.getElementById("field-can-be-night-leader").checked,
     staffing_basis: staffingBasis,
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
     fix_night_shift_count: fixNightCount,
@@ -1810,6 +1862,20 @@ dayIncompatibilityPicker?.addEventListener("change", (event) => {
 });
 
 form?.addEventListener("click", (event) => {
+  const addDept = event.target.closest("#btn-add-department-to-placement");
+  if (addDept) {
+    event.preventDefault();
+    const department = departmentSelect?.value.trim() ?? "";
+    if (!department) {
+      showAlert("担当フロアを先に選択してください。", "error");
+      return;
+    }
+    const current = new Set(getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor"));
+    current.add(department);
+    setCheckboxGroup(placementFloorPicker, "staff-placement-floor", [...current]);
+    showAlert("担当フロアを配置可能フロアへ含めました");
+    return;
+  }
   const selectAll = event.target.closest("[data-select-all]");
   if (selectAll) {
     event.preventDefault();

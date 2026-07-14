@@ -89,6 +89,8 @@ def get_settings() -> dict:
 
 
 def save_settings(data: dict) -> dict:
+    from data.staffing_basis import validate_staffing_basis_options
+
     merged = _merge_settings(data)
     validate_shift_symbols(merged)
     validate_staffing_basis_options(merged)

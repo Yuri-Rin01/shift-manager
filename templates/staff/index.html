@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>職員管理 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=31">
+  <link rel="stylesheet" href="/static/css/style.css?v=49">
 </head>
 <body>
   <div class="app">
@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="page-title-bar">
           <h1 class="page-title">職員管理</h1>
-          <p class="page-subtitle">職員マスタの登録・編集・削除（担当フロアは複数選択可）。行をダブルクリックで編集できます。表示順の初期値は各種設定のカレンダー並び順です。</p>
+          <p class="page-subtitle">職員マスタの登録・編集・削除。担当フロアは表示用に1つ、配置可能フロア（対応可）は複数指定できます。</p>
         </div>
         <div class="topbar-actions">
           <span>?</span>
@@ -75,14 +75,15 @@
                     </th>
                     <th>名前</th>
                     <th class="col-floor">担当フロア</th>
+                    <th class="col-floor">配置可能（対応可）</th>
                     <th>職種</th>
                     <th>役職</th>
                     <th>勤務割合</th>
                     <th>人員カウント</th>
-                    <th>夜勤可否</th>
+                    <th>夜勤</th>
+                    <th>夜勤リーダー</th>
                     <th>日勤相性</th>
-                    <th>夜勤相性</th>
-                    <th class="col-actions">操作</th>
+                    <th>夜勤相性</th>                    <th class="col-actions">操作</th>
                   </tr>
                 </thead>
                 <tbody id="staff-tbody">
@@ -109,6 +110,6 @@
 
   {% include "partials/staff_edit_modal.html" %}
   {% include "partials/staff_editor_config.html" %}
-  <script src="/static/js/staff.js?v=14"></script>
+  <script src="/static/js/staff.js?v=16"></script>
 </body>
 </html>
