@@ -616,14 +616,14 @@ def _staff_seed_placement_floors(row: dict) -> list[str]:
 
 
 def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
+    """職員が0件のときだけシード投入する（リネーム時の二重投入を防ぐ）。"""
     from data.staff_seed import SEED_STAFF
 
-    existing = {row[0] for row in conn.execute("SELECT name FROM staff").fetchall()}
-    to_insert = [row for row in SEED_STAFF if row["name"] not in existing]
-    if not to_insert:
+    count = conn.execute("SELECT COUNT(*) AS n FROM staff").fetchone()["n"]
+    if count > 0:
         return
 
-    for row in to_insert:
+    for row in SEED_STAFF:
         floors = _staff_seed_floors(row)
         placement_floors = _staff_seed_placement_floors(row)
         primary = floors[0] if floors else row["department"]
@@ -662,6 +662,12 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
             )
 
 
+def _delete_staff_row(conn: sqlite3.Connection, staff_id: int) -> None:
+    """関連テーブル込みで職員を削除する。"""
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("DELETE FROM staff WHERE id = ?", (staff_id,))
+
+
 def _sync_seed_staff_names(conn: sqlite3.Connection) -> None:
     """旧姓名のテスト職員を テストA / テストB / テストC … にリネームする。"""
     from data.staff_seed import LEGACY_SEED_NAME_MAP
@@ -669,16 +675,25 @@ def _sync_seed_staff_names(conn: sqlite3.Connection) -> None:
     for legacy_name, new_name in LEGACY_SEED_NAME_MAP.items():
         if legacy_name == new_name:
             continue
-        # 既に新名がいる場合は衝突を避ける
-        exists_new = conn.execute(
-            "SELECT 1 FROM staff WHERE name = ? LIMIT 1", (new_name,)
+        legacy_row = conn.execute(
+            "SELECT id FROM staff WHERE name = ? LIMIT 1", (legacy_name,)
         ).fetchone()
-        if exists_new:
-            continue
-        conn.execute(
-            "UPDATE staff SET name = ? WHERE name = ?",
-            (new_name, legacy_name),
-        )
+        new_row = conn.execute(
+            "SELECT id FROM staff WHERE name = ? LIMIT 1", (new_name,)
+        ).fetchone()
+
+        if legacy_row and new_row:
+            # 二重投入済み: 履歴のある旧レコードを残し、新規サイドを捨てる
+            _delete_staff_row(conn, int(new_row["id"]))
+            conn.execute(
+                "UPDATE staff SET name = ? WHERE id = ?",
+                (new_name, int(legacy_row["id"])),
+            )
+        elif legacy_row and not new_row:
+            conn.execute(
+                "UPDATE staff SET name = ? WHERE id = ?",
+                (new_name, int(legacy_row["id"])),
+            )
 
 
 def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
