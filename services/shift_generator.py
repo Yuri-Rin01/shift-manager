@@ -1631,6 +1631,8 @@ class _Generator:
             return "manual"
         if lock == "leave":
             return "leave"
+        if lock == "rest":
+            return "rest"
         return "auto"
 
 
