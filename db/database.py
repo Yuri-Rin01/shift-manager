@@ -255,28 +255,8 @@ def _migrate_display_floors_to_single(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_night_leader_flags(conn: sqlite3.Connection) -> None:
-    """役職ベースの夜勤リーダーをフラグへ移行（未設定分のみ）。"""
-    leader_positions = (
-        "施設長",
-        "管理者",
-        "主任",
-        "リーダー",
-        "サブリーダー",
-        "院長",
-        "副院長",
-        "部長",
-        "師長",
-    )
-    placeholders = ",".join("?" for _ in leader_positions)
-    conn.execute(
-        f"""
-        UPDATE staff
-        SET can_be_night_leader = 1
-        WHERE can_be_night_leader = 0
-          AND position IN ({placeholders})
-        """,
-        leader_positions,
-    )
+    """互換のため残置。夜勤リーダー可は役職ではなく職員フラグのみで判定する。"""
+    return
 
 
 def _migrate_staffing_defaults(conn: sqlite3.Connection) -> None:

@@ -473,7 +473,7 @@ function renderNightLeaderGroupRows(groups = []) {
             min="1"
             max="99"
             value="${escapeAttr(String(item.min_leaders ?? 1))}"
-            aria-label="リーダー必要人数 ${index + 1}"
+            aria-label="夜勤リーダー必要人数 ${index + 1}"
           >
         </td>
         <td class="col-actions">

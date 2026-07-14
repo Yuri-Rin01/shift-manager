@@ -55,21 +55,6 @@ SEMI_TO_BASE = {
     "semi_late": "late",
     "semi_night": "night",
 }
-LEADER_OR_ABOVE_POSITIONS = frozenset(
-    {
-        "施設長",
-        "管理者",
-        "主任",
-        "リーダー",
-        "サブリーダー",
-        "院長",
-        "副院長",
-        "部長",
-        "師長",
-    }
-)
-
-
 def _warning(level: str, code: str, message: str) -> dict:
     return {"level": level, "code": code, "message": message}
 
@@ -358,11 +343,9 @@ class _Generator:
             return False
         return self._consecutive_work_days_before(staff_id, shift_date) + 1 > max_days
 
-    def _is_leader_or_above(self, staff: dict) -> bool:
-        if "can_be_night_leader" in staff:
-            return bool(staff.get("can_be_night_leader"))
-        position = (staff.get("position") or "").strip()
-        return bool(position) and position in LEADER_OR_ABOVE_POSITIONS
+    def _can_be_night_leader(self, staff: dict) -> bool:
+        """夜勤リーダー可は職員フラグのみ（役職とは独立）。"""
+        return bool(staff.get("can_be_night_leader"))
 
     def _night_leader_groups(self) -> list[dict]:
         from data.placement_rules import normalize_night_leader_groups
@@ -383,7 +366,7 @@ class _Generator:
             if _symbol_work_key(symbol, self.settings) != "night":
                 continue
             staff = self.staff_by_id.get(staff_id)
-            if not staff or not self._is_leader_or_above(staff):
+            if not staff or not self._can_be_night_leader(staff):
                 continue
             if self._staff_covers_night_leader_group(staff, group):
                 count += 1
@@ -431,7 +414,7 @@ class _Generator:
         *,
         target_floor: str | None = None,
     ) -> float:
-        if not self.settings.get("require_leader_on_night") or not self._is_leader_or_above(staff):
+        if not self.settings.get("require_leader_on_night") or not self._can_be_night_leader(staff):
             return 0.0
         groups = self._night_leader_groups()
         if not groups:
@@ -470,7 +453,7 @@ class _Generator:
             if _symbol_work_key(symbol, self.settings) != "night":
                 continue
             staff = self.staff_by_id.get(staff_id)
-            if staff and self._is_leader_or_above(staff):
+            if staff and self._can_be_night_leader(staff):
                 return True
         return False
 
