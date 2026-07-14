@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=34">
+  <link rel="stylesheet" href="/static/css/style.css?v=49">
 </head>
 <body>
   <div class="app">
@@ -90,7 +90,7 @@
                     <option value="{{ opt.value }}">{{ opt.label }}</option>
                   {% endfor %}
                 </select>
-                <span class="field-hint">介護施設・病院を選ぶと、職種・カレンダー表示がその種別に合わせて切り替わります（フロアは 1F〜4F のみ使用）。</span>
+                <span class="field-hint">介護施設を選ぶと医師など病院専用の職種は一覧から外れます。病院に切り替えると病院向け職種・役職に変わります（フロアは 1F〜4F）。</span>
               </label>
               <label class="form-field">
                 <span class="form-label">管理者表示名</span>

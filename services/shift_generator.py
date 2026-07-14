@@ -39,7 +39,7 @@ from services.morning_off import (
 PRIORITY_ORDER = [
     "手動選択分",
     "希望休",
-    "担当フロア",
+    "配置可能フロア",
     "夜勤必要人員（勤務割合）",
     "夜勤回数",
     "各時間の必要人員数と勤務割合",
@@ -352,6 +352,8 @@ class _Generator:
         return self._consecutive_work_days_before(staff_id, shift_date) + 1 > max_days
 
     def _is_leader_or_above(self, staff: dict) -> bool:
+        if "can_be_night_leader" in staff:
+            return bool(staff.get("can_be_night_leader"))
         position = (staff.get("position") or "").strip()
         return bool(position) and position in LEADER_OR_ABOVE_POSITIONS
 
@@ -485,6 +487,9 @@ class _Generator:
         return True
 
     def _staff_floors(self, staff: dict) -> list[str]:
+        floors = staff.get("placement_floors") or []
+        if floors:
+            return floors
         floors = staff.get("departments") or []
         if floors:
             return floors

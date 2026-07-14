@@ -4,14 +4,7 @@
   </div>
   <nav class="sidebar-nav">
     {% for item in sidebar_menu %}
-      {% if item.children %}
-        <div class="nav-group-title">{{ item.label }}</div>
-        {% for child in item.children %}
-          <a href="{{ child.href }}" class="nav-item nav-child{% if item.key == 'settings' %} nav-settings-child{% endif %}{% if child.active %} active{% endif %}">{{ child.label }}</a>
-        {% endfor %}
-      {% else %}
-        <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
-      {% endif %}
+      <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
     {% endfor %}
   </nav>
   <div class="sidebar-footer">
