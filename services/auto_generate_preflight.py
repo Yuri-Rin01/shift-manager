@@ -10,6 +10,7 @@ from data.calendar_period import (
     format_scope_range,
     resolve_configured_period_off_days,
 )
+from data.auto_generate_suggestions import enrich_warnings, unique_suggestions
 from data.masters import get_departments
 from data.placement_rules import (
     normalize_min_staff_by_floor,
@@ -117,20 +118,22 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
     if settings.get("consider_night_eligibility", True):
         advanced_used.append("夜勤可否を考慮")
 
-    warnings = _build_warnings(
-        settings=settings,
-        staff_list=staff_list,
-        night_capable=night_capable,
-        night_leaders=night_leaders,
-        floor_caps=floor_caps,
-        night_mins=night_mins,
-        period_days=period_days,
-        period_night_demand=period_night_demand,
-        leave_count=leave_count,
-        off_days=off_days,
-        leader_required=leader_required,
-        max_night_week=max_night_week,
-        min_by_floor=min_by_floor,
+    warnings = enrich_warnings(
+        _build_warnings(
+            settings=settings,
+            staff_list=staff_list,
+            night_capable=night_capable,
+            night_leaders=night_leaders,
+            floor_caps=floor_caps,
+            night_mins=night_mins,
+            period_days=period_days,
+            period_night_demand=period_night_demand,
+            leave_count=leave_count,
+            off_days=off_days,
+            leader_required=leader_required,
+            max_night_week=max_night_week,
+            min_by_floor=min_by_floor,
+        )
     )
 
     return {
@@ -158,6 +161,7 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
         "fairness_mode": fairness,
         "advanced_settings_used": advanced_used,
         "warnings": warnings,
+        "suggestions": unique_suggestions(warnings),
         "can_generate": not any(item.get("blocking") for item in warnings),
         "staff_href": "/staff",
         "settings_auto_href": "/settings?panel=auto",

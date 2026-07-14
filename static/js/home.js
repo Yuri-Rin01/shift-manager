@@ -1583,11 +1583,44 @@ function renderAutoGenerateMessages(messages) {
     const label = document.createElement("span");
     label.className = "auto-generate-message-label";
     label.textContent = `[${AUTO_GENERATE_LEVEL_LABELS[level] ?? "情報"}]`;
+    const body = document.createElement("div");
+    body.className = "auto-generate-message-body";
     const text = document.createElement("span");
     text.textContent = item.message || item.code || "詳細不明";
-    li.append(label, text);
+    body.appendChild(text);
+    if (item.suggestion) {
+      const tip = document.createElement("p");
+      tip.className = "auto-generate-suggestion";
+      tip.textContent = `改善の提案: ${item.suggestion}`;
+      body.appendChild(tip);
+      if (item.href) {
+        const link = document.createElement("a");
+        link.className = "auto-generate-suggestion-link";
+        link.href = item.href;
+        link.textContent = item.action_label || "設定を開く";
+        body.appendChild(link);
+      }
+    }
+    li.append(label, body);
     autoGenerateMessages.appendChild(li);
   });
+}
+
+function renderSuggestionsBlock(suggestions) {
+  if (!autoGenerateResultSummary) return;
+  if (!Array.isArray(suggestions) || !suggestions.length) return "";
+  const items = suggestions
+    .map((item) => {
+      const link =
+        item.href
+          ? `<a class="auto-generate-suggestion-link" href="${item.href}">${item.action_label || "開く"}</a>`
+          : "";
+      return `<li><strong>${item.suggestion || ""}</strong>${link ? ` ${link}` : ""}${
+        item.message ? `<span class="auto-generate-suggestion-context">${item.message}</span>` : ""
+      }</li>`;
+    })
+    .join("");
+  return `<section class="auto-generate-result-section auto-generate-suggestions-section"><h4>改善の提案</h4><ul>${items}</ul></section>`;
 }
 
 function renderResultSummaryBlock(summary) {
@@ -1616,12 +1649,13 @@ function renderResultSummaryBlock(summary) {
       return `<section class="auto-generate-result-section"><h4>${title}</h4><ul>${list}</ul></section>`;
     })
     .join("");
-  if (!html) {
+  const suggestionsHtml = renderSuggestionsBlock(summary.suggestions);
+  if (!html && !suggestionsHtml) {
     autoGenerateResultSummary.innerHTML = '<p class="field-hint">特記事項はありません。</p>';
     autoGenerateResultSummary.classList.remove("hidden");
     return;
   }
-  autoGenerateResultSummary.innerHTML = html;
+  autoGenerateResultSummary.innerHTML = `${suggestionsHtml}${html}`;
   autoGenerateResultSummary.classList.remove("hidden");
 }
 
@@ -1706,9 +1740,25 @@ function showAutoGenerateConfirm(preflight) {
         const label = document.createElement("span");
         label.className = "auto-generate-message-label";
         label.textContent = item.blocking ? "[要対応]" : `[${AUTO_GENERATE_LEVEL_LABELS[level] ?? "情報"}]`;
+        const body = document.createElement("div");
+        body.className = "auto-generate-message-body";
         const text = document.createElement("span");
         text.textContent = item.message || "";
-        li.append(label, text);
+        body.appendChild(text);
+        if (item.suggestion) {
+          const tip = document.createElement("p");
+          tip.className = "auto-generate-suggestion";
+          tip.textContent = `改善の提案: ${item.suggestion}`;
+          body.appendChild(tip);
+          if (item.href) {
+            const link = document.createElement("a");
+            link.className = "auto-generate-suggestion-link";
+            link.href = item.href;
+            link.textContent = item.action_label || "設定を開く";
+            body.appendChild(link);
+          }
+        }
+        li.append(label, body);
         autoGenerateConfirmWarnings.appendChild(li);
       });
     }

@@ -57,6 +57,22 @@ def _build_generate_message(raw: dict) -> str:
 
 def _to_generate_response(raw: dict) -> ShiftGenerateResponse:
     stats = raw.get("stats") or {}
+    warnings = []
+    for item in raw.get("warnings", []):
+        warnings.append(
+            ShiftGenerateWarning(
+                level=item.get("level", "info"),
+                code=item.get("code", ""),
+                message=item.get("message", ""),
+                suggestion=item.get("suggestion"),
+                href=item.get("href"),
+                action_label=item.get("action_label"),
+            )
+        )
+    summary_raw = raw.get("result_summary")
+    result_summary = None
+    if summary_raw:
+        result_summary = ShiftGenerateResultSummary(**summary_raw)
     return ShiftGenerateResponse(
         year=raw["year"],
         month=raw["month"],
@@ -65,12 +81,8 @@ def _to_generate_response(raw: dict) -> ShiftGenerateResponse:
         ok=raw.get("ok", False),
         message=_build_generate_message(raw),
         stats=ShiftGenerateStats(**stats),
-        warnings=[ShiftGenerateWarning(**item) for item in raw.get("warnings", [])],
-        result_summary=(
-            ShiftGenerateResultSummary(**raw["result_summary"])
-            if raw.get("result_summary")
-            else None
-        ),
+        warnings=warnings,
+        result_summary=result_summary,
         priority_order=raw.get("priority_order", []),
         scope_day_count=raw.get("scope_day_count"),
         save_error=raw.get("save_error"),
@@ -198,7 +210,19 @@ def preflight_shift_generate(year: int, month: int):
     return AutoGeneratePreflightResponse(
         **{
             **raw,
-            "warnings": [AutoGeneratePreflightWarning(**item) for item in raw.get("warnings", [])],
+            "warnings": [
+                AutoGeneratePreflightWarning(
+                    level=item.get("level", "warn"),
+                    code=item.get("code", ""),
+                    message=item.get("message", ""),
+                    blocking=bool(item.get("blocking")),
+                    suggestion=item.get("suggestion"),
+                    href=item.get("href"),
+                    action_label=item.get("action_label"),
+                )
+                for item in raw.get("warnings", [])
+            ],
+            "suggestions": raw.get("suggestions") or [],
         }
     )
 

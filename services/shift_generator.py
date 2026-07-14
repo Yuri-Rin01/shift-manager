@@ -56,11 +56,16 @@ SEMI_TO_BASE = {
     "semi_night": "night",
 }
 def _warning(level: str, code: str, message: str) -> dict:
-    return {"level": level, "code": code, "message": message}
+    from data.auto_generate_suggestions import enrich_warning
+
+    return enrich_warning({"level": level, "code": code, "message": message})
 
 
 def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
     """生成結果を画面用に分類する（警告コードはそのまま保持）。"""
+    from data.auto_generate_suggestions import enrich_warnings, unique_suggestions
+
+    warnings = enrich_warnings(warnings)
     understaffed: list[str] = []
     unfilled_days: list[str] = []
     unmet_preferences: list[str] = []
@@ -74,28 +79,30 @@ def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
         level = item.get("level") or "info"
         code = item.get("code") or ""
         message = item.get("message") or ""
+        suggestion = (item.get("suggestion") or "").strip()
+        display = f"{message} → {suggestion}" if suggestion else message
         if level == "error":
-            fix_needed.append(message)
+            fix_needed.append(display)
             continue
         if code in {"understaffed", "time_slot_understaffed", "staff_capacity_low"}:
-            understaffed.append(message)
-            fix_needed.append(message)
+            understaffed.append(display)
+            fix_needed.append(display)
         elif code in {"empty_cells_unfilled"}:
-            unfilled_days.append(message)
-            fix_needed.append(message)
+            unfilled_days.append(display)
+            fix_needed.append(display)
         elif code in {"leader_on_night_missing"}:
-            leader_issues.append(message)
-            fix_needed.append(message)
+            leader_issues.append(display)
+            fix_needed.append(display)
         elif code in {"night_count_shortfall", "night_quota_capped"}:
-            night_imbalance.append(message)
+            night_imbalance.append(display)
         elif code in {"off_count_shortfall", "off_count_excess"}:
-            off_imbalance.append(message)
+            off_imbalance.append(display)
         elif code in {"staff_ratio_shortfall", "leave_priority_off"}:
-            unmet_preferences.append(message)
+            unmet_preferences.append(display)
         elif level == "info":
             info.append(message)
         else:
-            unmet_preferences.append(message)
+            unmet_preferences.append(display)
 
     return {
         "placed_cells": int(stats.get("generated_cells") or 0),
@@ -109,6 +116,7 @@ def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
         "leader_issues": leader_issues,
         "fix_needed": fix_needed,
         "info": info,
+        "suggestions": unique_suggestions(warnings),
     }
 
 

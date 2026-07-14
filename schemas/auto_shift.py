@@ -11,6 +11,18 @@ class ShiftGenerateWarning(BaseModel):
     level: str = Field(description="info | warn | error")
     code: str
     message: str
+    suggestion: str | None = None
+    href: str | None = None
+    action_label: str | None = None
+
+
+class ShiftGenerateSuggestion(BaseModel):
+    code: str = ""
+    level: str = "warn"
+    message: str = ""
+    suggestion: str = ""
+    href: str = ""
+    action_label: str = "開く"
 
 
 class ShiftGenerateStats(BaseModel):
@@ -38,6 +50,7 @@ class ShiftGenerateResultSummary(BaseModel):
     leader_issues: list[str] = Field(default_factory=list)
     fix_needed: list[str] = Field(default_factory=list)
     info: list[str] = Field(default_factory=list)
+    suggestions: list[ShiftGenerateSuggestion] = Field(default_factory=list)
 
 
 class ShiftGenerateResponse(BaseModel):
@@ -60,6 +73,9 @@ class AutoGeneratePreflightWarning(BaseModel):
     code: str
     message: str
     blocking: bool = False
+    suggestion: str | None = None
+    href: str | None = None
+    action_label: str | None = None
 
 
 class AutoGeneratePreflightResponse(BaseModel):
@@ -87,6 +103,7 @@ class AutoGeneratePreflightResponse(BaseModel):
     fairness_mode: str = "balance"
     advanced_settings_used: list[str] = Field(default_factory=list)
     warnings: list[AutoGeneratePreflightWarning] = Field(default_factory=list)
+    suggestions: list[ShiftGenerateSuggestion] = Field(default_factory=list)
     can_generate: bool = True
     staff_href: str = "/staff"
     settings_auto_href: str = "/settings?panel=auto"

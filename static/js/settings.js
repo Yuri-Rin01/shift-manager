@@ -470,7 +470,10 @@ async function loadAutoGenStaffReadiness() {
     if (Array.isArray(data.warnings) && data.warnings.length) {
       const warnHtml = data.warnings
         .slice(0, 5)
-        .map((item) => `<li class="auto-gen-readiness-warn">⚠ ${escapeAttr(item.message || "")}</li>`)
+        .map((item) => {
+          const tip = item.suggestion ? `<br><span class="auto-gen-readiness-tip">→ ${escapeAttr(item.suggestion)}</span>` : "";
+          return `<li class="auto-gen-readiness-warn">⚠ ${escapeAttr(item.message || "")}${tip}</li>`;
+        })
         .join("");
       autoGenReadinessList.insertAdjacentHTML("beforeend", warnHtml);
     }
