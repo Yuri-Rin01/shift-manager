@@ -76,10 +76,10 @@ body {
 
 .nav-item {
   display: block;
-  padding: 7px 12px;
+  padding: 10px 14px;
   color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .nav-item:hover {
@@ -89,28 +89,6 @@ body {
 .nav-item.active {
   background: var(--sidebar-active);
   font-weight: 600;
-}
-
-.nav-group-title {
-  padding: 8px 12px 3px;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.nav-child {
-  padding-left: 24px;
-  font-size: 11px;
-}
-
-.nav-settings-child {
-  padding-left: 28px;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.nav-settings-child.active {
-  color: #fff;
 }
 
 .sidebar-footer {
