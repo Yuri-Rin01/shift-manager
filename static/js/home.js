@@ -430,7 +430,66 @@ function applyRowFilters() {
     row.hidden = !(matchDept && matchJob && matchPosition);
   });
   refreshSummaryCounts();
+  updateFiltersSummary();
   saveFilterPrefs();
+}
+
+function countCheckedInGroup(group) {
+  const boxes = [...document.querySelectorAll(`[data-filter-group="${group}"] input[type="checkbox"]`)];
+  if (!boxes.length) return { selected: 0, total: 0 };
+  return {
+    selected: boxes.filter((box) => box.checked).length,
+    total: boxes.length,
+  };
+}
+
+function updateFiltersSummary() {
+  const summary = document.getElementById("home-filters-summary");
+  if (!summary) return;
+  const dept = countCheckedInGroup("dept");
+  const job = countCheckedInGroup("job");
+  const position = countCheckedInGroup("position");
+  const parts = [
+    `フロア ${dept.selected}/${dept.total}`,
+    `職種 ${job.selected}/${job.total}`,
+    `役職 ${position.selected}/${position.total}`,
+  ];
+  const isFiltered =
+    dept.selected < dept.total || job.selected < job.total || position.selected < position.total;
+  summary.textContent = parts.join(" · ");
+  summary.classList.toggle("is-filtered", isFiltered);
+}
+
+function setFiltersPanelCollapsed(collapsed) {
+  const block = document.getElementById("home-filters-collapse");
+  const toggle = document.getElementById("btn-toggle-filters");
+  const body = document.getElementById("home-filters-body");
+  if (!block || !toggle) return;
+  block.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (body) {
+    body.hidden = collapsed;
+  }
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    calendarSortMode: getCurrentSortMode(),
+    filtersPanelCollapsed: collapsed,
+  });
+}
+
+function initFiltersPanelCollapse() {
+  const toggle = document.getElementById("btn-toggle-filters");
+  if (!toggle) return;
+  const saved = loadPrefs();
+  const collapsed = saved.filtersPanelCollapsed !== false;
+  setFiltersPanelCollapsed(collapsed);
+  updateFiltersSummary();
+  toggle.addEventListener("click", () => {
+    const block = document.getElementById("home-filters-collapse");
+    setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
+  });
 }
 
 function initRowFilters() {
@@ -519,6 +578,7 @@ function initCalendarControls() {
   initRowFilters();
   initSortState();
   initSortPanelCollapse();
+  initFiltersPanelCollapse();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =

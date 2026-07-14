@@ -274,6 +274,82 @@ body {
   gap: 4px;
 }
 
+.home-filters-collapse {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-filters-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid #c5d0dc;
+  border-radius: 8px;
+  background: #d8e0ea;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.home-filters-toggle:hover {
+  background: #ced7e4;
+}
+
+.home-filters-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.home-filters-toggle-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.home-filters-toggle-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.2;
+}
+
+.home-filters-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.2;
+}
+
+.home-filters-summary.is-filtered {
+  color: #1d4ed8;
+}
+
+.home-filters-chevron {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #64748b;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.home-filters-collapse:not(.is-collapsed) .home-filters-chevron {
+  transform: rotate(180deg);
+}
+
+.home-filters-collapse.is-collapsed #home-filters-body {
+  display: none;
+}
+
 .home-controls-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

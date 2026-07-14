@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=46">
+  <link rel="stylesheet" href="/static/css/style.css?v=47">
 </head>
 <body>
   <div class="app">
@@ -24,68 +24,83 @@
         <section class="card home-shift-card">
           <div class="card-header card-header-stacked">
             <div class="home-toolbar">
-              <div class="home-controls-panel home-controls-panel-filters-only">
-                <div class="home-controls-checkboxes">
-                  <section class="home-check-panel">
-                    <div class="home-check-panel-head">
-                      <span class="home-toolbar-label">フロア</span>
-                      <span class="home-filter-actions">
-                        <button type="button" class="home-filter-action" data-select-filter="dept">すべて</button>
-                        <button type="button" class="home-filter-action" data-clear-filter="dept">クリア</button>
-                        <button type="button" class="home-filter-action" data-invert-filter="dept">反転</button>
-                      </span>
-                    </div>
-                    <div class="home-chip-grid" data-filter-group="dept">
-                      {% for dept in departments %}
-                        <label class="home-chip">
-                          <input type="checkbox" class="filter-dept-cb" value="{{ dept.label }}" checked>
-                          {{ floor_badge(dept.label) }}
-                        </label>
-                      {% endfor %}
-                    </div>
-                  </section>
+              <div class="home-filters-collapse is-collapsed" id="home-filters-collapse">
+                <button
+                  type="button"
+                  class="home-filters-toggle"
+                  id="btn-toggle-filters"
+                  aria-expanded="false"
+                  aria-controls="home-filters-body"
+                >
+                  <span class="home-filters-toggle-main">
+                    <span class="home-filters-toggle-label">表示フィルタ</span>
+                    <span class="home-filters-summary" id="home-filters-summary">フロア / 職種 / 役職</span>
+                  </span>
+                  <span class="home-filters-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="home-controls-panel home-controls-panel-filters-only" id="home-filters-body" hidden>
+                  <div class="home-controls-checkboxes">
+                    <section class="home-check-panel">
+                      <div class="home-check-panel-head">
+                        <span class="home-toolbar-label">フロア</span>
+                        <span class="home-filter-actions">
+                          <button type="button" class="home-filter-action" data-select-filter="dept">すべて</button>
+                          <button type="button" class="home-filter-action" data-clear-filter="dept">クリア</button>
+                          <button type="button" class="home-filter-action" data-invert-filter="dept">反転</button>
+                        </span>
+                      </div>
+                      <div class="home-chip-grid" data-filter-group="dept">
+                        {% for dept in departments %}
+                          <label class="home-chip">
+                            <input type="checkbox" class="filter-dept-cb" value="{{ dept.label }}" checked>
+                            {{ floor_badge(dept.label) }}
+                          </label>
+                        {% endfor %}
+                      </div>
+                    </section>
 
-                  <section class="home-check-panel">
-                    <div class="home-check-panel-head">
-                      <span class="home-toolbar-label">職種</span>
-                      <span class="home-filter-actions">
-                        <button type="button" class="home-filter-action" data-select-filter="job">すべて</button>
-                        <button type="button" class="home-filter-action" data-clear-filter="job">クリア</button>
-                        <button type="button" class="home-filter-action" data-invert-filter="job">反転</button>
-                      </span>
-                    </div>
-                    <div class="home-chip-grid" data-filter-group="job">
-                      {% for job in job_types %}
-                        <label class="home-chip">
-                          <input type="checkbox" class="filter-job-cb" value="{{ job.label }}" checked>
-                          <span>{{ job.label }}</span>
-                        </label>
-                      {% endfor %}
-                    </div>
-                  </section>
+                    <section class="home-check-panel">
+                      <div class="home-check-panel-head">
+                        <span class="home-toolbar-label">職種</span>
+                        <span class="home-filter-actions">
+                          <button type="button" class="home-filter-action" data-select-filter="job">すべて</button>
+                          <button type="button" class="home-filter-action" data-clear-filter="job">クリア</button>
+                          <button type="button" class="home-filter-action" data-invert-filter="job">反転</button>
+                        </span>
+                      </div>
+                      <div class="home-chip-grid" data-filter-group="job">
+                        {% for job in job_types %}
+                          <label class="home-chip">
+                            <input type="checkbox" class="filter-job-cb" value="{{ job.label }}" checked>
+                            <span>{{ job.label }}</span>
+                          </label>
+                        {% endfor %}
+                      </div>
+                    </section>
 
-                  <section class="home-check-panel">
-                    <div class="home-check-panel-head">
-                      <span class="home-toolbar-label">役職ソート</span>
-                      <span class="home-filter-actions">
-                        <button type="button" class="home-filter-action" data-select-filter="position">すべて</button>
-                        <button type="button" class="home-filter-action" data-clear-filter="position">クリア</button>
-                        <button type="button" class="home-filter-action" data-invert-filter="position">反転</button>
-                      </span>
-                    </div>
-                    <div class="home-chip-grid" data-filter-group="position">
-                      <label class="home-chip">
-                        <input type="checkbox" class="filter-position-cb" value="" checked>
-                        <span>（なし）</span>
-                      </label>
-                      {% for position in positions %}
+                    <section class="home-check-panel">
+                      <div class="home-check-panel-head">
+                        <span class="home-toolbar-label">役職</span>
+                        <span class="home-filter-actions">
+                          <button type="button" class="home-filter-action" data-select-filter="position">すべて</button>
+                          <button type="button" class="home-filter-action" data-clear-filter="position">クリア</button>
+                          <button type="button" class="home-filter-action" data-invert-filter="position">反転</button>
+                        </span>
+                      </div>
+                      <div class="home-chip-grid" data-filter-group="position">
                         <label class="home-chip">
-                          <input type="checkbox" class="filter-position-cb" value="{{ position.label }}" checked>
-                          <span>{{ position.label }}</span>
+                          <input type="checkbox" class="filter-position-cb" value="" checked>
+                          <span>（なし）</span>
                         </label>
-                      {% endfor %}
-                    </div>
-                  </section>
+                        {% for position in positions %}
+                          <label class="home-chip">
+                            <input type="checkbox" class="filter-position-cb" value="{{ position.label }}" checked>
+                            <span>{{ position.label }}</span>
+                          </label>
+                        {% endfor %}
+                      </div>
+                    </section>
+                  </div>
                 </div>
               </div>
 
@@ -255,6 +270,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=13"></script>
-  <script src="/static/js/home.js?v=23"></script>
+  <script src="/static/js/home.js?v=24"></script>
 </body>
 </html>
