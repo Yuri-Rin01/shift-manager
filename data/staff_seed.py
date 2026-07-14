@@ -1,7 +1,6 @@
-"""初期投入用のテスト職員データ。"""
+"""初期投入用のテスト職員データ（介護施設向け）。"""
 
 SEED_STAFF: list[dict] = [
-    # 介護施設向け
     {"name": "渡辺", "department": "1F", "departments": ["1F", "2F"], "job_type": "介護士", "position": "主任", "can_work_night": True},
     {"name": "山本", "department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": False},
     {"name": "斉藤", "department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": False},
@@ -21,14 +20,13 @@ SEED_STAFF: list[dict] = [
     {"name": "山崎", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": False},
     {"name": "石井", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": True},
     {"name": "前田", "department": "3F", "job_type": "介護士", "position": "一般", "can_work_night": False},
-    {"name": "田中", "department": "1F", "departments": ["1F", "3F"], "job_type": "看護師", "position": "師長", "can_work_night": True},
+    {"name": "田中", "department": "1F", "departments": ["1F", "3F"], "job_type": "看護師", "position": "主任", "can_work_night": True},
     {"name": "佐藤", "department": "1F", "job_type": "看護師", "position": "一般", "can_work_night": True},
+    {"name": "山田", "department": "1F", "job_type": "看護師", "position": "リーダー", "can_work_night": True},
+    {"name": "鈴木", "department": "2F", "departments": ["2F", "3F"], "job_type": "看護師", "position": "一般", "can_work_night": True},
+    {"name": "伊藤", "department": "4F", "job_type": "看護師", "position": "リーダー", "can_work_night": True},
     {"name": "加藤", "department": "3F", "job_type": "理学療法士", "position": "一般", "can_work_night": False},
     {"name": "木村", "department": "3F", "job_type": "作業療法士", "position": "一般", "can_work_night": False},
-    # 病院向け
-    {"name": "山田", "department": "1F", "job_type": "看護師", "position": "主任", "can_work_night": True},
-    {"name": "鈴木", "department": "2F", "departments": ["2F", "3F"], "job_type": "看護師", "position": "一般", "can_work_night": True},
-    {"name": "高橋", "department": "1F", "job_type": "医師", "position": "一般", "can_work_night": False},
-    {"name": "伊藤", "department": "4F", "job_type": "看護師", "position": "リーダー", "can_work_night": True},
-    {"name": "小林", "department": "2F", "job_type": "臨床検査技師", "position": "一般", "can_work_night": False},
+    {"name": "斎藤", "department": "1F", "job_type": "ケアマネ", "position": "一般", "can_work_night": False},
+    {"name": "村上", "department": "2F", "job_type": "相談員", "position": "一般", "can_work_night": False},
 ]

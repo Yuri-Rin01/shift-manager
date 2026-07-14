@@ -1,9 +1,8 @@
 DEFAULT_SETTINGS: dict = {
     # 施設
-    "facility_name": "○○病院",
-    "facility_type": "all",
-    "admin_name": "管理者",
-    # 表示ルール
+    "facility_name": "○○施設",
+    "facility_type": "care",
+    "admin_name": "管理者",    # 表示ルール
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
@@ -131,9 +130,9 @@ DEFAULT_SETTINGS: dict = {
 }
 
 FACILITY_TYPE_OPTIONS = [
-    {"value": "all", "label": "病院・介護施設（統合）"},
-    {"value": "hospital", "label": "病院"},
     {"value": "care", "label": "介護施設"},
+    {"value": "hospital", "label": "病院"},
+    {"value": "all", "label": "病院・介護施設（統合）"},
 ]
 
 FACILITY_LABELS = {

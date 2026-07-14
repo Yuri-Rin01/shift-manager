@@ -15,8 +15,8 @@ from data.staffing_basis import normalize_staffing_basis_options
 
 
 class AppSettings(BaseModel):
-    facility_name: str = Field(default="○○病院", max_length=100)
-    facility_type: str = Field(default="all")
+    facility_name: str = Field(default="○○施設", max_length=100)
+    facility_type: str = Field(default="care")
     admin_name: str = Field(default="管理者", max_length=50)
 
     default_color_cells: bool = True
