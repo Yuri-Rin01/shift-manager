@@ -1495,11 +1495,19 @@ const autoGenerateModal = document.getElementById("auto-generate-modal");
 const autoGenerateModalTitle = document.getElementById("auto-generate-modal-title");
 const autoGenerateModalSubtitle = document.getElementById("auto-generate-modal-subtitle");
 const autoGenerateSummary = document.getElementById("auto-generate-summary");
+const autoGenerateResultSummary = document.getElementById("auto-generate-result-summary");
 const autoGenerateMessagesWrap = document.getElementById("auto-generate-messages-wrap");
 const autoGenerateMessages = document.getElementById("auto-generate-messages");
 const autoGenerateCloseBtn = document.getElementById("auto-generate-close-btn");
+const autoGenerateConfirmModal = document.getElementById("auto-generate-confirm-modal");
+const autoGenerateConfirmSubtitle = document.getElementById("auto-generate-confirm-subtitle");
+const autoGenerateConfirmSummary = document.getElementById("auto-generate-confirm-summary");
+const autoGenerateConfirmWarningsWrap = document.getElementById("auto-generate-confirm-warnings-wrap");
+const autoGenerateConfirmWarnings = document.getElementById("auto-generate-confirm-warnings");
+const autoGenerateConfirmRun = document.getElementById("auto-generate-confirm-run");
 
 let autoGenerateShouldReload = false;
+let pendingPreflight = null;
 
 const AUTO_GENERATE_LEVEL_LABELS = {
   error: "エラー",
@@ -1582,7 +1590,42 @@ function renderAutoGenerateMessages(messages) {
   });
 }
 
-function showAutoGenerateResult({ success, title, subtitle, summary, messages = [], reload = false }) {
+function renderResultSummaryBlock(summary) {
+  if (!autoGenerateResultSummary) return;
+  if (!summary) {
+    autoGenerateResultSummary.classList.add("hidden");
+    autoGenerateResultSummary.replaceChildren();
+    return;
+  }
+  const sections = [
+    ["正常に配置できた勤務", [`生成セル ${summary.placed_cells ?? 0} 件`, `希望休の維持 ${summary.leave_kept ?? 0} 件`, `手動入力の維持 ${summary.manual_kept ?? 0} 件`]],
+    ["人数不足の日", summary.understaffed],
+    ["配置できなかった箇所", summary.unfilled_days],
+    ["夜勤リーダーの不足", summary.leader_issues],
+    ["希望条件を満たせなかった箇所", summary.unmet_preferences],
+    ["夜勤回数の偏り", summary.night_imbalance],
+    ["公休数の偏り", summary.off_imbalance],
+    ["修正が必要な箇所", summary.fix_needed],
+  ];
+  const html = sections
+    .filter(([, items]) => Array.isArray(items) && items.length)
+    .map(([title, items]) => {
+      const list = items
+        .map((text) => `<li>${String(text)}</li>`)
+        .join("");
+      return `<section class="auto-generate-result-section"><h4>${title}</h4><ul>${list}</ul></section>`;
+    })
+    .join("");
+  if (!html) {
+    autoGenerateResultSummary.innerHTML = '<p class="field-hint">特記事項はありません。</p>';
+    autoGenerateResultSummary.classList.remove("hidden");
+    return;
+  }
+  autoGenerateResultSummary.innerHTML = html;
+  autoGenerateResultSummary.classList.remove("hidden");
+}
+
+function showAutoGenerateResult({ success, title, subtitle, summary, messages = [], resultSummary = null, reload = false }) {
   autoGenerateShouldReload = reload;
   if (!autoGenerateModal) {
     window.alert([summary, ...messages.map((item) => item.message)].filter(Boolean).join("\n"));
@@ -1592,6 +1635,7 @@ function showAutoGenerateResult({ success, title, subtitle, summary, messages = 
   if (autoGenerateModalTitle) autoGenerateModalTitle.textContent = title;
   if (autoGenerateModalSubtitle) autoGenerateModalSubtitle.textContent = subtitle || "";
   if (autoGenerateSummary) autoGenerateSummary.textContent = summary || "";
+  renderResultSummaryBlock(resultSummary);
   renderAutoGenerateMessages(messages);
   autoGenerateModal.classList.remove("hidden");
   autoGenerateModal.setAttribute("aria-hidden", "false");
@@ -1605,31 +1649,124 @@ function closeAutoGenerateModal() {
   autoGenerateShouldReload = false;
 }
 
-autoGenerateCloseBtn?.addEventListener("click", closeAutoGenerateModal);
-document.querySelectorAll("[data-close-auto-generate-modal]").forEach((element) => {
-  element.addEventListener("click", closeAutoGenerateModal);
-});
+function closeAutoGenerateConfirmModal() {
+  if (!autoGenerateConfirmModal) return;
+  autoGenerateConfirmModal.classList.add("hidden");
+  autoGenerateConfirmModal.setAttribute("aria-hidden", "true");
+  pendingPreflight = null;
+  if (autoGenerateConfirmRun) autoGenerateConfirmRun.disabled = false;
+}
 
-async function runAutoGenerate() {
+function showAutoGenerateConfirm(preflight) {
+  pendingPreflight = preflight;
+  if (!autoGenerateConfirmModal) {
+    const ok = window.confirm(
+      `${preflight.scope_label}\n職員 ${preflight.staff_count} 人 / 夜勤可能 ${preflight.night_capable_count} 人\n生成を実行しますか？`
+    );
+    if (ok) executeAutoGenerate();
+    return;
+  }
+  if (autoGenerateConfirmSubtitle) {
+    autoGenerateConfirmSubtitle.textContent = preflight.scope_label || "";
+  }
+  if (autoGenerateConfirmSummary) {
+    const floors = preflight.night_mins_by_floor || {};
+    const floorCounts = preflight.night_floor_counts || {};
+    const needLines = Object.entries(floors)
+      .filter(([, n]) => Number(n) > 0)
+      .map(([floor, n]) => `${floor}夜勤 ${n}人/日`)
+      .join("、");
+    const advanced = (preflight.advanced_settings_used || []).join("、") || "標準のみ";
+    autoGenerateConfirmSummary.innerHTML = `
+      <ul class="auto-generate-confirm-list">
+        <li><span>対象年月</span><strong>${preflight.year}年${preflight.month}月</strong></li>
+        <li><span>対象フロア</span><strong>${(preflight.departments || []).join("、") || "—"}</strong></li>
+        <li><span>職員数</span><strong>${preflight.staff_count} 人</strong></li>
+        <li><span>希望休</span><strong>${preflight.leave_count} 件</strong></li>
+        <li><span>夜勤可能者</span><strong>${preflight.night_capable_count} 人</strong></li>
+        <li><span>夜勤リーダー可能者</span><strong>${preflight.night_leader_count} 人</strong></li>
+        <li><span>1F夜勤対応</span><strong>${floorCounts["1F"] ?? 0} 人</strong></li>
+        <li><span>2F夜勤対応</span><strong>${floorCounts["2F"] ?? 0} 人</strong></li>
+        <li><span>月間公休数</span><strong>${preflight.off_days_per_period ?? "土日相当"} 日</strong></li>
+        <li><span>必要人数（夜勤）</span><strong>${needLines || "—"}</strong></li>
+        <li><span>使用する詳細設定</span><strong>${advanced}</strong></li>
+      </ul>`;
+  }
+  if (autoGenerateConfirmWarnings && autoGenerateConfirmWarningsWrap) {
+    const warnings = Array.isArray(preflight.warnings) ? preflight.warnings : [];
+    autoGenerateConfirmWarnings.replaceChildren();
+    if (!warnings.length) {
+      autoGenerateConfirmWarningsWrap.classList.add("hidden");
+    } else {
+      autoGenerateConfirmWarningsWrap.classList.remove("hidden");
+      warnings.forEach((item) => {
+        const level = item.level === "error" || item.level === "warn" ? item.level : "info";
+        const li = document.createElement("li");
+        li.className = `auto-generate-message auto-generate-message--${level}`;
+        const label = document.createElement("span");
+        label.className = "auto-generate-message-label";
+        label.textContent = item.blocking ? "[要対応]" : `[${AUTO_GENERATE_LEVEL_LABELS[level] ?? "情報"}]`;
+        const text = document.createElement("span");
+        text.textContent = item.message || "";
+        li.append(label, text);
+        autoGenerateConfirmWarnings.appendChild(li);
+      });
+    }
+  }
+  if (autoGenerateConfirmRun) {
+    autoGenerateConfirmRun.disabled = preflight.can_generate === false;
+    autoGenerateConfirmRun.textContent =
+      preflight.can_generate === false ? "問題を解消してから生成できます" : "この内容で生成する";
+  }
+  autoGenerateConfirmModal.classList.remove("hidden");
+  autoGenerateConfirmModal.setAttribute("aria-hidden", "false");
+}
+
+async function openAutoGenerateConfirm() {
   const year = window.CALENDAR_YEAR;
   const month = window.CALENDAR_MONTH;
   if (!year || !month) return;
 
-  const preview = window.confirm(
-    `表示中のカレンダー区間（${window.PERIOD_LABEL || `${year}年${month}月`}）のシフトを自動生成します。\n\n` +
-      "優先順位:\n" +
-      "1. 手動選択分（手動入力済みセル）\n" +
-      "2. 希望休\n" +
-      "3. 担当フロア\n" +
-      "4. 夜勤必要人員\n" +
-      "5. 夜勤回数\n" +
-      "6. 必要人員数・勤務割合\n" +
-      "7. 日勤各割合\n\n" +
-      "画面上に表示されている日付すべてが対象です（翌月にまたがる日も含みます）。\n" +
-      "手動で入力済みのセル（赤枠）は上書きしません。実行しますか？"
-  );
-  if (!preview) return;
+  autoGenerateButton.disabled = true;
+  autoGenerateButton.textContent = "確認中…";
+  try {
+    const response = await fetch(`/api/shifts/generate/preflight?year=${year}&month=${month}`);
+    const rawText = await response.text();
+    let data = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      data = { detail: rawText || "確認情報の取得に失敗しました。" };
+    }
+    if (!response.ok) {
+      showAutoGenerateResult({
+        success: false,
+        title: "確認に失敗しました",
+        subtitle: `HTTP ${response.status}`,
+        summary: formatApiErrorDetail(data.detail),
+      });
+      return;
+    }
+    showAutoGenerateConfirm(data);
+  } catch (error) {
+    showAutoGenerateResult({
+      success: false,
+      title: "確認に失敗しました",
+      subtitle: "通信エラー",
+      summary: error instanceof Error ? error.message : "確認情報の取得中にエラーが発生しました。",
+    });
+  } finally {
+    autoGenerateButton.disabled = false;
+    autoGenerateButton.textContent = "シフト自動生成";
+  }
+}
 
+async function executeAutoGenerate() {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+
+  closeAutoGenerateConfirmModal();
   autoGenerateButton.disabled = true;
   autoGenerateButton.textContent = "生成中…";
   try {
@@ -1653,6 +1790,7 @@ async function runAutoGenerate() {
         subtitle: `HTTP ${response.status}`,
         summary: formatApiErrorDetail(data.detail),
         messages: Array.isArray(data.warnings) ? data.warnings : [],
+        resultSummary: data.result_summary || null,
       });
       return;
     }
@@ -1682,6 +1820,7 @@ async function runAutoGenerate() {
           .filter(Boolean)
           .join("\n"),
         messages,
+        resultSummary: data.result_summary || null,
       });
       return;
     }
@@ -1690,9 +1829,9 @@ async function runAutoGenerate() {
       success,
       title: success
         ? warnCount > 0
-          ? "自動生成が完了しました（警告あり）"
+          ? "自動生成が完了しました（要確認あり）"
           : "自動生成が完了しました"
-        : "自動生成は保存しました（エラーあり）",
+        : "自動生成は保存しました（要修正あり）",
       subtitle: scopeRange ? `${scopeLabel}（${scopeRange}）` : scopeLabel,
       summary: [
         data.message ? String(data.message) : "",
@@ -1706,6 +1845,7 @@ async function runAutoGenerate() {
         .filter(Boolean)
         .join("\n"),
       messages,
+      resultSummary: data.result_summary || null,
       reload: true,
     });
   } catch (error) {
@@ -1721,7 +1861,18 @@ async function runAutoGenerate() {
   }
 }
 
-autoGenerateButton?.addEventListener("click", runAutoGenerate);
+autoGenerateCloseBtn?.addEventListener("click", closeAutoGenerateModal);
+document.querySelectorAll("[data-close-auto-generate-modal]").forEach((element) => {
+  element.addEventListener("click", closeAutoGenerateModal);
+});
+document.querySelectorAll("[data-close-auto-generate-confirm]").forEach((element) => {
+  element.addEventListener("click", closeAutoGenerateConfirmModal);
+});
+autoGenerateConfirmRun?.addEventListener("click", () => {
+  if (pendingPreflight && pendingPreflight.can_generate === false) return;
+  executeAutoGenerate();
+});
+autoGenerateButton?.addEventListener("click", openAutoGenerateConfirm);
 
 const clearShiftsButton = document.getElementById("btn-clear-shifts");
 

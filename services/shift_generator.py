@@ -59,6 +59,59 @@ def _warning(level: str, code: str, message: str) -> dict:
     return {"level": level, "code": code, "message": message}
 
 
+def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
+    """生成結果を画面用に分類する（警告コードはそのまま保持）。"""
+    understaffed: list[str] = []
+    unfilled_days: list[str] = []
+    unmet_preferences: list[str] = []
+    night_imbalance: list[str] = []
+    off_imbalance: list[str] = []
+    leader_issues: list[str] = []
+    fix_needed: list[str] = []
+    info: list[str] = []
+
+    for item in warnings:
+        level = item.get("level") or "info"
+        code = item.get("code") or ""
+        message = item.get("message") or ""
+        if level == "error":
+            fix_needed.append(message)
+            continue
+        if code in {"understaffed", "time_slot_understaffed", "staff_capacity_low"}:
+            understaffed.append(message)
+            fix_needed.append(message)
+        elif code in {"empty_cells_unfilled"}:
+            unfilled_days.append(message)
+            fix_needed.append(message)
+        elif code in {"leader_on_night_missing"}:
+            leader_issues.append(message)
+            fix_needed.append(message)
+        elif code in {"night_count_shortfall", "night_quota_capped"}:
+            night_imbalance.append(message)
+        elif code in {"off_count_shortfall", "off_count_excess"}:
+            off_imbalance.append(message)
+        elif code in {"staff_ratio_shortfall", "leave_priority_off"}:
+            unmet_preferences.append(message)
+        elif level == "info":
+            info.append(message)
+        else:
+            unmet_preferences.append(message)
+
+    return {
+        "placed_cells": int(stats.get("generated_cells") or 0),
+        "leave_kept": int(stats.get("leave_locked") or 0),
+        "manual_kept": int(stats.get("manual_locked") or 0),
+        "understaffed": understaffed,
+        "unfilled_days": unfilled_days,
+        "unmet_preferences": unmet_preferences,
+        "night_imbalance": night_imbalance,
+        "off_imbalance": off_imbalance,
+        "leader_issues": leader_issues,
+        "fix_needed": fix_needed,
+        "info": info,
+    }
+
+
 def _base_work_key(key: str) -> str:
     return SEMI_TO_BASE.get(key, key)
 
@@ -1602,6 +1655,20 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
                     f"表示期間に自動生成できる日がありません。",
                 )
             ],
+            "result_summary": build_generate_result_summary(
+                [
+                    _warning(
+                        "error",
+                        "empty_scope",
+                        "表示期間に自動生成できる日がありません。",
+                    )
+                ],
+                {
+                    "generated_cells": 0,
+                    "leave_locked": 0,
+                    "manual_locked": 0,
+                },
+            ),
             "priority_order": PRIORITY_ORDER,
             "scope_day_count": 0,
             "ok": False,
@@ -1637,6 +1704,7 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
             )
 
     error_count = sum(1 for item in result["warnings"] if item["level"] == "error")
+    summary = build_generate_result_summary(result["warnings"], result["stats"])
 
     return {
         "year": year,
@@ -1646,6 +1714,7 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
         "ok": applied and error_count == 0,
         "stats": result["stats"],
         "warnings": result["warnings"],
+        "result_summary": summary,
         "priority_order": PRIORITY_ORDER,
         "scope_day_count": len(scope_days),
         "save_error": save_error,

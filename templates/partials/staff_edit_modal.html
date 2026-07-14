@@ -71,7 +71,7 @@
           </label>
           <div class="form-field form-field-full bulk-field" data-bulk-field="placement_floors">
           <div class="picker-head">
-            <span class="form-label">配置可能フロア（対応可） <em>*</em></span>
+            <span class="form-label">配置可能フロア（1F/2F夜勤対応を含む） <em>*</em></span>
             <span class="picker-links">
               <button type="button" class="btn-link" data-select-all="staff-placement-floor">すべて選択</button>
               <button type="button" class="btn-link" data-clear-all="staff-placement-floor">すべて解除</button>
@@ -79,7 +79,7 @@
               <button type="button" class="btn-link" id="btn-add-department-to-placement">担当フロアを含める</button>
             </span>
           </div>
-          <p class="field-hint">シフト自動生成で配置できるフロアです。複数選択できます。</p>
+          <p class="field-hint">シフト自動生成で配置できるフロアです。夜勤に入れる職員は、ここにチェックしたフロアの夜勤候補になります（例: 1Fと2Fにチェック＝両階の夜勤対応可）。</p>
           <div class="checkbox-grid" id="field-placement-floors">
             {% for dept in departments %}
               <label class="check-row">
@@ -175,7 +175,7 @@
           <div class="staffing-basis-night-controls staffing-basis-night-controls--standalone">
             <label class="staffing-basis-fix-wrap" title="チェックすると月の夜勤回数を固定">
               <input type="checkbox" id="field-fix-night-shift-count">
-              <span>回数固定</span>
+              <span>夜勤回数の上限・固定</span>
             </label>
             <label class="staffing-basis-count-wrap" title="固定時のみ有効">
               <input
@@ -190,7 +190,10 @@
               <span>回/月</span>
             </label>
           </div>
-          <p class="field-hint">夜勤は勤務割合グラフの対象外です。回数固定にすると自動生成でその回数を優先配置します。夜勤リーダー可は役職とは別の設定で、ONの職員だけが夜勤リーダー配置の候補になります。</p>
+          <p class="field-hint">
+            夜勤は勤務割合グラフの対象外です。「夜勤リーダー可」は役職とは別です。<br>
+            <strong>1F夜勤対応 / 2F夜勤対応</strong>は下の「配置可能フロア」で設定します（1Fや2Fにチェック＋夜勤に入れる＝その階の夜勤候補）。
+          </p>
           </div>
         </div>
         <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">

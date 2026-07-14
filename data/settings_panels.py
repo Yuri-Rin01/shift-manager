@@ -51,7 +51,7 @@ SETTINGS_PANELS: list[dict] = [
         "id": "auto",
         "key": "settings-auto",
         "label": "自動生成",
-        "subtitle": "休み希望優先・公平性",
+        "subtitle": "基本設定と詳細設定",
         "section_id": "section-auto",
     },
     {

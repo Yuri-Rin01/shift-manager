@@ -1,0 +1,26 @@
+<div class="modal hidden" id="auto-generate-confirm-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close-auto-generate-confirm></div>
+  <div class="modal-dialog modal-dialog-auto-generate" role="dialog" aria-labelledby="auto-generate-confirm-title">
+    <div class="modal-header">
+      <div>
+        <h3 id="auto-generate-confirm-title">自動生成の確認</h3>
+        <p class="modal-subtitle" id="auto-generate-confirm-subtitle"></p>
+      </div>
+      <button type="button" class="modal-close" data-close-auto-generate-confirm aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="auto-generate-confirm-summary" class="auto-generate-confirm-summary"></div>
+      <div id="auto-generate-confirm-warnings-wrap" class="auto-generate-messages-wrap hidden">
+        <h4 class="auto-generate-messages-title">生成前の注意</h4>
+        <ul id="auto-generate-confirm-warnings" class="auto-generate-messages"></ul>
+      </div>
+      <p class="field-hint" id="auto-generate-confirm-hint">
+        手動入力済みセル（赤枠）と希望休は上書きしません。続行すると表示期間の自動生成セルを置き換えます。
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" data-close-auto-generate-confirm>キャンセル</button>
+      <button type="button" class="btn btn-primary" id="auto-generate-confirm-run">この内容で生成する</button>
+    </div>
+  </div>
+</div>

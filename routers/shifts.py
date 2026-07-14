@@ -8,11 +8,15 @@ from db import shift_repository as repo
 from db.settings_repository import get_settings
 from db.staff_repository import get_staff
 from schemas.auto_shift import (
+    AutoGeneratePreflightResponse,
+    AutoGeneratePreflightWarning,
     ShiftGenerateRequest,
     ShiftGenerateResponse,
+    ShiftGenerateResultSummary,
     ShiftGenerateStats,
     ShiftGenerateWarning,
 )
+from services.auto_generate_preflight import build_auto_generate_preflight
 from schemas.shift import (
     ShiftCellResponse,
     ShiftCellUnlock,
@@ -62,6 +66,11 @@ def _to_generate_response(raw: dict) -> ShiftGenerateResponse:
         message=_build_generate_message(raw),
         stats=ShiftGenerateStats(**stats),
         warnings=[ShiftGenerateWarning(**item) for item in raw.get("warnings", [])],
+        result_summary=(
+            ShiftGenerateResultSummary(**raw["result_summary"])
+            if raw.get("result_summary")
+            else None
+        ),
         priority_order=raw.get("priority_order", []),
         scope_day_count=raw.get("scope_day_count"),
         save_error=raw.get("save_error"),
@@ -173,6 +182,24 @@ def clear_shift_schedule(data: ShiftClearRequest):
         period_start=period_start.isoformat(),
         period_end=period_end.isoformat(),
         deleted_count=deleted,
+    )
+
+
+@router.get(
+    "/generate/preflight",
+    response_model=AutoGeneratePreflightResponse,
+    name="preflight_shift_generate",
+)
+def preflight_shift_generate(year: int, month: int):
+    """自動生成前の確認サマリーと矛盾警告。"""
+    if year < 2000 or year > 2100 or month < 1 or month > 12:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="年月が不正です")
+    raw = build_auto_generate_preflight(year, month)
+    return AutoGeneratePreflightResponse(
+        **{
+            **raw,
+            "warnings": [AutoGeneratePreflightWarning(**item) for item in raw.get("warnings", [])],
+        }
     )
 
 
