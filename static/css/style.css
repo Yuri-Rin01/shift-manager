@@ -3239,6 +3239,49 @@ body {
   color: var(--text-muted, #64748b);
 }
 
+/* FHD (1920x1080) レイアウト最適化 */
+@media (min-width: 1920px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+
+  .content {
+    padding: 16px 24px;
+  }
+
+  /* カレンダーの見やすさを向上（1日セルを少し広く） */
+  .shift-table th.day-col {
+    min-width: 36px;
+  }
+  .shift-table-compact .day-col {
+    min-width: 34px;
+  }
+
+  /* スタッフ名・職種・フロア列の幅をFHD に合わせてわずかに拡張 */
+  .shift-table .col-name {
+    min-width: 64px;
+  }
+  .shift-table .col-job {
+    left: 64px;
+    min-width: 108px;
+  }
+  .shift-table .col-dept {
+    left: 172px; /* 64 + 108 */
+    min-width: 120px;
+  }
+
+  /* 検索ボックスなどツールの可視性を上げる */
+  .toolbar .input-search,
+  .home-toolbar .input-search {
+    min-width: 220px;
+    max-width: 360px;
+  }
+
+  .toolbar-zoom-controls .calendar-zoom-value {
+    font-size: 12px;
+  }
+}
+
 .auto-generate-result-section h4 {
   margin: 0 0 6px;
   font-size: 13px;
