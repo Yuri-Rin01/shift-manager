@@ -27,6 +27,16 @@ const RATIO_EXCLUDED_KEYS = new Set(["night", "semi_night"]);
 const STAFFING_PERIOD_DAYS = Number(window.STAFFING_PERIOD_DAYS) || 30;
 const STAFFING_DEFAULT_OFF_DAYS = Number(window.STAFFING_DEFAULT_OFF_DAYS) || 0;
 const STAFFING_DEFAULT_WORKING_DAYS = Number(window.STAFFING_DEFAULT_WORKING_DAYS) || STAFFING_PERIOD_DAYS;
+const STAFFING_BASIS_SHORT = {
+  early: "早",
+  semi_early: "準早",
+  day: "日",
+  semi_day: "準日",
+  late: "遅",
+  semi_late: "準遅",
+  night: "夜",
+  semi_night: "準夜",
+};
 const STAFFING_BASIS_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#dc2626", "#0891b2", "#db2777"];
 const STAFFING_BASIS_HOURS = window.STAFFING_BASIS_HOURS ?? {};
 const NIGHT_SHIFT_COUNTS_AS_TWO_DAYS = window.NIGHT_SHIFT_COUNTS_AS_TWO_DAYS !== false;
@@ -38,7 +48,7 @@ const JOB_SORT_ORDER = window.STAFF_JOB_ORDER ?? [];
 const POSITION_SORT_ORDER = window.STAFF_POSITION_ORDER ?? [];
 const DEFAULT_STAFF_SORT = window.DEFAULT_STAFF_SORT ?? "dept";
 
-const TABLE_COLSPAN = 13;
+const TABLE_COLSPAN = 12;
 
 const IS_STAFF_LIST_PAGE = Boolean(tbody);
 const STAFF_EDITOR_OVERLAY = window.STAFF_EDITOR_OVERLAY === true;
@@ -1039,18 +1049,68 @@ function formatStaffingBasis(staff) {
   return escapeHtml(labels.join("、"));
 }
 
+function staffingBasisPlainText(staff) {
+  const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
+  const entries = Object.entries(ratios);
+  const offDays = STAFFING_DEFAULT_OFF_DAYS;
+  const labels = entries.map(([key, ratio]) => {
+    const label = STAFFING_BASIS_LABELS[key] ?? key;
+    return `${label}${ratio}%（約${approximateStaffingDays(ratio, offDays, key, { ratios })}日）`;
+  });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    const days = staff.night_shift_count * staffingBasisDayWeight("night");
+    labels.push(`夜勤固定${staff.night_shift_count}回（約${days}日）`);
+  }
+  return labels.join("、") || "—";
+}
+
+function formatStaffingBasisShort(staff) {
+  const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
+  const entries = Object.entries(ratios);
+  const parts = entries.map(([key, ratio]) => {
+    const short = STAFFING_BASIS_SHORT[key] ?? (STAFFING_BASIS_LABELS[key]?.slice(0, 1) ?? key);
+    return `${short}${ratio}`;
+  });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    parts.push(`夜${staff.night_shift_count}固定`);
+  }
+  if (!parts.length) return '<span class="text-muted">—</span>';
+  const shortText = parts.join(" · ");
+  const full = staffingBasisPlainText(staff);
+  return `<span class="staffing-basis-short" title="${escapeHtml(full)}">${escapeHtml(shortText)}</span>`;
+}
+
 function formatStaffingCount(staff) {
   if (staff.exclude_from_staffing) {
-    return '<span class="badge badge-muted">含めない</span>';
+    return '<span class="badge badge-muted">外</span>';
   }
-  return '<span class="badge badge-ok">含める</span>';
+  return '<span class="badge badge-ok">含</span>';
+}
+
+function formatNightFlags(staff) {
+  const night = Boolean(staff.can_work_night);
+  const leader = Boolean(staff.can_be_night_leader);
+  if (!night && !leader) {
+    return '<span class="text-muted">—</span>';
+  }
+  const parts = [];
+  if (night) {
+    parts.push('<span class="staff-flag staff-flag-night" title="夜勤に入れる">夜</span>');
+  }
+  if (leader) {
+    parts.push('<span class="staff-flag staff-flag-leader" title="夜勤リーダー可">L</span>');
+  }
+  return `<span class="staff-night-flags">${parts.join("")}</span>`;
 }
 
 function formatIncompatibilities(ids) {
   const names = (ids ?? []).map((id) => staffNameMap()[id]).filter(Boolean);
   if (!names.length) return '<span class="text-muted">なし</span>';
   const label = names.join("、");
-  return `<span class="incompatibility-tags" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  if (names.length <= 2) {
+    return `<span class="incompatibility-tags" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  }
+  return `<span class="incompatibility-count" title="${escapeHtml(label)}">${names.length}名</span>`;
 }
 
 function staffFloors(staff) {
@@ -1144,25 +1204,16 @@ function renderTable() {
             ${selectedStaffIds.has(staff.id) ? "checked" : ""}
           >
         </td>
-        <td>${escapeHtml(staff.name)}</td>
+        <td class="col-name staff-name-cell">${escapeHtml(staff.name)}</td>
         <td class="col-floor">${formatDepartments(staff)}</td>
         <td class="col-floor">${formatPlacementFloors(staff)}</td>
-        <td>${escapeHtml(staff.job_type)}</td>
-        <td>${escapeHtml(staff.position || "-")}</td>
-        <td>${formatStaffingBasis(staff)}</td>
-        <td>${formatStaffingCount(staff)}</td>
-        <td>
-          <span class="badge ${staff.can_work_night ? "badge-ok" : "badge-muted"}">
-            ${staff.can_work_night ? "可" : "不可"}
-          </span>
-        </td>
-        <td>
-          <span class="badge ${staff.can_be_night_leader ? "badge-ok" : "badge-muted"}">
-            ${staff.can_be_night_leader ? "可" : "不可"}
-          </span>
-        </td>
-        <td>${formatIncompatibilities(staff.day_incompatible_ids)}</td>
-        <td>${formatIncompatibilities(staff.night_incompatible_ids)}</td>
+        <td class="col-job">${escapeHtml(staff.job_type)}</td>
+        <td class="col-position">${escapeHtml(staff.position || "—")}</td>
+        <td class="col-staffing">${formatStaffingBasisShort(staff)}</td>
+        <td class="col-count">${formatStaffingCount(staff)}</td>
+        <td class="col-night">${formatNightFlags(staff)}</td>
+        <td class="col-incompat">${formatIncompatibilities(staff.day_incompatible_ids)}</td>
+        <td class="col-incompat">${formatIncompatibilities(staff.night_incompatible_ids)}</td>
         <td class="col-actions">
           <button type="button" class="btn btn-sm btn-danger" data-delete="${staff.id}">削除</button>
         </td>

@@ -2536,6 +2536,190 @@ body {
   background: #dbeafe;
 }
 
+/* 職員一覧テーブル：列整理・読みやすさ */
+.content-staff-page #staff-table {
+  font-size: 14px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.content-staff-page #staff-table th,
+.content-staff-page #staff-table td {
+  padding: 11px 12px;
+  vertical-align: middle;
+  line-height: 1.45;
+}
+
+.content-staff-page #staff-table thead th {
+  font-size: 12px;
+  color: #475569;
+  letter-spacing: 0.02em;
+}
+
+.content-staff-page #staff-table .col-name {
+  min-width: 108px;
+  max-width: 140px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.content-staff-page #staff-table .staff-name-cell {
+  color: #0f172a;
+}
+
+.content-staff-page #staff-table .col-job {
+  min-width: 84px;
+  white-space: nowrap;
+}
+
+.content-staff-page #staff-table .col-position {
+  min-width: 72px;
+  max-width: 96px;
+  white-space: nowrap;
+  color: #475569;
+}
+
+.content-staff-page #staff-table .col-floor {
+  min-width: 76px;
+}
+
+.content-staff-page #staff-table .col-staffing {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.content-staff-page #staff-table .col-count,
+.content-staff-page #staff-table .col-night {
+  width: 56px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.content-staff-page #staff-table .col-incompat {
+  min-width: 88px;
+  max-width: 140px;
+}
+
+.content-staff-page #staff-table .col-actions {
+  width: 76px;
+  min-width: 76px;
+  text-align: center;
+}
+
+.content-staff-page #staff-table tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+
+.content-staff-page #staff-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+.content-staff-page #staff-table tbody tr.is-selected {
+  background: #eff6ff;
+}
+
+.content-staff-page #staff-table tbody tr.is-selected:nth-child(even) {
+  background: #dbeafe;
+}
+
+/* 横スクロール時も名前が見える */
+.content-staff-page #staff-table .col-check {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.content-staff-page #staff-table .col-name {
+  position: sticky;
+  left: 48px;
+  z-index: 1;
+  background: inherit;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+
+.content-staff-page #staff-table thead .col-check {
+  z-index: 4;
+}
+
+.content-staff-page #staff-table thead .col-name {
+  z-index: 3;
+  background: #f8fafc;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+
+.content-staff-page #staff-table.has-selection thead .col-name {
+  background: #f8fafc;
+}
+
+.content-staff-page #staff-table tbody tr.is-selected .col-name {
+  background: inherit;
+}
+
+.staffing-basis-short {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+}
+
+.staff-night-flags {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.staff-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.staff-flag-night {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+}
+
+.staff-flag-leader {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.incompatibility-count {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.content-staff-page #staff-table .badge {
+  min-width: 2em;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.content-staff-page .staff-list-toolbar-filters .input-search {
+  min-width: 240px;
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
 .content-settings {
   padding-bottom: 88px;
 }
@@ -3279,6 +3463,28 @@ body {
 
   .toolbar-zoom-controls .calendar-zoom-value {
     font-size: 12px;
+  }
+
+  /* 職員管理（FHD） */
+  .content-staff-page #staff-table {
+    font-size: 14px;
+  }
+
+  .content-staff-page #staff-table .col-name {
+    min-width: 120px;
+  }
+
+  .content-staff-page #staff-table .col-staffing {
+    max-width: 220px;
+  }
+
+  .content-staff-page #staff-table .col-incompat {
+    max-width: 160px;
+  }
+
+  .content-staff-page .staff-list-toolbar-filters .input-search {
+    min-width: 300px;
+    max-width: 480px;
   }
 }
 
