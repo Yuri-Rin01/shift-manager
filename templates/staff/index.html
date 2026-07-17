@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>職員管理 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=31">
+  <link rel="stylesheet" href="/static/css/style.css?v=59">
 </head>
 <body>
   <div class="app">
@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="page-title-bar">
           <h1 class="page-title">職員管理</h1>
-          <p class="page-subtitle">職員マスタの登録・編集・削除（担当フロアは複数選択可）。行をダブルクリックで編集できます。表示順の初期値は各種設定のカレンダー並び順です。</p>
+          <p class="page-subtitle">職員マスタの登録・編集・削除。担当フロアは表示用に1つ、配置可能フロア（対応可）は複数指定できます。</p>
         </div>
         <div class="topbar-actions">
           <span>?</span>
@@ -73,24 +73,25 @@
                         <span id="staff-selection-badge" class="staff-selection-badge is-empty" aria-hidden="true">0</span>
                       </div>
                     </th>
-                    <th>名前</th>
-                    <th class="col-floor">担当フロア</th>
-                    <th>職種</th>
-                    <th>役職</th>
-                    <th>勤務割合</th>
-                    <th>人員カウント</th>
-                    <th>夜勤可否</th>
-                    <th>日勤相性</th>
-                    <th>夜勤相性</th>
+                    <th class="col-name">名前</th>
+                    <th class="col-floor" title="表示用の担当フロア">担当</th>
+                    <th class="col-floor" title="配置可能フロア（夜勤対応含む）">配置可</th>
+                    <th class="col-job">職種</th>
+                    <th class="col-position">役職</th>
+                    <th class="col-staffing" title="勤務割合（%）">割合</th>
+                    <th class="col-count" title="人員カウントに含めるか">人員</th>
+                    <th class="col-night" title="夜勤可・夜勤リーダー可">夜勤</th>
+                    <th class="col-incompat" title="日勤で組ませない職員">日勤NG</th>
+                    <th class="col-incompat" title="夜勤で組ませない職員">夜勤NG</th>
                     <th class="col-actions">操作</th>
                   </tr>
                 </thead>
                 <tbody id="staff-tbody">
-                  <tr><td colspan="11" class="empty-cell">読み込み中...</td></tr>
+                  <tr><td colspan="12" class="empty-cell">読み込み中...</td></tr>
                 </tbody>
                 <tfoot>
                   <tr class="staff-add-row">
-                    <td colspan="11">
+                    <td colspan="12">
                       <button type="button" class="staff-add-row-btn" id="btn-add-footer" aria-label="職員を新規登録">
                         <span class="staff-add-row-icon" aria-hidden="true">+</span>
                         <span class="staff-add-row-label">職員を追加</span>
@@ -109,6 +110,6 @@
 
   {% include "partials/staff_edit_modal.html" %}
   {% include "partials/staff_editor_config.html" %}
-  <script src="/static/js/staff.js?v=14"></script>
+  <script src="/static/js/staff.js?v=21"></script>
 </body>
 </html>

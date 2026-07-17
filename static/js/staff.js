@@ -14,29 +14,41 @@ const nightIncompatibilityPicker = document.getElementById("field-night-incompat
 const nightIncompatibilitySearch = document.getElementById("field-incompatibility-search");
 const dayIncompatibilityPicker = document.getElementById("field-day-incompatibilities");
 const dayIncompatibilitySearch = document.getElementById("field-day-incompatibility-search");
-const floorPicker = document.getElementById("field-departments");
+const departmentSelect = document.getElementById("field-department");
+const placementFloorPicker = document.getElementById("field-placement-floors");
 const staffingBasisPicker = document.getElementById("field-staffing-basis");
 const staffingBasisBar = document.getElementById("staffing-basis-bar");
 const staffingBasisTotal = document.getElementById("staffing-basis-total");
 const staffingBasisTotalWrap = document.getElementById("staffing-basis-total-wrap");
 
 const STAFFING_BASIS_LABELS = window.STAFFING_BASIS_LABELS ?? {};
-const DEFAULT_STAFFING_BASIS = window.DEFAULT_STAFFING_BASIS ?? { early: 34, day: 33, night: 33 };
+const DEFAULT_STAFFING_BASIS = window.DEFAULT_STAFFING_BASIS ?? { early: 50, day: 50 };
+const RATIO_EXCLUDED_KEYS = new Set(["night", "semi_night"]);
 const STAFFING_PERIOD_DAYS = Number(window.STAFFING_PERIOD_DAYS) || 30;
 const STAFFING_DEFAULT_OFF_DAYS = Number(window.STAFFING_DEFAULT_OFF_DAYS) || 0;
 const STAFFING_DEFAULT_WORKING_DAYS = Number(window.STAFFING_DEFAULT_WORKING_DAYS) || STAFFING_PERIOD_DAYS;
+const STAFFING_BASIS_SHORT = {
+  early: "早",
+  semi_early: "準早",
+  day: "日",
+  semi_day: "準日",
+  late: "遅",
+  semi_late: "準遅",
+  night: "夜",
+  semi_night: "準夜",
+};
 const STAFFING_BASIS_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#7c3aed", "#dc2626", "#0891b2", "#db2777"];
 const STAFFING_BASIS_HOURS = window.STAFFING_BASIS_HOURS ?? {};
 const NIGHT_SHIFT_COUNTS_AS_TWO_DAYS = window.NIGHT_SHIFT_COUNTS_AS_TWO_DAYS !== false;
 const REMOVED_STAFFING_BASIS_KEYS = new Set(["special", "leader"]);
-const STAFFING_DAY_NIGHT_PAIRS = { day: "night", semi_day: "semi_night" };
+const STAFFING_DAY_NIGHT_PAIRS = {};
 const STAFF_SORT_STORAGE_KEY = "staff-list-sort";
 const FLOOR_SORT_ORDER = window.STAFF_FLOOR_ORDER ?? [];
 const JOB_SORT_ORDER = window.STAFF_JOB_ORDER ?? [];
 const POSITION_SORT_ORDER = window.STAFF_POSITION_ORDER ?? [];
 const DEFAULT_STAFF_SORT = window.DEFAULT_STAFF_SORT ?? "dept";
 
-const TABLE_COLSPAN = 11;
+const TABLE_COLSPAN = 12;
 
 const IS_STAFF_LIST_PAGE = Boolean(tbody);
 const STAFF_EDITOR_OVERLAY = window.STAFF_EDITOR_OVERLAY === true;
@@ -87,8 +99,21 @@ function syncEditorSurface() {
   syncNightStaffingVisibility();
 }
 
+function syncNightLeaderImpliesNight() {
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  if (!(nightInput instanceof HTMLInputElement) || !(leaderInput instanceof HTMLInputElement)) {
+    return;
+  }
+  if (leaderInput.checked && !nightInput.checked) {
+    nightInput.checked = true;
+  }
+}
+
 function canWorkNightFromForm() {
-  return Boolean(document.getElementById("field-can-work-night")?.checked);
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  return Boolean(nightInput?.checked || leaderInput?.checked);
 }
 
 function syncNightStaffingVisibility() {
@@ -96,45 +121,27 @@ function syncNightStaffingVisibility() {
   modal.classList.toggle("is-night-eligible", canWorkNightFromForm());
 }
 
-function eligibleStaffingBasisKeys(canWorkNight = canWorkNightFromForm()) {
+function eligibleStaffingBasisKeys(_canWorkNight = canWorkNightFromForm()) {
   if (!staffingBasisPicker) return [];
   return [...staffingBasisPicker.querySelectorAll(".staffing-basis-row")]
     .map((row) => row.dataset.key)
-    .filter((key) => {
-      if (!key) return false;
-      if (!canWorkNight && (key === "night" || key === "semi_night")) {
-        return false;
-      }
-      return true;
-    });
+    .filter((key) => key && !RATIO_EXCLUDED_KEYS.has(key) && !REMOVED_STAFFING_BASIS_KEYS.has(key));
 }
 
 function pruneStaffingBasisRatios(ratios, options = {}) {
-  const canWorkNight = options.canWorkNight ?? canWorkNightFromForm();
-  const allowed = new Set(eligibleStaffingBasisKeys(canWorkNight));
-  if (!canWorkNight) {
-    allowed.delete("night");
-    allowed.delete("semi_night");
-  }
+  const allowed = new Set(eligibleStaffingBasisKeys(options.canWorkNight ?? canWorkNightFromForm()));
   const cleaned = {};
   Object.entries(ratios).forEach(([key, value]) => {
-    if (!allowed.has(key)) return;
-    if (!canWorkNight && (key === "night" || key === "semi_night")) return;
+    if (RATIO_EXCLUDED_KEYS.has(key) || REMOVED_STAFFING_BASIS_KEYS.has(key)) return;
+    if (allowed.size && !allowed.has(key)) return;
     cleaned[key] = value;
   });
   return cleaned;
 }
 
 function clearNightStaffingBasis() {
-  const current = getStaffingBasisRatiosFromForm();
-  if (!("night" in current) && !("semi_night" in current)) return;
-  const next = { ...current };
-  delete next.night;
-  delete next.semi_night;
-  const keys = Object.keys(next);
-  applyStaffingBasisRatios(
-    keys.length ? fixStaffingBasisSum(distributeRemaining(100, keys, next), keys) : {}
-  );
+  // 夜勤は割合対象外。回数固定だけ夜勤可否に連動する。
+  updateNightShiftCountControls(canWorkNightFromForm());
 }
 
 function resetBulkFieldGroup(group) {
@@ -146,7 +153,10 @@ function resetBulkFieldGroup(group) {
       setSelectValue(document.getElementById("field-position"), "");
       break;
     case "departments":
-      setCheckboxGroup(floorPicker, "staff-floor", []);
+      setSelectValue(departmentSelect, "");
+      break;
+    case "placement_floors":
+      setCheckboxGroup(placementFloorPicker, "staff-placement-floor", []);
       break;
     case "staffing": {
       clearNonNightRatioCeilings();
@@ -163,6 +173,7 @@ function resetBulkFieldGroup(group) {
       break;
     case "can_work_night":
       document.getElementById("field-can-work-night").checked = false;
+      document.getElementById("field-can-be-night-leader").checked = false;
       break;
     default:
       break;
@@ -194,7 +205,7 @@ function syncBulkFieldAvailability() {
     }
   });
   if (!isBulk) {
-    updateNightShiftCountControls(getActiveStaffingBasisKeys().includes("night"));
+    updateNightShiftCountControls(canWorkNightFromForm());
   }
 }
 
@@ -481,26 +492,42 @@ function formatDepartments(staff) {
     .join("")}</span>`;
 }
 
+function formatPlacementFloors(staff) {
+  const floors = staffPlacementFloors(staff);
+  if (!floors.length) return '<span class="text-muted">-</span>';
+  return `<span class="floor-badges">${floors
+    .map(
+      (floor) =>
+        `<span class="floor-badge ${floorBadgeClass(floor)}" title="${escapeHtml(floor)}">${escapeHtml(floor)}</span>`
+    )
+    .join("")}</span>`;
+}
+
 function normalizeStaffingBasisRatios(raw) {
   if (Array.isArray(raw)) {
-    return equalSplitStaffingBasis(raw.filter((key) => !REMOVED_STAFFING_BASIS_KEYS.has(key)));
+    return equalSplitStaffingBasis(
+      raw.filter((key) => !REMOVED_STAFFING_BASIS_KEYS.has(key) && !RATIO_EXCLUDED_KEYS.has(key))
+    );
   }
   if (raw && typeof raw === "object") {
     const ratios = {};
     Object.entries(raw).forEach(([key, value]) => {
-      if (REMOVED_STAFFING_BASIS_KEYS.has(key)) return;
+      if (REMOVED_STAFFING_BASIS_KEYS.has(key) || RATIO_EXCLUDED_KEYS.has(key)) return;
       const ratio = Number(value);
       if (key && Number.isFinite(ratio) && ratio > 0) {
         ratios[key] = Math.min(100, Math.max(1, Math.round(ratio)));
       }
     });
-    return ratios;
+    if (!Object.keys(ratios).length) return { ...DEFAULT_STAFFING_BASIS };
+    const total = Object.values(ratios).reduce((sum, value) => sum + value, 0);
+    if (total === 100) return ratios;
+    return equalSplitStaffingBasis(Object.keys(ratios));
   }
   return { ...DEFAULT_STAFFING_BASIS };
 }
 
 function equalSplitStaffingBasis(keys) {
-  const cleaned = [...new Set(keys.filter(Boolean))];
+  const cleaned = [...new Set(keys.filter((key) => key && !RATIO_EXCLUDED_KEYS.has(key) && !REMOVED_STAFFING_BASIS_KEYS.has(key)))];
   if (!cleaned.length) return {};
   const base = Math.floor(100 / cleaned.length);
   const remainder = 100 - base * cleaned.length;
@@ -575,21 +602,20 @@ function syncNonNightRatioCeilings(ratios) {
 }
 
 function isNightShiftCountLocked() {
-  return (
-    getActiveStaffingBasisKeys().includes("night") &&
-    isNightShiftCountFixed() &&
-    getEffectiveNightShiftCount() != null
-  );
+  // 夜勤は割合外のため、割合スライダーの上限ロックは使わない
+  return false;
 }
 
-function updateNightShiftCountControls(nightActive) {
+function updateNightShiftCountControls(nightEligible = canWorkNightFromForm()) {
   const fixCheckbox = document.getElementById("field-fix-night-shift-count");
   const countInput = document.getElementById("field-night-shift-count");
   if (fixCheckbox) {
-    fixCheckbox.disabled = !nightActive;
+    fixCheckbox.disabled = !nightEligible;
+    if (!nightEligible) fixCheckbox.checked = false;
   }
   if (countInput) {
-    countInput.disabled = !nightActive || !isNightShiftCountFixed();
+    countInput.disabled = !nightEligible || !isNightShiftCountFixed();
+    if (!nightEligible) countInput.value = "";
   }
 }
 
@@ -611,11 +637,8 @@ function resolveNightShiftCount(ratios, overrideOffDays, overrideNightCount, ove
     overrideNightCount !== undefined
       ? overrideNightCount
       : getEffectiveNightShiftCount(overrideNightFixed);
-  if (fixedCount != null) return fixedCount;
-  const pool = getDistributionPool(overrideOffDays);
-  const nightRatio = (ratios.night ?? 0) + (ratios.semi_night ?? 0);
-  if (!nightRatio) return 0;
-  return Math.round((pool * nightRatio) / 100);
+  // 夜勤は割合から算出せず、固定回数のみ使う
+  return fixedCount != null ? fixedCount : 0;
 }
 
 function nonNightDayRatioTotal(ratios) {
@@ -951,11 +974,9 @@ function applyStaffingBasisRatios(ratios) {
     if (valueEl) {
       valueEl.innerHTML = active ? formatStaffingBasisValue(ratio, undefined, key) : "—";
     }
-    if (key === "night") {
-      updateNightShiftCountControls(active);
-    }
   });
 
+  updateNightShiftCountControls(canWorkNightFromForm());
   renderStaffingBasisBar();
   updateStaffingBasisTotal();
 }
@@ -1015,35 +1036,90 @@ function updateStaffingBasisTotal() {
 function formatStaffingBasis(staff) {
   const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
   const entries = Object.entries(ratios);
-  if (!entries.length) return '<span class="text-muted">-</span>';
   const offDays = STAFFING_DEFAULT_OFF_DAYS;
   const labels = entries.map(([key, ratio]) => {
     const label = STAFFING_BASIS_LABELS[key] ?? key;
-    if (key === "night" && staff.fix_night_shift_count && staff.night_shift_count != null) {
-      const days = staff.night_shift_count * staffingBasisDayWeight("night");
-      return `${label}${ratio}%（固定${staff.night_shift_count}回・約${days}日）`;
-    }
     return `${label}${ratio}%（約${approximateStaffingDays(ratio, offDays, key, { ratios })}日）`;
   });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    const days = staff.night_shift_count * staffingBasisDayWeight("night");
+    labels.push(`夜勤固定${staff.night_shift_count}回（約${days}日）`);
+  }
+  if (!labels.length) return '<span class="text-muted">-</span>';
   return escapeHtml(labels.join("、"));
+}
+
+function staffingBasisPlainText(staff) {
+  const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
+  const entries = Object.entries(ratios);
+  const offDays = STAFFING_DEFAULT_OFF_DAYS;
+  const labels = entries.map(([key, ratio]) => {
+    const label = STAFFING_BASIS_LABELS[key] ?? key;
+    return `${label}${ratio}%（約${approximateStaffingDays(ratio, offDays, key, { ratios })}日）`;
+  });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    const days = staff.night_shift_count * staffingBasisDayWeight("night");
+    labels.push(`夜勤固定${staff.night_shift_count}回（約${days}日）`);
+  }
+  return labels.join("、") || "—";
+}
+
+function formatStaffingBasisShort(staff) {
+  const ratios = normalizeStaffingBasisRatios(staff.staffing_basis ?? {});
+  const entries = Object.entries(ratios);
+  const parts = entries.map(([key, ratio]) => {
+    const short = STAFFING_BASIS_SHORT[key] ?? (STAFFING_BASIS_LABELS[key]?.slice(0, 1) ?? key);
+    return `${short}${ratio}`;
+  });
+  if (staff.fix_night_shift_count && staff.night_shift_count != null) {
+    parts.push(`夜${staff.night_shift_count}固定`);
+  }
+  if (!parts.length) return '<span class="text-muted">—</span>';
+  const shortText = parts.join(" · ");
+  const full = staffingBasisPlainText(staff);
+  return `<span class="staffing-basis-short" title="${escapeHtml(full)}">${escapeHtml(shortText)}</span>`;
 }
 
 function formatStaffingCount(staff) {
   if (staff.exclude_from_staffing) {
-    return '<span class="badge badge-muted">含めない</span>';
+    return '<span class="badge badge-muted">外</span>';
   }
-  return '<span class="badge badge-ok">含める</span>';
+  return '<span class="badge badge-ok">含</span>';
+}
+
+function formatNightFlags(staff) {
+  const night = Boolean(staff.can_work_night);
+  const leader = Boolean(staff.can_be_night_leader);
+  if (!night && !leader) {
+    return '<span class="text-muted">—</span>';
+  }
+  const parts = [];
+  if (night) {
+    parts.push('<span class="staff-flag staff-flag-night" title="夜勤に入れる">夜</span>');
+  }
+  if (leader) {
+    parts.push('<span class="staff-flag staff-flag-leader" title="夜勤リーダー可">L</span>');
+  }
+  return `<span class="staff-night-flags">${parts.join("")}</span>`;
 }
 
 function formatIncompatibilities(ids) {
   const names = (ids ?? []).map((id) => staffNameMap()[id]).filter(Boolean);
   if (!names.length) return '<span class="text-muted">なし</span>';
   const label = names.join("、");
-  return `<span class="incompatibility-tags" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  if (names.length <= 2) {
+    return `<span class="incompatibility-tags" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  }
+  return `<span class="incompatibility-count" title="${escapeHtml(label)}">${names.length}名</span>`;
 }
 
 function staffFloors(staff) {
   return staff.departments?.length ? staff.departments : [staff.department].filter(Boolean);
+}
+
+function staffPlacementFloors(staff) {
+  if (staff.placement_floors?.length) return staff.placement_floors;
+  return staffFloors(staff);
 }
 
 function staffSortMode() {
@@ -1128,19 +1204,16 @@ function renderTable() {
             ${selectedStaffIds.has(staff.id) ? "checked" : ""}
           >
         </td>
-        <td>${escapeHtml(staff.name)}</td>
+        <td class="col-name staff-name-cell">${escapeHtml(staff.name)}</td>
         <td class="col-floor">${formatDepartments(staff)}</td>
-        <td>${escapeHtml(staff.job_type)}</td>
-        <td>${escapeHtml(staff.position || "-")}</td>
-        <td>${formatStaffingBasis(staff)}</td>
-        <td>${formatStaffingCount(staff)}</td>
-        <td>
-          <span class="badge ${staff.can_work_night ? "badge-ok" : "badge-muted"}">
-            ${staff.can_work_night ? "可" : "不可"}
-          </span>
-        </td>
-        <td>${formatIncompatibilities(staff.day_incompatible_ids)}</td>
-        <td>${formatIncompatibilities(staff.night_incompatible_ids)}</td>
+        <td class="col-floor">${formatPlacementFloors(staff)}</td>
+        <td class="col-job">${escapeHtml(staff.job_type)}</td>
+        <td class="col-position">${escapeHtml(staff.position || "—")}</td>
+        <td class="col-staffing">${formatStaffingBasisShort(staff)}</td>
+        <td class="col-count">${formatStaffingCount(staff)}</td>
+        <td class="col-night">${formatNightFlags(staff)}</td>
+        <td class="col-incompat">${formatIncompatibilities(staff.day_incompatible_ids)}</td>
+        <td class="col-incompat">${formatIncompatibilities(staff.night_incompatible_ids)}</td>
         <td class="col-actions">
           <button type="button" class="btn btn-sm btn-danger" data-delete="${staff.id}">削除</button>
         </td>
@@ -1242,12 +1315,6 @@ function addDayIncompatibilities(staffIds) {
 }
 
 function setAllCheckboxes(name, checked) {
-  if (name === "staff-floor") {
-    floorPicker?.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-      input.checked = checked;
-    });
-    return;
-  }
   if (name === "staffing-basis") {
     if (checked) {
       if (isNightShiftCountLocked()) {
@@ -1285,12 +1352,6 @@ function setAllCheckboxes(name, checked) {
 }
 
 function invertAllCheckboxes(name) {
-  if (name === "staff-floor") {
-    floorPicker?.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-      input.checked = !input.checked;
-    });
-    return;
-  }
   if (name === "staffing-basis") {
     if (isNightShiftCountLocked()) {
       showAlert("夜勤回数固定中は反転できません。", "error");
@@ -1422,11 +1483,14 @@ function openBulkModal() {
   setSelectValue(document.getElementById("field-position"), "");
   document.getElementById("field-can-work-night").checked = false;
   document.getElementById("field-exclude-from-staffing").checked = false;
+  const offDaysInput = document.getElementById("field-off-days-per-period");
+  if (offDaysInput) offDaysInput.value = "";
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) fixNightCountCheckbox.checked = false;
   if (nightCountInput) nightCountInput.value = "";
-  setCheckboxGroup(floorPicker, "staff-floor", []);
+  setSelectValue(departmentSelect, "");
+  setCheckboxGroup(placementFloorPicker, "staff-placement-floor", []);
   clearNonNightRatioCeilings();
   applyStaffingBasisRatios({});
   refreshStaffingBasisDisplay();
@@ -1450,7 +1514,16 @@ function openModal(mode, staff = null) {
   setSelectValue(document.getElementById("field-job-type"), staff?.job_type ?? "");
   setSelectValue(document.getElementById("field-position"), staff?.position ?? "");
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
+  document.getElementById("field-can-be-night-leader").checked = staff?.can_be_night_leader ?? false;
+  syncNightLeaderImpliesNight();
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
+  const offDaysInput = document.getElementById("field-off-days-per-period");
+  if (offDaysInput) {
+    offDaysInput.value =
+      staff?.off_days_per_period != null && staff?.off_days_per_period !== ""
+        ? String(staff.off_days_per_period)
+        : "";
+  }
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) {
@@ -1462,7 +1535,16 @@ function openModal(mode, staff = null) {
     nightCountInput.value =
       staff?.night_shift_count != null ? String(staff.night_shift_count) : "";
   }
-  setCheckboxGroup(floorPicker, "staff-floor", staff?.departments ?? []);
+  const primaryFloor = staff?.department || staff?.departments?.[0] || "";
+  setSelectValue(departmentSelect, primaryFloor);
+  setCheckboxGroup(
+    placementFloorPicker,
+    "staff-placement-floor",
+    staff?.placement_floors ?? (primaryFloor ? [primaryFloor] : [])
+  );
+  if (!staff && primaryFloor) {
+    setCheckboxGroup(placementFloorPicker, "staff-placement-floor", [primaryFloor]);
+  }
   clearNonNightRatioCeilings();
   let staffingRatios = pruneStaffingBasisRatios(
     normalizeStaffingBasisRatios(staff?.staffing_basis ?? DEFAULT_STAFFING_BASIS),
@@ -1474,12 +1556,8 @@ function openModal(mode, staff = null) {
     });
   }
   setStaffingBasisRatios(staffingRatios);
-  if (
-    (staff?.fix_night_shift_count || staff?.night_shift_count != null) &&
-    staff?.night_shift_count != null
-  ) {
-    captureNonNightRatioCeilings(staffingRatios);
-  }
+  clearNonNightRatioCeilings();
+  updateNightShiftCountControls(Boolean(staff?.can_work_night));
   refreshStaffingBasisDisplay();
   if (nightIncompatibilitySearch) nightIncompatibilitySearch.value = "";
   if (dayIncompatibilitySearch) dayIncompatibilitySearch.value = "";
@@ -1520,15 +1598,23 @@ async function saveBulkStaff() {
   const applyJobType = isBulkApplyChecked("job_type");
   const applyPosition = isBulkApplyChecked("position");
   const applyDepartments = isBulkApplyChecked("departments");
+  const applyPlacementFloors = isBulkApplyChecked("placement_floors");
   const applyStaffing = isBulkApplyChecked("staffing");
   const applyExclude = isBulkApplyChecked("exclude_from_staffing");
   const applyNight = isBulkApplyChecked("can_work_night");
 
-  if (!applyJobType && !applyPosition && !applyDepartments && !applyStaffing && !applyExclude && !applyNight) {
+  if (
+    !applyJobType &&
+    !applyPosition &&
+    !applyDepartments &&
+    !applyPlacementFloors &&
+    !applyStaffing &&
+    !applyExclude &&
+    !applyNight
+  ) {
     showAlert("変更する項目を1つ以上選択してください。", "error");
     return;
   }
-
   if (applyJobType) {
     const jobType = document.getElementById("field-job-type").value.trim();
     if (!jobType) {
@@ -1543,12 +1629,21 @@ async function saveBulkStaff() {
   }
 
   if (applyDepartments) {
-    const departments = getCheckboxGroupValues(floorPicker, "staff-floor");
-    if (!departments.length) {
-      showAlert("担当フロアを1つ以上選択してください。", "error");
+    const department = departmentSelect?.value.trim() ?? "";
+    if (!department) {
+      showAlert("担当フロアを選択してください。", "error");
       return;
     }
-    payload.departments = departments;
+    payload.departments = [department];
+  }
+
+  if (applyPlacementFloors) {
+    const placementFloors = getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor");
+    if (!placementFloors.length) {
+      showAlert("配置可能フロアを1つ以上選択してください。", "error");
+      return;
+    }
+    payload.placement_floors = placementFloors;
   }
 
   if (applyStaffing) {
@@ -1562,17 +1657,7 @@ async function saveBulkStaff() {
       showAlert(`勤務割合の合計は100%にしてください（現在${staffingTotal}%）。`, "error");
       return;
     }
-    payload.staffing_basis = staffingBasis;
-
-    const nightActive = getActiveStaffingBasisKeys().includes("night");
-    const fixNightCount = nightActive && isNightShiftCountFixed();
-    const nightCount = fixNightCount ? getNightShiftCount() : null;
-    if (fixNightCount && nightCount == null) {
-      showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
-      return;
-    }
-    payload.fix_night_shift_count = fixNightCount;
-    payload.night_shift_count = fixNightCount ? nightCount : null;
+    payload.staffing_basis = pruneStaffingBasisRatios(staffingBasis);
   }
 
   if (applyExclude) {
@@ -1580,7 +1665,20 @@ async function saveBulkStaff() {
   }
 
   if (applyNight) {
-    payload.can_work_night = document.getElementById("field-can-work-night").checked;
+    let canWorkNight = document.getElementById("field-can-work-night").checked;
+    const canBeNightLeader = document.getElementById("field-can-be-night-leader").checked;
+    if (canBeNightLeader) canWorkNight = true;
+    payload.can_work_night = canWorkNight;
+    payload.can_be_night_leader = canBeNightLeader;
+    const nightEligible = canWorkNight;
+    const fixNightCount = nightEligible && isNightShiftCountFixed();
+    const nightCount = fixNightCount ? getNightShiftCount() : null;
+    if (fixNightCount && nightCount == null) {
+      showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
+      return;
+    }
+    payload.fix_night_shift_count = fixNightCount;
+    payload.night_shift_count = fixNightCount ? nightCount : null;
   }
 
   const response = await fetch(`${API_BASE}/bulk`, {
@@ -1621,13 +1719,19 @@ async function saveStaff(event) {
     return;
   }
 
-  const departments = getCheckboxGroupValues(floorPicker, "staff-floor");
+  const department = departmentSelect?.value.trim() ?? "";
+  const placementFloors = getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor");
   const staffingBasis = getStaffingBasisRatiosFromForm();
 
-  if (!departments.length) {
-    showAlert("担当フロアを1つ以上選択してください。", "error");
+  if (!department) {
+    showAlert("担当フロアを選択してください。", "error");
     return;
   }
+  if (!placementFloors.length) {
+    showAlert("配置可能フロアを1つ以上選択してください。", "error");
+    return;
+  }
+  const displayFloors = [department];
   if (!Object.keys(staffingBasis).length) {
     showAlert("勤務割合を1つ以上選択してください。", "error");
     return;
@@ -1645,22 +1749,37 @@ async function saveStaff(event) {
   }
 
   const id = document.getElementById("staff-id").value;
-  const nightActive = getActiveStaffingBasisKeys().includes("night");
-  const fixNightCount = nightActive && isNightShiftCountFixed();
+  syncNightLeaderImpliesNight();
+  const canWorkNight = canWorkNightFromForm();
+  const canBeNightLeader = Boolean(document.getElementById("field-can-be-night-leader")?.checked);
+  const fixNightCount = canWorkNight && isNightShiftCountFixed();
   const nightCount = fixNightCount ? getNightShiftCount() : null;
   if (fixNightCount && nightCount == null) {
     showAlert("夜勤回数を固定する場合は回数を入力してください。", "error");
     return;
   }
 
+  const offDaysRaw = document.getElementById("field-off-days-per-period")?.value.trim() ?? "";
+  let offDaysPerPeriod = null;
+  if (offDaysRaw !== "") {
+    offDaysPerPeriod = Number.parseInt(offDaysRaw, 10);
+    if (!Number.isFinite(offDaysPerPeriod) || offDaysPerPeriod < 0) {
+      showAlert("休みの数は0以上の整数で入力してください。", "error");
+      return;
+    }
+  }
+
   const payload = {
     name: document.getElementById("field-name").value.trim(),
-    departments,
+    departments: displayFloors,
+    placement_floors: placementFloors,
     job_type: jobType,
     position: document.getElementById("field-position").value.trim(),
-    can_work_night: document.getElementById("field-can-work-night").checked,
-    staffing_basis: staffingBasis,
+    can_work_night: canWorkNight,
+    can_be_night_leader: canBeNightLeader,
+    staffing_basis: pruneStaffingBasisRatios(staffingBasis),
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
+    off_days_per_period: offDaysPerPeriod,
     fix_night_shift_count: fixNightCount,
     night_shift_count: fixNightCount ? nightCount : null,
     day_incompatible_ids: [...selectedDayIncompatibilities],
@@ -1753,27 +1872,28 @@ staffingBasisPicker?.addEventListener("input", (event) => {
   balanceStaffingBasisFromSlider(event.target.dataset.key, event.target.value);
 });
 
-document.getElementById("field-can-work-night")?.addEventListener("change", (event) => {
-  syncNightStaffingVisibility();
-  if (!event.target.checked) {
-    clearNightStaffingBasis();
+document.getElementById("field-can-work-night")?.addEventListener("change", () => {
+  const nightInput = document.getElementById("field-can-work-night");
+  const leaderInput = document.getElementById("field-can-be-night-leader");
+  if (nightInput instanceof HTMLInputElement && leaderInput instanceof HTMLInputElement && !nightInput.checked) {
+    leaderInput.checked = false;
   }
+  syncNightStaffingVisibility();
+  updateNightShiftCountControls(canWorkNightFromForm());
+});
+
+document.getElementById("field-can-be-night-leader")?.addEventListener("change", () => {
+  syncNightLeaderImpliesNight();
+  syncNightStaffingVisibility();
+  updateNightShiftCountControls(canWorkNightFromForm());
 });
 
 document.getElementById("field-fix-night-shift-count")?.addEventListener("change", () => {
-  if (isNightShiftCountFixed()) {
-    syncNonNightRatioCeilings();
-  } else {
-    clearNonNightRatioCeilings();
-  }
-  updateNightShiftCountControls(getActiveStaffingBasisKeys().includes("night"));
-  refreshStaffingBasisDisplay();
+  clearNonNightRatioCeilings();
+  updateNightShiftCountControls(canWorkNightFromForm());
 });
 document.getElementById("field-night-shift-count")?.addEventListener("input", () => {
-  if (isNightShiftCountFixed()) {
-    syncNonNightRatioCeilings();
-  }
-  refreshStaffingBasisDisplay();
+  // 回数表示のみ。割合グラフには反映しない。
 });
 
 form?.addEventListener("submit", saveStaff);
@@ -1810,6 +1930,20 @@ dayIncompatibilityPicker?.addEventListener("change", (event) => {
 });
 
 form?.addEventListener("click", (event) => {
+  const addDept = event.target.closest("#btn-add-department-to-placement");
+  if (addDept) {
+    event.preventDefault();
+    const department = departmentSelect?.value.trim() ?? "";
+    if (!department) {
+      showAlert("担当フロアを先に選択してください。", "error");
+      return;
+    }
+    const current = new Set(getCheckboxGroupValues(placementFloorPicker, "staff-placement-floor"));
+    current.add(department);
+    setCheckboxGroup(placementFloorPicker, "staff-placement-floor", [...current]);
+    showAlert("担当フロアを配置可能フロアへ含めました");
+    return;
+  }
   const selectAll = event.target.closest("[data-select-all]");
   if (selectAll) {
     event.preventDefault();

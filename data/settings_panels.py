@@ -51,7 +51,7 @@ SETTINGS_PANELS: list[dict] = [
         "id": "auto",
         "key": "settings-auto",
         "label": "自動生成",
-        "subtitle": "休み希望優先・公平性",
+        "subtitle": "基本設定と詳細設定",
         "section_id": "section-auto",
     },
     {
@@ -91,14 +91,3 @@ def resolve_settings_panel(panel: str | None) -> dict:
     if panel and panel in SETTINGS_PANEL_BY_ID:
         return SETTINGS_PANEL_BY_ID[panel]
     return SETTINGS_PANEL_BY_ID["top"]
-
-
-def settings_sidebar_links() -> list[dict]:
-    return [
-        {
-            "label": panel["label"],
-            "key": panel["key"],
-            "href": settings_panel_href(panel["id"]),
-        }
-        for panel in SETTINGS_PANELS
-    ]

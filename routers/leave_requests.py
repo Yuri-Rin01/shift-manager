@@ -3,16 +3,15 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 from pydantic import BaseModel, Field
 
+from app_paths import resource_root
 from data.navigation import get_sidebar
 from data.facility import get_facility_context
 from schemas.leave_request import LeaveRequestResponse
 from services import leave_request_admin_service as admin_service
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates = Jinja2Templates(directory=str(resource_root() / "templates"))
 
 router = APIRouter(tags=["休み希望管理"])
 
