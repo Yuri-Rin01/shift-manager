@@ -6024,6 +6024,10 @@ input[type="checkbox"]:focus-visible {
   transition: opacity 0.2s ease;
 }
 
+.sheet-flip-viewport.is-flipping {
+  pointer-events: none;
+}
+
 .sheet-flip-viewport.is-flipping .sheet-flip-page::after {
   opacity: 1;
 }
