@@ -6496,11 +6496,17 @@ input[type="checkbox"]:focus-visible {
 }
 
 .student-labor-card {
-  padding: 12px 12px 10px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid #d2e4d8;
-  border-left: 4px solid #86b89a;
-  border-radius: 2px;
+  padding: 11px 4px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #d5e6db;
+  border-left: 3px solid #86b89a;
+  border-radius: 0;
+  padding-left: 12px;
+}
+
+.student-labor-card:last-child {
+  border-bottom: none;
 }
 
 .student-labor-card.status-ok { border-left-color: #4ade80; }
