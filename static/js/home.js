@@ -549,11 +549,6 @@ function applySheetViewContent(next, prev) {
   workspace?.classList.toggle("is-sheet-foreign", Boolean(SHEET_VIEW_META[next]?.foreign));
   applySheetTheme(next);
 
-  const title = document.getElementById("sheet-window-title");
-  if (title) {
-    title.textContent = SHEET_VIEW_META[next]?.title ?? "シフト表.xlsx";
-  }
-
   // 留学生シートは職種列・施設集計を隠して表を見やすくする
   if (shiftCalendar) {
     if (SHEET_VIEW_META[next]?.foreign) {

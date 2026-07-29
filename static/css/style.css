@@ -5943,41 +5943,10 @@ input[type="checkbox"]:focus-visible {
   background: #fff;
 }
 
-.sheet-window-chrome {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-  border-bottom: 1px solid #d7dee8;
-  flex-shrink: 0;
-}
-
-.sheet-window-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.sheet-window-dot:nth-child(1) {
-  background: #f87171;
-}
-
-.sheet-window-dot:nth-child(2) {
-  background: #fbbf24;
-}
-
-.sheet-window-dot:nth-child(3) {
-  background: #34d399;
-}
-
+.sheet-window-chrome,
+.sheet-window-dot,
 .sheet-window-title {
-  margin-left: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  display: none !important;
 }
 
 .shift-workspace .shift-calendar-shell {
@@ -6127,11 +6096,11 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  padding: 8px 10px 0;
-  background: linear-gradient(180deg, #cfd6e1 0%, #dce2eb 100%);
+  padding: 6px 10px 0;
+  background: linear-gradient(180deg, #cfd6e1 0%, #e8edf3 100%);
   border-bottom: 1px solid #b8c2d0;
   flex-shrink: 0;
-  min-height: 36px;
+  min-height: 32px;
 }
 
 .sheet-tab-item {
@@ -6238,19 +6207,6 @@ input[type="checkbox"]:focus-visible {
 .sheet-tab.is-active .sheet-tab-count {
   background: var(--sheet-accent-soft);
   color: var(--sheet-header-bg-strong, #14532d);
-}
-
-.shift-workspace.is-sheet-themed .sheet-window-chrome {
-  background: linear-gradient(
-    180deg,
-    var(--sheet-accent-soft) 0%,
-    var(--sheet-accent-soft-strong) 100%
-  );
-  border-bottom-color: var(--sheet-accent-soft-strong);
-}
-
-.shift-workspace.is-sheet-themed .sheet-window-title {
-  color: var(--sheet-header-bg-strong);
 }
 
 .shift-workspace.is-sheet-themed .sheet-tab.is-active {
