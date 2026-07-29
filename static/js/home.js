@@ -466,6 +466,28 @@ function applySheetTheme(view = getCurrentSheetView()) {
   workspace.style.setProperty("--sheet-header-bg", header);
   workspace.style.setProperty("--sheet-header-bg-strong", headerStrong);
   workspace.classList.add("is-sheet-themed");
+  syncSheetTabColors();
+}
+
+function syncSheetTabColors() {
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const key = el.dataset.sheetView || "all";
+    const accent = getSheetColor(key);
+    const soft = mixHex(accent, "#FFFFFF", 0.84);
+    const softMid = mixHex(accent, "#EEF2F7", 0.55);
+    const softTop = mixHex(accent, "#FFFFFF", 0.72);
+    const bar = mixHex(accent, "#FFFFFF", 0.28);
+    const ink = mixHex(accent, "#0F172A", 0.42);
+    const border = mixHex(accent, "#AEB8C6", 0.45);
+    el.style.setProperty("--sheet-tab-color", accent);
+    el.style.setProperty("--sheet-tab-soft", soft);
+    el.style.setProperty("--sheet-tab-soft-mid", softMid);
+    el.style.setProperty("--sheet-tab-soft-top", softTop);
+    el.style.setProperty("--sheet-tab-bar", bar);
+    el.style.setProperty("--sheet-tab-ink", ink);
+    el.style.setProperty("--sheet-tab-border", border);
+  });
 }
 
 function updateSheetEmptyState() {
@@ -620,6 +642,7 @@ function updateSheetTabCounts() {
 function initSheetViews() {
   const saved = loadPrefs();
   loadSheetViewColors();
+  syncSheetTabColors();
 
   document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
     el.addEventListener("click", () => {
