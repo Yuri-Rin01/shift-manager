@@ -660,14 +660,6 @@ function initCalendarControls() {
   btnNextYear?.addEventListener("click", () => navigateYear(1));
 
   const homeToolbarTools = document.querySelector(".home-toolbar-inline-tools");
-  homeToolbarTools?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-sort-mode]");
-    if (!button || !homeToolbarTools.contains(button)) return;
-    const sortSelect = getCalendarSortSelect();
-    if (!sortSelect) return;
-    sortSelect.value = button.dataset.sortMode ?? "dept";
-    onCalendarSortChange();
-  });
   getCalendarSortSelect()?.addEventListener("change", onCalendarSortChange);
 
   calendarZoomSelect?.addEventListener("change", () => {
@@ -709,16 +701,6 @@ function initCalendarControls() {
   initSortState();
   initFiltersPanelCollapse();
   initSheetViews();
-  scheduleSortSegmentIndicatorUpdate();
-  window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
-  const sortSegment =
-    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
-    document.querySelector(".home-segment");
-  if (sortSegment && typeof ResizeObserver !== "undefined") {
-    const segmentObserver = new ResizeObserver(scheduleSortSegmentIndicatorUpdate);
-    segmentObserver.observe(sortSegment);
-  }
-  document.fonts?.ready?.then(scheduleSortSegmentIndicatorUpdate);
 }
 
 function changeTableZoom(delta) {

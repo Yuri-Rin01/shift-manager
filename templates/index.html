@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=65">
+  <link rel="stylesheet" href="/static/css/style.css?v=66">
 </head>
 <body>
   <div class="app">
@@ -39,25 +39,13 @@
                     {"value": "name", "label": "名前順"}
                   ] %}
                   {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
+                  {# 並び順UIは非表示。サーバー既定／URLの display を維持するため select のみ残す #}
+                  <select id="calendar-sort-mode" class="visually-hidden" aria-hidden="true" tabindex="-1">
+                    {% for opt in sort_options %}
+                      <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
                   <div class="home-toolbar-inline-tools">
-                    <div class="home-toolbar-block">
-                      <span class="home-toolbar-label">並び順</span>
-                      <div class="home-segment" role="group" aria-label="並び順">
-                        <span class="home-segment-indicator" aria-hidden="true"></span>
-                        {% for opt in sort_options %}
-                          <button
-                            type="button"
-                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
-                            data-sort-mode="{{ opt.value }}"
-                          >{{ opt.label }}</button>
-                        {% endfor %}
-                      </div>
-                      <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
-                        {% for opt in sort_options %}
-                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
                     <div class="home-toolbar-block">
                       <span class="home-toolbar-label">倍率</span>
                       <div class="home-zoom-group" id="calendar-zoom-controls">
