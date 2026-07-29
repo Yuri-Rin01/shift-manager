@@ -617,17 +617,17 @@ function formatStudentLaborDateRange(startIso, endIso) {
 }
 
 async function loadStudentLaborSummary() {
-  const tbody = document.getElementById("student-labor-tbody");
+  const list = document.getElementById("student-labor-week-list");
   const monthBody = document.getElementById("student-labor-month-tbody");
   const rangeEl = document.getElementById("student-labor-week-range");
   const monthLabel = document.getElementById("student-labor-month-label");
-  if (!tbody) return;
+  if (!list) return;
 
   const year = getCalendarYear();
   const month = getCalendarMonth();
   if (!year || !month) return;
 
-  tbody.innerHTML = `<tr><td colspan="8">読み込み中…</td></tr>`;
+  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
   if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">読み込み中…</td></tr>`;
 
   try {
@@ -636,14 +636,14 @@ async function loadStudentLaborSummary() {
       fetch(`/api/shifts/student-labor-month?year=${year}&month=${month}`),
     ]);
     if (!weekRes.ok) {
-      tbody.innerHTML = `<tr><td colspan="8">読み込みに失敗しました</td></tr>`;
+      list.innerHTML = `<p class="student-labor-empty">読み込みに失敗しました</p>`;
       return;
     }
     const weekData = await weekRes.json();
     if (rangeEl) {
       rangeEl.textContent = formatStudentLaborDateRange(weekData.week_start, weekData.week_end);
     }
-    renderStudentLaborWeekRows(tbody, weekData.rows || []);
+    renderStudentLaborWeekRows(list, weekData.rows || []);
 
     if (monthBody) {
       if (monthRes.ok) {
@@ -657,37 +657,70 @@ async function loadStudentLaborSummary() {
       }
     }
   } catch {
-    tbody.innerHTML = `<tr><td colspan="8">通信エラー</td></tr>`;
+    list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
     if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">通信エラー</td></tr>`;
   }
 }
 
-function renderStudentLaborWeekRows(tbody, rows) {
+function studentLaborUsagePercent(row) {
+  const limit = Number(row.limit_week_minutes) || 0;
+  const total = Number(row.total_week_minutes) || 0;
+  if (limit <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((total / limit) * 100)));
+}
+
+function renderStudentLaborWeekRows(list, rows) {
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="8">対象の留学生がいません</td></tr>`;
+    list.innerHTML = `<p class="student-labor-empty">対象の留学生がいません</p>`;
     return;
   }
-  tbody.innerHTML = rows
+  list.innerHTML = rows
     .map((row) => {
       const status = row.status || "ok";
       const icon = studentLaborStatusIcon(status);
-      const reason = row.reason_label ? `<span class="student-labor-reason">${escapeHtml(row.reason_label)}</span>` : "";
-      return `<tr class="student-labor-row status-${escapeHtml(status)}" data-staff-id="${row.staff_id ?? ""}">
-        <td class="student-labor-name">${escapeHtml(row.name || "")}</td>
-        <td>${escapeHtml(row.period_label || "")}</td>
-        <td>${escapeHtml(row.facility_week_hours_label || "")}</td>
-        <td>${escapeHtml(row.other_job_hours_label || "")}</td>
-        <td>${escapeHtml(row.total_hours_label || "")}</td>
-        <td>${escapeHtml(row.limit_hours_label || "")}</td>
-        <td>${escapeHtml(row.remaining_hours_label || "")}</td>
-        <td class="student-labor-status">
+      const reason = row.reason_label
+        ? `<p class="student-labor-reason">${escapeHtml(row.reason_label)}</p>`
+        : "";
+      const pct = studentLaborUsagePercent(row);
+      const remaining = row.remaining_hours_label || "—";
+      return `<article class="student-labor-card status-${escapeHtml(status)}" data-staff-id="${row.staff_id ?? ""}">
+        <div class="student-labor-card-top">
+          <div class="student-labor-card-identity">
+            <strong class="student-labor-name">${escapeHtml(row.name || "")}</strong>
+            <span class="student-labor-period">${escapeHtml(row.period_label || "")}</span>
+          </div>
           <span class="student-labor-status-badge" title="${escapeHtml(row.status_label || "")}">
             <span class="student-labor-status-icon" aria-hidden="true">${icon}</span>
             ${escapeHtml(row.status_label || "")}
           </span>
-          ${reason}
-        </td>
-      </tr>`;
+        </div>
+        <div class="student-labor-meter" aria-hidden="true">
+          <span class="student-labor-meter-fill" style="width:${pct}%"></span>
+        </div>
+        <dl class="student-labor-metrics">
+          <div>
+            <dt>自施設</dt>
+            <dd>${escapeHtml(row.facility_week_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>他勤務先</dt>
+            <dd>${escapeHtml(row.other_job_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>合計</dt>
+            <dd class="is-emphasis">${escapeHtml(row.total_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>上限</dt>
+            <dd>${escapeHtml(row.limit_hours_label || "—")}</dd>
+          </div>
+          <div>
+            <dt>残り</dt>
+            <dd class="is-remaining">${escapeHtml(remaining)}</dd>
+          </div>
+        </dl>
+        ${reason}
+      </article>`;
     })
     .join("");
 }

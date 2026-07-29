@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=84">
+  <link rel="stylesheet" href="/static/css/style.css?v=85">
 </head>
 <body>
   <div class="app">
@@ -208,53 +208,47 @@
                       <div class="sheet-main-scroll" id="sheet-main-scroll">
                       <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
                         <div class="student-labor-panel-head">
-                          <strong>留学生 週労働時間</strong>
+                          <div class="student-labor-panel-titles">
+                            <p class="student-labor-kicker">留学生シート</p>
+                            <h3 class="student-labor-title">今週の労働時間</h3>
+                          </div>
                           <span class="student-labor-panel-range" id="student-labor-week-range"></span>
                         </div>
-                        <div class="student-labor-table-wrap">
-                          <table class="student-labor-table" id="student-labor-table">
-                            <thead>
-                              <tr>
-                                <th>職員</th>
-                                <th>適用区分</th>
-                                <th>自施設</th>
-                                <th>他勤務先</th>
-                                <th>合計</th>
-                                <th>上限</th>
-                                <th>残り</th>
-                                <th>判定</th>
-                              </tr>
-                            </thead>
-                            <tbody id="student-labor-tbody">
-                              <tr>
-                                <td colspan="8">読み込み中…</td>
-                              </tr>
-                            </tbody>
-                          </table>
+                        <div class="student-labor-legend" aria-hidden="true">
+                          <span class="student-labor-legend-item status-ok"><span>○</span>正常</span>
+                          <span class="student-labor-legend-item status-approach"><span>△</span>上限接近</span>
+                          <span class="student-labor-legend-item status-reached"><span>●</span>上限到達</span>
+                          <span class="student-labor-legend-item status-over"><span>×</span>超過</span>
+                          <span class="student-labor-legend-item status-need_confirm"><span>！</span>確認必要</span>
                         </div>
-                        <div class="student-labor-panel-head student-labor-month-head">
-                          <strong>月別集計（確認用）</strong>
-                          <span class="student-labor-panel-range" id="student-labor-month-label"></span>
+                        <div id="student-labor-week-list" class="student-labor-week-list">
+                          <p class="student-labor-empty">読み込み中…</p>
                         </div>
-                        <div class="student-labor-table-wrap">
-                          <table class="student-labor-table" id="student-labor-month-table">
-                            <thead>
-                              <tr>
-                                <th>職員</th>
-                                <th>通常期間</th>
-                                <th>長期休業中</th>
-                                <th>他勤務先含む合計</th>
-                                <th>警告件数</th>
-                              </tr>
-                            </thead>
-                            <tbody id="student-labor-month-tbody">
-                              <tr>
-                                <td colspan="5">読み込み中…</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                        <p class="student-labor-note">法令上限の判定は日・週単位です。月合計は管理・確認用です。境界週は適用区分「通常／長期混在」で確認してください。</p>
+                        <details class="student-labor-month-details">
+                          <summary>
+                            <span>月別集計（確認用）</span>
+                            <span class="student-labor-panel-range" id="student-labor-month-label"></span>
+                          </summary>
+                          <div class="student-labor-table-wrap">
+                            <table class="student-labor-table" id="student-labor-month-table">
+                              <thead>
+                                <tr>
+                                  <th>職員</th>
+                                  <th>通常期間</th>
+                                  <th>長期休業中</th>
+                                  <th>他勤務先含む合計</th>
+                                  <th>警告</th>
+                                </tr>
+                              </thead>
+                              <tbody id="student-labor-month-tbody">
+                                <tr>
+                                  <td colspan="5">読み込み中…</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <p class="student-labor-note">法令判定は日・週単位です。月合計は管理確認用です。</p>
+                        </details>
                       </div>
                       <div
                         id="shift-calendar"
@@ -335,6 +329,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=48"></script>
+  <script src="/static/js/home.js?v=49"></script>
 </body>
 </html>
