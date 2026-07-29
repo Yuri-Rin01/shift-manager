@@ -4,23 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=62">
+  <link rel="stylesheet" href="/static/css/style.css?v=63">
 </head>
 <body>
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      <header class="topbar">
-        <div class="page-title-bar">
-          <h1 class="page-title">{{ settings_panel_meta.label }}</h1>
-          <p class="page-subtitle">{{ settings_panel_meta.subtitle }}</p>
-        </div>
-        <div class="topbar-actions">
-          <span>?</span>
-          <span>{{ admin_name }}</span>
-        </div>
-      </header>
+      {% with page_heading=settings_panel_meta.label %}
+        {% include "partials/topbar.html" %}
+      {% endwith %}
+      <p class="page-lead">{{ settings_panel_meta.subtitle }}</p>
 
       <div class="content content-settings">
         <div id="settings-alert" class="alert hidden" role="alert"></div>

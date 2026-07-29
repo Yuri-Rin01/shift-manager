@@ -5,20 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=62">
+  <link rel="stylesheet" href="/static/css/style.css?v=63">
 </head>
 <body>
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">シフトカレンダー</div>
-        <div class="topbar-actions">
-          <span>?</span>
-          <span>{{ admin_name }}</span>
-        </div>
-      </header>
+      {% with page_heading="シフトカレンダー" %}
+        {% include "partials/topbar.html" %}
+      {% endwith %}
 
       <div class="content content-home">
         <section class="card home-shift-card">

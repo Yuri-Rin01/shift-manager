@@ -4,23 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>職員管理 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=62">
+  <link rel="stylesheet" href="/static/css/style.css?v=63">
 </head>
 <body>
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      <header class="topbar">
-        <div class="page-title-bar">
-          <h1 class="page-title">職員管理</h1>
-          <p class="page-subtitle">職員マスタの登録・編集・削除。担当フロアは表示用に1つ、配置可能フロア（対応可）は複数指定できます。</p>
-        </div>
-        <div class="topbar-actions">
-          <span>?</span>
-          <span>{{ admin_name }}</span>
-        </div>
-      </header>
+      {% with page_heading="職員管理" %}
+        {% include "partials/topbar.html" %}
+      {% endwith %}
+      <p class="page-lead">担当フロアは表示用に1つ、配置可能フロア（対応可）は複数指定できます。</p>
 
       <div class="content content-no-footer content-staff-page">
         <section class="card staff-list-card">

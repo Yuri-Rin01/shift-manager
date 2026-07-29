@@ -331,6 +331,7 @@ body.sidebar-collapsed .nav-item:hover::after {
 
 /* Main */
 .main {
+  position: relative;
   margin-left: var(--sidebar-width);
   min-width: 0;
   min-height: 100vh;
@@ -341,18 +342,95 @@ body.sidebar-collapsed .nav-item:hover::after {
 }
 
 .topbar {
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 12px;
+  background: transparent;
+  border-bottom: none;
+  padding: 6px 14px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   flex-shrink: 0;
+  min-height: 36px;
 }
 
 .topbar-title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text-muted);
+}
+
+.topbar-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-facility {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(240px, 40vw);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.topbar-admin {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--border);
+  color: #475569;
+  font-weight: 600;
+}
+
+/* Page title as soft watermark in the main pane */
+.page-watermark {
+  position: absolute;
+  right: 18px;
+  top: 42px;
+  z-index: 0;
+  margin: 0;
+  font-size: clamp(40px, 7vw, 88px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: #1e293b;
+  opacity: 0.045;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.page-lead {
+  position: relative;
+  z-index: 1;
+  margin: 0 14px 8px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+.main > .content {
+  position: relative;
+  z-index: 1;
 }
 
 .month-nav {
@@ -395,14 +473,6 @@ body.sidebar-collapsed .nav-item:hover::after {
   font-size: 12px;
   background: #fff;
   min-width: 120px;
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-muted);
-  font-size: 12px;
 }
 
 .content {
@@ -5362,12 +5432,12 @@ input[type="checkbox"]:focus-visible {
     left: 0;
   }
 
-  .page-subtitle {
+  .page-lead {
     display: none;
   }
 
-  .topbar-actions span:first-child {
-    display: none;
+  .topbar-facility {
+    max-width: min(160px, 36vw);
   }
 
   .home-toolbar-inline-tools {

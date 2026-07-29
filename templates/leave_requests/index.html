@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>休み希望管理 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=62">
+  <link rel="stylesheet" href="/static/css/style.css?v=63">
   <link rel="stylesheet" href="/static/css/leave_requests.css?v=2">
 </head>
 <body>
@@ -12,16 +12,10 @@
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      <header class="topbar">
-        <div class="page-title-bar">
-          <h1 class="page-title">休み希望管理</h1>
-          <p class="page-subtitle">職員ポータル（:8004）と同期。希望種別・上限・超過メッセージを設定し、承認するとシフト表に反映されます。</p>
-        </div>
-        <div class="topbar-actions">
-          <span>?</span>
-          <span>{{ admin_name }}</span>
-        </div>
-      </header>
+      {% with page_heading="休み希望管理" %}
+        {% include "partials/topbar.html" %}
+      {% endwith %}
+      <p class="page-lead">職員ポータル（:8004）と同期。希望種別・上限・超過メッセージを設定し、承認するとシフト表に反映されます。</p>
 
       <div class="content content-no-footer leave-requests-page">
         <section class="card leave-period-card">
