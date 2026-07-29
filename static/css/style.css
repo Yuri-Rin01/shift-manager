@@ -6240,8 +6240,8 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
-.shift-workspace.is-sheet-themed .content-home .table-wrap .shift-table .sticky-col.col-job,
-.shift-workspace.is-sheet-themed .content-home .table-wrap .shift-table .sticky-col.col-dept,
+.content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-job,
+.content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-dept,
 .shift-workspace.is-sheet-themed .shift-table td.col-job,
 .shift-workspace.is-sheet-themed .shift-table td.col-dept {
   background-color: #fff;
