@@ -387,14 +387,13 @@ const SHEET_VIEW_META = {
   all: { title: "全体シフト表.xlsx", foreign: false },
   "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
 };
-const SHEET_FLIP_MS = 520;
+const SHEET_FLIP_MS = 580;
 
 let currentSheetView = "all";
 let savedJobFilterBeforeSheet = null;
 let sheetFlipBusy = false;
 let sheetFlipTimer = null;
 let sheetViewColors = { ...DEFAULT_SHEET_VIEW_COLORS };
-let sheetColorPersistTimer = null;
 
 function getCurrentSheetView() {
   return currentSheetView || "all";
@@ -433,11 +432,9 @@ function mixHex(hex, target, ratio) {
 
 function loadSheetViewColors() {
   const fromSettings = serverDefaults.sheet_view_colors;
-  const fromPrefs = loadPrefs().sheetColors;
   sheetViewColors = {
     ...DEFAULT_SHEET_VIEW_COLORS,
     ...(fromSettings && typeof fromSettings === "object" ? fromSettings : {}),
-    ...(fromPrefs && typeof fromPrefs === "object" ? fromPrefs : {}),
   };
   for (const key of SHEET_VIEW_ORDER) {
     sheetViewColors[key] = normalizeSheetHex(
@@ -455,17 +452,6 @@ function getSheetColor(view = getCurrentSheetView()) {
   );
 }
 
-function syncSheetColorInputs() {
-  document.querySelectorAll("[data-sheet-color-for]").forEach((input) => {
-    if (!(input instanceof HTMLInputElement)) return;
-    const key = input.dataset.sheetColorFor;
-    if (!key) return;
-    input.value = getSheetColor(key);
-    const wrap = input.closest(".sheet-tab-item");
-    wrap?.style.setProperty("--sheet-tab-swatch", getSheetColor(key));
-  });
-}
-
 function applySheetTheme(view = getCurrentSheetView()) {
   const workspace = document.querySelector(".shift-workspace");
   if (!workspace) return;
@@ -480,51 +466,6 @@ function applySheetTheme(view = getCurrentSheetView()) {
   workspace.style.setProperty("--sheet-header-bg", header);
   workspace.style.setProperty("--sheet-header-bg-strong", headerStrong);
   workspace.classList.add("is-sheet-themed");
-  syncSheetColorInputs();
-}
-
-async function persistSheetViewColors() {
-  savePrefs({
-    ...loadPrefs(),
-    ...getPrefs(),
-    tableZoom,
-    sheetView: getCurrentSheetView(),
-    sheetColors: { ...sheetViewColors },
-  });
-  try {
-    const response = await fetch("/api/settings");
-    if (!response.ok) return;
-    const data = await response.json();
-    data.sheet_view_colors = { ...sheetViewColors };
-    await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  } catch {
-    /* ignore offline / transient errors */
-  }
-}
-
-function schedulePersistSheetViewColors() {
-  if (sheetColorPersistTimer) {
-    window.clearTimeout(sheetColorPersistTimer);
-  }
-  sheetColorPersistTimer = window.setTimeout(() => {
-    sheetColorPersistTimer = null;
-    persistSheetViewColors();
-  }, 400);
-}
-
-function setSheetColor(view, color) {
-  if (!SHEET_VIEW_META[view]) return;
-  sheetViewColors[view] = normalizeSheetHex(color, DEFAULT_SHEET_VIEW_COLORS[view]);
-  if (getCurrentSheetView() === view) {
-    applySheetTheme(view);
-  } else {
-    syncSheetColorInputs();
-  }
-  schedulePersistSheetViewColors();
 }
 
 function updateSheetEmptyState() {
@@ -679,21 +620,10 @@ function updateSheetTabCounts() {
 function initSheetViews() {
   const saved = loadPrefs();
   loadSheetViewColors();
-  syncSheetColorInputs();
 
   document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
     el.addEventListener("click", () => {
       setSheetView(el.dataset.sheetView || "all");
-    });
-  });
-
-  document.querySelectorAll("[data-sheet-color-for]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const key = input.dataset.sheetColorFor || "all";
-      setSheetColor(key, input.value);
-    });
-    input.addEventListener("click", (event) => {
-      event.stopPropagation();
     });
   });
 

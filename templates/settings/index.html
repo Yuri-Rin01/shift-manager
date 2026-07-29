@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=69">
+  <link rel="stylesheet" href="/static/css/style.css?v=71">
 </head>
 <body>
   <div class="app">
@@ -145,7 +145,7 @@
               </div>
 
               <h3 class="settings-subtitle">シフト表シートの色</h3>
-              <p class="field-hint">ホームの上部タブ（ファイル）ごとにテーマ色を設定できます。タブ上の色ボタンからも変更できます。</p>
+              <p class="field-hint">ホーム上部のシートタブごとにテーマ色を設定します。保存後にカレンダーを再読み込みすると反映されます。</p>
               <div class="settings-form-grid settings-form-grid-compact">
                 <label class="form-field">
                   <span class="form-label">全体シート</span>
@@ -721,6 +721,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=19"></script>
+  <script src="/static/js/settings.js?v=20"></script>
 </body>
 </html>
