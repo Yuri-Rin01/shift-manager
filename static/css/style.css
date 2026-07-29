@@ -558,10 +558,24 @@ body.sidebar-collapsed .nav-item:hover::after {
   color: #fff;
 }
 
+.home-filters-btn.is-open:hover,
+.home-filters-btn.is-open:focus-visible {
+  background: #163050;
+  border-color: #163050;
+  color: #fff;
+}
+
 .home-filters-btn.is-filtered:not(.is-open) {
   border-color: #2563eb;
   color: #1d4ed8;
   background: #eff6ff;
+}
+
+.home-filters-btn.is-filtered:not(.is-open):hover,
+.home-filters-btn.is-filtered:not(.is-open):focus-visible {
+  border-color: #1d4ed8;
+  color: #1e40af;
+  background: #dbeafe;
 }
 
 .home-filters-btn-badge {
