@@ -5955,26 +5955,17 @@ input[type="checkbox"]:focus-visible {
   position: relative;
   flex: 1;
   min-height: 0;
-  perspective: 1600px;
-  perspective-origin: 50% 0%;
   overflow: hidden;
-  background: linear-gradient(180deg, #d5dde8 0%, #e8edf3 42%, #eef2f7 100%);
+  background: #dfe5ee;
 }
 
 .sheet-flip-viewport::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.08), transparent 18%),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 11px,
-      rgba(148, 163, 184, 0.12) 11px,
-      rgba(148, 163, 184, 0.12) 12px
-    );
-  opacity: 0.55;
+  inset: 12px 18px 18px;
+  border-radius: 2px;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
   pointer-events: none;
 }
 
@@ -5983,13 +5974,11 @@ input[type="checkbox"]:focus-visible {
   z-index: 1;
   height: 100%;
   min-height: 0;
-  transform-origin: top center;
-  transform-style: preserve-3d;
   background: #fff;
   box-shadow:
-    0 1px 0 rgba(15, 23, 42, 0.05),
-    0 12px 28px rgba(15, 23, 42, 0.1);
-  will-change: transform, filter, opacity;
+    0 1px 0 rgba(15, 23, 42, 0.04),
+    0 10px 24px rgba(15, 23, 42, 0.1);
+  will-change: transform, opacity, filter;
 }
 
 .sheet-flip-page::after {
@@ -5998,10 +5987,11 @@ input[type="checkbox"]:focus-visible {
   inset: 0;
   pointer-events: none;
   background: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0.14) 0%,
-    transparent 28%,
-    transparent 100%
+    90deg,
+    rgba(15, 23, 42, 0.08),
+    transparent 18%,
+    transparent 82%,
+    rgba(15, 23, 42, 0.08)
   );
   opacity: 0;
 }
@@ -6015,65 +6005,57 @@ input[type="checkbox"]:focus-visible {
 }
 
 .sheet-flip-viewport.is-flipping-forward .sheet-flip-page {
-  animation: sheet-page-calendar-forward 0.62s cubic-bezier(0.36, 0.08, 0.18, 1) both;
+  animation: sheet-page-slide-forward 0.48s cubic-bezier(0.22, 0.7, 0.2, 1) both;
 }
 
 .sheet-flip-viewport.is-flipping-back .sheet-flip-page {
-  animation: sheet-page-calendar-back 0.62s cubic-bezier(0.36, 0.08, 0.18, 1) both;
+  animation: sheet-page-slide-back 0.48s cubic-bezier(0.22, 0.7, 0.2, 1) both;
 }
 
-/* 上のタブ側からカレンダーをめくる */
-@keyframes sheet-page-calendar-forward {
+/* シートを横に差し替える */
+@keyframes sheet-page-slide-forward {
   0% {
-    transform: rotateX(0deg) translateY(0);
-    filter: brightness(1);
+    transform: translateX(0) scale(1);
     opacity: 1;
+    filter: brightness(1);
   }
-  44% {
-    transform: rotateX(-78deg) translateY(2%);
-    filter: brightness(0.88);
-    opacity: 0.75;
-  }
-  50% {
-    transform: rotateX(-95deg) translateY(4%);
+  46% {
+    transform: translateX(-42%) scale(0.985);
     opacity: 0;
-  }
-  51% {
-    transform: rotateX(28deg) translateY(-8%);
     filter: brightness(0.96);
+  }
+  54% {
+    transform: translateX(42%) scale(0.985);
     opacity: 0;
+    filter: brightness(0.96);
   }
   100% {
-    transform: rotateX(0deg) translateY(0);
-    filter: brightness(1);
+    transform: translateX(0) scale(1);
     opacity: 1;
+    filter: brightness(1);
   }
 }
 
-@keyframes sheet-page-calendar-back {
+@keyframes sheet-page-slide-back {
   0% {
-    transform: rotateX(0deg) translateY(0);
-    filter: brightness(1);
+    transform: translateX(0) scale(1);
     opacity: 1;
+    filter: brightness(1);
   }
-  44% {
-    transform: rotateX(42deg) translateY(-6%);
-    filter: brightness(0.9);
-    opacity: 0.7;
-  }
-  50% {
-    transform: rotateX(78deg) translateY(-10%);
+  46% {
+    transform: translateX(42%) scale(0.985);
     opacity: 0;
+    filter: brightness(0.96);
   }
-  51% {
-    transform: rotateX(-86deg) translateY(4%);
-    filter: brightness(0.92);
+  54% {
+    transform: translateX(-42%) scale(0.985);
     opacity: 0;
+    filter: brightness(0.96);
   }
   100% {
-    transform: rotateX(0deg) translateY(0);
-    filter: brightness(1);
+    transform: translateX(0) scale(1);
     opacity: 1;
+    filter: brightness(1);
   }
 }
 

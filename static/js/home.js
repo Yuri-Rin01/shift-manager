@@ -387,7 +387,7 @@ const SHEET_VIEW_META = {
   all: { title: "全体シフト表.xlsx", foreign: false },
   "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
 };
-const SHEET_FLIP_MS = 620;
+const SHEET_FLIP_MS = 480;
 
 let currentSheetView = "all";
 let savedJobFilterBeforeSheet = null;
