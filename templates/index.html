@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=66">
+  <link rel="stylesheet" href="/static/css/style.css?v=67">
 </head>
 <body>
   <div class="app">
@@ -39,13 +39,25 @@
                     {"value": "name", "label": "名前順"}
                   ] %}
                   {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
-                  {# 並び順UIは非表示。サーバー既定／URLの display を維持するため select のみ残す #}
-                  <select id="calendar-sort-mode" class="visually-hidden" aria-hidden="true" tabindex="-1">
-                    {% for opt in sort_options %}
-                      <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
                   <div class="home-toolbar-inline-tools">
+                    <div class="home-toolbar-block">
+                      <span class="home-toolbar-label">並び順</span>
+                      <div class="home-segment" role="group" aria-label="並び順">
+                        <span class="home-segment-indicator" aria-hidden="true"></span>
+                        {% for opt in sort_options %}
+                          <button
+                            type="button"
+                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
+                            data-sort-mode="{{ opt.value }}"
+                          >{{ opt.label }}</button>
+                        {% endfor %}
+                      </div>
+                      <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
+                        {% for opt in sort_options %}
+                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
                     <div class="home-toolbar-block">
                       <span class="home-toolbar-label">倍率</span>
                       <div class="home-zoom-group" id="calendar-zoom-controls">
@@ -176,50 +188,6 @@
           </div>
           <div class="card-body">
             <div class="shift-workspace" data-sheet-view="all">
-              <aside class="sheet-file-rail" aria-label="表示シート">
-                <div class="sheet-file-rail-head">
-                  <span class="sheet-file-rail-icon" aria-hidden="true"></span>
-                  <span class="sheet-file-rail-title">シフト表</span>
-                </div>
-                <div class="sheet-file-folder is-open" id="sheet-file-folder">
-                  <button type="button" class="sheet-file-folder-btn" id="sheet-folder-toggle" aria-expanded="true">
-                    <span class="sheet-file-chevron" aria-hidden="true"></span>
-                    <span class="sheet-file-folder-icon" aria-hidden="true"></span>
-                    <span class="sheet-file-folder-label">今月のシフト</span>
-                  </button>
-                  <ul class="sheet-file-list" id="sheet-file-list">
-                    <li>
-                      <button
-                        type="button"
-                        class="sheet-file-item is-active"
-                        data-sheet-view="all"
-                        aria-pressed="true"
-                      >
-                        <span class="sheet-file-item-icon sheet-file-item-icon-xlsx" aria-hidden="true"></span>
-                        <span class="sheet-file-item-text">
-                          <span class="sheet-file-item-name">全体シフト表</span>
-                          <span class="sheet-file-item-meta">全職員</span>
-                        </span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="sheet-file-item"
-                        data-sheet-view="foreign-students"
-                        aria-pressed="false"
-                      >
-                        <span class="sheet-file-item-icon sheet-file-item-icon-xlsx" aria-hidden="true"></span>
-                        <span class="sheet-file-item-text">
-                          <span class="sheet-file-item-name">留学生用シフト表</span>
-                          <span class="sheet-file-item-meta">職種：留学生</span>
-                        </span>
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </aside>
-
               <div class="shift-sheet-stage">
                 <div class="sheet-window-chrome" aria-hidden="true">
                   <span class="sheet-window-dot"></span>
@@ -314,6 +282,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=20"></script>
-  <script src="/static/js/home.js?v=35"></script>
+  <script src="/static/js/home.js?v=36"></script>
 </body>
 </html>

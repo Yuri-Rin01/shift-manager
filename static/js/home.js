@@ -431,17 +431,12 @@ function setSheetView(view) {
 
   document.querySelectorAll("[data-sheet-view]").forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
-    if (!el.classList.contains("sheet-file-item") && !el.classList.contains("sheet-tab")) {
+    if (!el.classList.contains("sheet-tab")) {
       return;
     }
     const active = el.dataset.sheetView === next;
     el.classList.toggle("is-active", active);
-    if (el.classList.contains("sheet-file-item")) {
-      el.setAttribute("aria-pressed", active ? "true" : "false");
-    }
-    if (el.classList.contains("sheet-tab")) {
-      el.setAttribute("aria-selected", active ? "true" : "false");
-    }
+    el.setAttribute("aria-selected", active ? "true" : "false");
   });
 
   updateSheetTabCounts();
@@ -488,25 +483,12 @@ function updateSheetTabCounts() {
   document.querySelectorAll('.sheet-tab[data-sheet-view="foreign-students"] .sheet-tab-count').forEach((el) => {
     el.textContent = String(foreignCount);
   });
-  document.querySelectorAll('.sheet-file-item[data-sheet-view="all"] .sheet-file-item-meta').forEach((el) => {
-    el.textContent = `全職員 ${allCount}名`;
-  });
-  document.querySelectorAll('.sheet-file-item[data-sheet-view="foreign-students"] .sheet-file-item-meta').forEach((el) => {
-    el.textContent = `留学生 ${foreignCount}名`;
-  });
 }
 
 function initSheetViews() {
   const saved = loadPrefs();
-  const folder = document.getElementById("sheet-file-folder");
-  const folderToggle = document.getElementById("sheet-folder-toggle");
-  folderToggle?.addEventListener("click", () => {
-    const open = !folder?.classList.contains("is-open");
-    folder?.classList.toggle("is-open", open);
-    folderToggle.setAttribute("aria-expanded", open ? "true" : "false");
-  });
 
-  document.querySelectorAll(".sheet-file-item[data-sheet-view], .sheet-tab[data-sheet-view]").forEach((el) => {
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
     el.addEventListener("click", () => {
       setSheetView(el.dataset.sheetView || "all");
     });
@@ -660,6 +642,14 @@ function initCalendarControls() {
   btnNextYear?.addEventListener("click", () => navigateYear(1));
 
   const homeToolbarTools = document.querySelector(".home-toolbar-inline-tools");
+  homeToolbarTools?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-sort-mode]");
+    if (!button || !homeToolbarTools.contains(button)) return;
+    const sortSelect = getCalendarSortSelect();
+    if (!sortSelect) return;
+    sortSelect.value = button.dataset.sortMode ?? "dept";
+    onCalendarSortChange();
+  });
   getCalendarSortSelect()?.addEventListener("change", onCalendarSortChange);
 
   calendarZoomSelect?.addEventListener("change", () => {
@@ -701,6 +691,16 @@ function initCalendarControls() {
   initSortState();
   initFiltersPanelCollapse();
   initSheetViews();
+  scheduleSortSegmentIndicatorUpdate();
+  window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
+  const sortSegment =
+    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
+    document.querySelector(".home-segment");
+  if (sortSegment && typeof ResizeObserver !== "undefined") {
+    const segmentObserver = new ResizeObserver(scheduleSortSegmentIndicatorUpdate);
+    segmentObserver.observe(sortSegment);
+  }
+  document.fonts?.ready?.then(scheduleSortSegmentIndicatorUpdate);
 }
 
 function changeTableZoom(delta) {
