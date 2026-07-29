@@ -1017,6 +1017,10 @@ function populateForm(data) {
       populateSheetViewColors(value);
       continue;
     }
+    if (key === "student_labor_limits") {
+      populateStudentLaborLimits(value);
+      continue;
+    }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : []);
       const byFloor = resolveMinStaffByFloor(data);
@@ -1223,6 +1227,38 @@ function populateSheetViewColors(colors) {
   });
 }
 
+function populateStudentLaborLimits(limits) {
+  const data = limits && typeof limits === "object" ? limits : {};
+  const setHours = (id, minutes, fallbackHours) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const mins = Number(minutes);
+    el.value = String(Number.isFinite(mins) ? Math.round(mins / 60) : fallbackHours);
+  };
+  setHours("sl-normal-weekly-hours", data.normal_weekly_minutes, 28);
+  setHours("sl-vacation-daily-hours", data.vacation_daily_minutes, 8);
+  setHours("sl-vacation-weekly-hours", data.vacation_weekly_minutes, 40);
+  setHours("sl-approach-hours", data.approach_remaining_minutes, 4);
+  const weekStart = document.getElementById("sl-week-start");
+  if (weekStart) weekStart.value = data.week_start || "monday";
+}
+
+function collectStudentLaborLimits() {
+  const hoursToMinutes = (id, fallbackHours) => {
+    const el = document.getElementById(id);
+    const hours = Number(el?.value);
+    if (!Number.isFinite(hours)) return fallbackHours * 60;
+    return Math.max(0, Math.round(hours * 60));
+  };
+  return {
+    normal_weekly_minutes: hoursToMinutes("sl-normal-weekly-hours", 28),
+    vacation_daily_minutes: hoursToMinutes("sl-vacation-daily-hours", 8),
+    vacation_weekly_minutes: hoursToMinutes("sl-vacation-weekly-hours", 40),
+    approach_remaining_minutes: hoursToMinutes("sl-approach-hours", 4),
+    week_start: document.getElementById("sl-week-start")?.value || "monday",
+  };
+}
+
 function collectSheetViewColors() {
   const colors = {};
   document.querySelectorAll("[data-sheet-color-key]").forEach((input) => {
@@ -1278,6 +1314,7 @@ function collectFormData() {
   data.visible_work_types = collectVisibleWorkTypes();
   data.cell_flick_directions = collectFlickDirections();
   data.sheet_view_colors = collectSheetViewColors();
+  data.student_labor_limits = collectStudentLaborLimits();
   data.staffing_basis_options = collectStaffingBasisOptions();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();

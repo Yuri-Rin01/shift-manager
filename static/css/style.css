@@ -6364,3 +6364,106 @@ input[type="checkbox"]:focus-visible {
     flex: 1 1 160px;
   }
 }
+
+/* 留学生労働時間パネル */
+.student-labor-panel {
+  margin: 0 0 10px;
+  padding: 10px 12px 12px;
+  background: linear-gradient(180deg, #f3faf5 0%, #eef6f1 100%);
+  border: 1px solid #b7d4c2;
+  border-radius: 0 0 8px 8px;
+}
+
+.student-labor-panel.hidden {
+  display: none;
+}
+
+.student-labor-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  margin: 0 0 8px;
+}
+
+.student-labor-month-head {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #b7d4c2;
+}
+
+.student-labor-panel-range {
+  font-size: 12px;
+  color: #3f5d4a;
+}
+
+.student-labor-table-wrap {
+  overflow-x: auto;
+}
+
+.student-labor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #fff;
+}
+
+.student-labor-table th,
+.student-labor-table td {
+  border: 1px solid #c9ddd0;
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.student-labor-table th {
+  background: #e4f2e9;
+  font-weight: 600;
+  color: #1f3d2c;
+}
+
+.student-labor-name {
+  font-weight: 600;
+}
+
+.student-labor-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.student-labor-status-icon {
+  display: inline-block;
+  min-width: 1em;
+  text-align: center;
+}
+
+.student-labor-row.status-ok .student-labor-status-badge { color: #166534; }
+.student-labor-row.status-approach .student-labor-status-badge { color: #a16207; }
+.student-labor-row.status-reached .student-labor-status-badge { color: #9a3412; }
+.student-labor-row.status-over .student-labor-status-badge { color: #b91c1c; }
+.student-labor-row.status-need_confirm .student-labor-status-badge,
+.student-labor-row.status-blocked .student-labor-status-badge { color: #7c2d12; }
+
+.student-labor-reason {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
+  white-space: normal;
+}
+
+.student-labor-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #4b6356;
+  line-height: 1.45;
+}
+
+.shift-workspace.is-sheet-foreign .student-labor-panel {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}

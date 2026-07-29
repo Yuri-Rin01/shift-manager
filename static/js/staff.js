@@ -1565,8 +1565,51 @@ function openModal(mode, staff = null) {
   selectedDayIncompatibilities = new Set(staff?.day_incompatible_ids ?? []);
   renderNightIncompatibilityPicker();
   renderDayIncompatibilityPicker();
+  populateStudentLaborFields(staff?.student_labor);
   syncBulkFieldAvailability();
   modalTitle.textContent = mode === "edit" ? "職員編集" : "職員登録";
+}
+
+function populateStudentLaborFields(profile) {
+  const p = profile && typeof profile === "object" ? profile : {};
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value ?? "";
+  };
+  setVal("field-residence-status", p.residence_status || "none");
+  setVal("field-permission-status", p.permission_status || "unknown");
+  setVal("field-limit-enabled", p.limit_enabled === false ? "0" : "1");
+  setVal("field-has-other-job", p.has_other_job ? "1" : "0");
+  setVal(
+    "field-other-job-hours",
+    p.other_job_weekly_minutes != null
+      ? String(Math.round(((Number(p.other_job_weekly_minutes) || 0) / 60) * 10) / 10)
+      : "0"
+  );
+  setVal("field-school-name", p.school_name || "");
+  setVal("field-vacation-start", p.long_vacation_start || "");
+  setVal("field-vacation-end", p.long_vacation_end || "");
+  setVal("field-student-notes", p.notes || "");
+  setVal("field-confirmed-on", p.confirmed_on || "");
+  setVal("field-card-expires", p.card_expires_on || "");
+}
+
+function collectStudentLaborPayload() {
+  const hoursEl = document.getElementById("field-other-job-hours");
+  const hours = Math.max(0, Number(hoursEl?.value || 0) || 0);
+  return {
+    residence_status: document.getElementById("field-residence-status")?.value || "none",
+    permission_status: document.getElementById("field-permission-status")?.value || "unknown",
+    limit_enabled: document.getElementById("field-limit-enabled")?.value !== "0",
+    has_other_job: document.getElementById("field-has-other-job")?.value === "1",
+    other_job_weekly_minutes: Math.round(hours * 60),
+    school_name: document.getElementById("field-school-name")?.value?.trim() || "",
+    long_vacation_start: document.getElementById("field-vacation-start")?.value || null,
+    long_vacation_end: document.getElementById("field-vacation-end")?.value || null,
+    notes: document.getElementById("field-student-notes")?.value?.trim() || "",
+    confirmed_on: document.getElementById("field-confirmed-on")?.value || null,
+    card_expires_on: document.getElementById("field-card-expires")?.value || null,
+  };
 }
 
 function closeModal() {
@@ -1784,6 +1827,7 @@ async function saveStaff(event) {
     night_shift_count: fixNightCount ? nightCount : null,
     day_incompatible_ids: [...selectedDayIncompatibilities],
     night_incompatible_ids: mergeNightIncompatibilities(),
+    student_labor: collectStudentLaborPayload(),
   };
 
   const isEdit = Boolean(id);

@@ -248,6 +248,71 @@
           >
           <div class="incompatibility-picker" id="field-night-incompatibilities"></div>
         </div>
+
+        <div class="form-field form-field-full single-only" id="field-student-labor-wrap">
+          <h4 class="settings-subtitle">在留資格・労働時間制限</h4>
+          <p class="field-hint">在留資格が「留学」の職員は、資格外活動許可と週の上限を自動生成・手動編集の両方で判定します。</p>
+          <div class="settings-form-grid settings-form-grid-compact">
+            <label class="form-field">
+              <span class="form-label">在留資格区分</span>
+              <select id="field-residence-status" class="input-select">
+                <option value="none">制限なし</option>
+                <option value="student">留学</option>
+                <option value="other">その他</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="form-label">資格外活動許可</span>
+              <select id="field-permission-status" class="input-select">
+                <option value="yes">あり</option>
+                <option value="no">なし</option>
+                <option value="unknown">未確認</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="form-label">留学生労働時間制限</span>
+              <select id="field-limit-enabled" class="input-select">
+                <option value="1">適用する</option>
+                <option value="0">適用しない</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="form-label">他勤務先の有無</span>
+              <select id="field-has-other-job" class="input-select">
+                <option value="0">なし</option>
+                <option value="1">あり</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span class="form-label">他勤務先の週勤務時間（時間）</span>
+              <input type="number" id="field-other-job-hours" min="0" max="40" step="0.5" value="0">
+            </label>
+            <label class="form-field">
+              <span class="form-label">学校名</span>
+              <input type="text" id="field-school-name" maxlength="100">
+            </label>
+            <label class="form-field">
+              <span class="form-label">長期休業 開始日</span>
+              <input type="date" id="field-vacation-start">
+            </label>
+            <label class="form-field">
+              <span class="form-label">長期休業 終了日</span>
+              <input type="date" id="field-vacation-end">
+            </label>
+            <label class="form-field">
+              <span class="form-label">確認日</span>
+              <input type="date" id="field-confirmed-on">
+            </label>
+            <label class="form-field">
+              <span class="form-label">カード／許可の有効期限</span>
+              <input type="date" id="field-card-expires">
+            </label>
+            <label class="form-field form-field-full">
+              <span class="form-label">備考</span>
+              <textarea id="field-student-notes" rows="2" maxlength="500"></textarea>
+            </label>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn" data-close-modal>キャンセル</button>

@@ -30,6 +30,13 @@ DEFAULT_SETTINGS: dict = {
         "all": "#3B82F6",
         "foreign-students": "#217346",
     },
+    "student_labor_limits": {
+        "normal_weekly_minutes": 28 * 60,
+        "vacation_daily_minutes": 8 * 60,
+        "vacation_weekly_minutes": 40 * 60,
+        "approach_remaining_minutes": 4 * 60,
+        "week_start": "monday",
+    },
     # 印刷
     "print_paper": "A4 横",
     "print_scale": "100%",

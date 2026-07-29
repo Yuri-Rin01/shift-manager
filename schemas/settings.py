@@ -15,6 +15,7 @@ from data.placement_rules import (
 from data.staffing_basis import normalize_staffing_basis_options
 from data.flick_directions import default_cell_flick_directions, normalize_cell_flick_directions
 from data.sheet_view_colors import default_sheet_view_colors, normalize_sheet_view_colors
+from data.student_labor_limits import default_student_labor_limits, normalize_student_labor_limits
 
 
 class AppSettings(BaseModel):
@@ -34,6 +35,10 @@ class AppSettings(BaseModel):
     sheet_view_colors: dict[str, str] = Field(
         default_factory=default_sheet_view_colors,
         description="シフト表シートごとのアクセント色",
+    )
+    student_labor_limits: dict = Field(
+        default_factory=default_student_labor_limits,
+        description="留学生の労働時間上限設定（分単位）",
     )
     off_days_per_period: int | None = Field(
         default=None,
@@ -117,6 +122,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_sheet_view_colors_field(cls, value) -> dict[str, str]:
         return normalize_sheet_view_colors(value)
+
+    @field_validator("student_labor_limits", mode="before")
+    @classmethod
+    def normalize_student_labor_limits_field(cls, value) -> dict:
+        return normalize_student_labor_limits(value)
 
     @field_validator("visible_work_types")
     @classmethod

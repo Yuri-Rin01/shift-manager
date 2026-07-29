@@ -136,6 +136,10 @@ def init_db() -> None:
             conn.execute(
                 "ALTER TABLE staff ADD COLUMN can_be_night_leader INTEGER NOT NULL DEFAULT 0"
             )
+        if "student_labor" not in columns:
+            conn.execute(
+                "ALTER TABLE staff ADD COLUMN student_labor TEXT NOT NULL DEFAULT '{}'"
+            )
         _migrate_staff_floors(conn)
         _migrate_staff_placement_floors(conn)
         _migrate_display_floors_to_single(conn)
@@ -759,7 +763,10 @@ def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
 
 def _sync_seed_staff_job_types(conn: sqlite3.Connection) -> None:
     """テスト要因: シード定義の職種・役職を既存レコードへ反映する。"""
+    import json
+
     from data.staff_seed import SEED_STAFF
+    from data.student_labor_limits import normalize_student_labor_profile
 
     for row in SEED_STAFF:
         conn.execute(
@@ -770,3 +777,18 @@ def _sync_seed_staff_job_types(conn: sqlite3.Connection) -> None:
             """,
             (row["job_type"], row["position"], row["name"]),
         )
+        if row.get("job_type") == "留学生":
+            profile = normalize_student_labor_profile(
+                {
+                    "residence_status": "student",
+                    "permission_status": "yes",
+                    "limit_enabled": True,
+                    "has_other_job": False,
+                    "other_job_weekly_minutes": 0,
+                },
+                job_type="留学生",
+            )
+            conn.execute(
+                "UPDATE staff SET student_labor = ? WHERE name = ?",
+                (json.dumps(profile, ensure_ascii=False), row["name"]),
+            )

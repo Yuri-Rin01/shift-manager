@@ -26,6 +26,17 @@ DEFAULT_STAFFING_BASIS_KEYS = ["early", "day"]
 _KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,19}$")
 _TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
+DEFAULT_BREAK_MINUTES_BY_KEY = {
+    "early": 60,
+    "semi_early": 60,
+    "day": 60,
+    "semi_day": 60,
+    "late": 60,
+    "semi_late": 60,
+    "night": 120,
+    "semi_night": 120,
+}
+
 
 def _catalog_by_key() -> dict[str, dict]:
     return {item["key"]: item for item in DEFAULT_STAFFING_BASIS_CATALOG}
@@ -43,11 +54,19 @@ def normalize_staffing_basis_option(item: dict) -> dict | None:
     end_time = str(item.get("end_time") or catalog.get("end_time") or "").strip()
     if not start_time or not end_time:
         start_time, end_time = default_times_for_key(key)
+    break_minutes = item.get("break_minutes", catalog.get("break_minutes"))
+    if break_minutes is None:
+        break_minutes = DEFAULT_BREAK_MINUTES_BY_KEY.get(key, 60)
+    try:
+        break_minutes = max(0, min(12 * 60, int(break_minutes)))
+    except (TypeError, ValueError):
+        break_minutes = 60
     return {
         "key": key,
         "label": label,
         "start_time": start_time,
         "end_time": end_time,
+        "break_minutes": break_minutes,
     }
 
 

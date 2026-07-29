@@ -85,7 +85,7 @@ def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
         if level == "error":
             fix_needed.append(display)
             continue
-        if code in {"understaffed", "time_slot_understaffed", "staff_capacity_low"}:
+        if code in {"understaffed", "time_slot_understaffed", "staff_capacity_low", "student_labor_limit"}:
             understaffed.append(display)
             fix_needed.append(display)
         elif code in {"empty_cells_unfilled"}:
@@ -251,6 +251,7 @@ class _Generator:
         self.week_nights: dict[tuple[int, int], int] = defaultdict(int)
         self.understaffed_shortfalls: list[tuple[str, str, str, int, int]] = []
         self.time_slot_shortfalls: list[tuple[str, str, str, str, str, int, int]] = []
+        self.student_labor_blocks: list[dict] = []
         self._rng = random.Random()
 
     def _cell_key(self, staff_id: int, shift_date: str) -> tuple[int, str]:
@@ -615,6 +616,8 @@ class _Generator:
             return False
         if work_key in DAY_WORK_KEYS and self._day_incompatible_on_day(sid, shift_date):
             return False
+        if not self._passes_student_labor(staff, work_key, shift_date):
+            return False
         if work_key == "night":
             if not staff_can_work_night(staff):
                 return False
@@ -636,6 +639,55 @@ class _Generator:
         if self._blocked_after_night(sid, shift_date):
             return False
         return True
+
+    def _passes_student_labor(self, staff: dict, work_key: str, shift_date: str) -> bool:
+        from services.student_labor import (
+            LEAVE_OR_OFF_KEYS,
+            can_assign_shift,
+            is_student_labor_restricted,
+            normalize_student_labor_profile,
+        )
+
+        profile = normalize_student_labor_profile(
+            staff.get("student_labor") or {},
+            job_type=staff.get("job_type"),
+        )
+        if not is_student_labor_restricted(profile):
+            return True
+        if work_key in LEAVE_OR_OFF_KEYS:
+            return True
+
+        symbols = get_shift_symbols(self.settings)
+        symbol = symbols.get(work_key)
+        if not symbol:
+            return False
+
+        sid = staff["id"]
+        existing: list[tuple[date, str]] = []
+        for day_str, cell_symbol in (
+            (d, self._get_symbol(sid, d)) for d in self.period_dates
+        ):
+            if cell_symbol:
+                existing.append((date.fromisoformat(day_str), cell_symbol))
+
+        ok, reason, _detail = can_assign_shift(
+            staff=staff,
+            work_date=date.fromisoformat(shift_date),
+            symbol=symbol,
+            existing_assignments=existing,
+            settings=self.settings,
+        )
+        if not ok:
+            self.student_labor_blocks.append(
+                {
+                    "staff_id": sid,
+                    "name": staff.get("name"),
+                    "date": shift_date,
+                    "work_key": work_key,
+                    "reason": reason,
+                }
+            )
+        return ok
 
     def _staff_floors(self, staff: dict) -> list[str]:
         floors = staff.get("placement_floors") or []
@@ -1249,6 +1301,25 @@ class _Generator:
                 )
             )
 
+    def _emit_student_labor_warnings(self) -> None:
+        if not self.student_labor_blocks:
+            return
+        names = sorted(
+            {
+                str(item.get("name") or item.get("staff_id"))
+                for item in self.student_labor_blocks
+            }
+        )
+        sample = "、".join(names[:6])
+        suffix = f" ほか {len(names) - 6} 名" if len(names) > 6 else ""
+        self.warnings.append(
+            _warning(
+                "warn",
+                "student_labor_limit",
+                f"留学生の労働時間制限により必要人数を満たせません（対象: {sample}{suffix}）。上限を超える勤務は自動配置していません。",
+            )
+        )
+
     def _staff_needs_night_on_day(self, staff: dict, shift_date: str) -> bool:
         for floor in self._staff_floors(staff):
             min_night = self._min_staff_for(floor, "night")
@@ -1592,6 +1663,7 @@ class _Generator:
         self._validate_staff_ratio_results()
         self._validate_leader_on_night()
         self._emit_understaffed_warnings()
+        self._emit_student_labor_warnings()
 
         if not self.staff_list:
             self.warnings.append(_warning("error", "no_staff", "人員に含める職員が0人です。"))

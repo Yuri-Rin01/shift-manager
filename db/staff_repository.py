@@ -7,10 +7,12 @@ from data.staffing_basis import get_default_staffing_basis_ratios, parse_staffin
 from data.masters import filter_staff_for_facility
 from schemas.staff import StaffBulkUpdate, StaffCreate, StaffUpdate
 
+from data.student_labor_limits import normalize_student_labor_profile
+
 STAFF_COLUMNS = (
     "id, name, department, job_type, position, can_work_night, can_be_night_leader, "
     "staffing_basis, exclude_from_staffing, off_days_per_period, "
-    "night_shift_count, fix_night_shift_count"
+    "night_shift_count, fix_night_shift_count, student_labor"
 )
 
 NIGHT_INCOMPAT_TABLE = "staff_night_incompatibilities"
@@ -27,6 +29,18 @@ def _parse_staffing_basis(raw: str | None) -> dict[str, int]:
 
 def _serialize_staffing_basis(values: dict[str, int]) -> str:
     return json.dumps(values, ensure_ascii=False)
+
+
+def _parse_student_labor(raw: str | None, *, job_type: str | None = None) -> dict:
+    try:
+        data = json.loads(raw) if raw else {}
+    except (TypeError, json.JSONDecodeError):
+        data = {}
+    return normalize_student_labor_profile(data, job_type=job_type)
+
+
+def _serialize_student_labor(values: dict) -> str:
+    return json.dumps(normalize_student_labor_profile(values), ensure_ascii=False)
 
 
 def _primary_department(floors: list[str]) -> str:
@@ -166,6 +180,10 @@ def _row_to_dict(
         "fix_night_shift_count": bool(row["fix_night_shift_count"]),
         "night_incompatible_ids": night_incompatible_ids or [],
         "day_incompatible_ids": day_incompatible_ids or [],
+        "student_labor": _parse_student_labor(
+            row["student_labor"] if "student_labor" in keys else "{}",
+            job_type=row["job_type"],
+        ),
     }
 
 
@@ -218,9 +236,9 @@ def create_staff(data: StaffCreate) -> dict:
             INSERT INTO staff (
                 name, department, job_type, position, can_work_night, can_be_night_leader,
                 staffing_basis, exclude_from_staffing, off_days_per_period,
-                night_shift_count, fix_night_shift_count
+                night_shift_count, fix_night_shift_count, student_labor
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.name,
@@ -234,6 +252,9 @@ def create_staff(data: StaffCreate) -> dict:
                 data.off_days_per_period,
                 data.night_shift_count if data.fix_night_shift_count else None,
                 int(data.fix_night_shift_count),
+                _serialize_student_labor(
+                    normalize_student_labor_profile(data.student_labor, job_type=data.job_type)
+                ),
             ),
         )
         staff_id = cursor.lastrowid
@@ -308,6 +329,17 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             if data.day_incompatible_ids is not None
             else current["day_incompatible_ids"]
         ),
+        "student_labor": (
+            normalize_student_labor_profile(
+                data.student_labor,
+                job_type=data.job_type if data.job_type is not None else current["job_type"],
+            )
+            if data.student_labor is not None
+            else normalize_student_labor_profile(
+                current.get("student_labor") or {},
+                job_type=data.job_type if data.job_type is not None else current["job_type"],
+            )
+        ),
     }
 
     can_work_night, can_be_night_leader = resolve_night_flags(
@@ -326,7 +358,8 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             UPDATE staff
             SET name = ?, department = ?, job_type = ?, position = ?, can_work_night = ?,
                 can_be_night_leader = ?, staffing_basis = ?, exclude_from_staffing = ?,
-                off_days_per_period = ?, night_shift_count = ?, fix_night_shift_count = ?
+                off_days_per_period = ?, night_shift_count = ?, fix_night_shift_count = ?,
+                student_labor = ?
             WHERE id = ?
             """,
             (
@@ -341,6 +374,7 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 updated.get("off_days_per_period"),
                 updated["night_shift_count"],
                 int(updated["fix_night_shift_count"]),
+                _serialize_student_labor(updated["student_labor"]),
                 staff_id,
             ),
         )

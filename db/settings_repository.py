@@ -57,6 +57,14 @@ def _merge_settings(data: dict | None) -> dict:
             merged[key] = normalize_leave_request_visible_types(value)
         elif key == "leave_request_max_by_type" and isinstance(value, dict):
             merged[key] = normalize_leave_request_max_by_type(value)
+        elif key == "sheet_view_colors" and isinstance(value, dict):
+            from data.sheet_view_colors import normalize_sheet_view_colors
+
+            merged[key] = normalize_sheet_view_colors(value)
+        elif key == "student_labor_limits" and isinstance(value, dict):
+            from data.student_labor_limits import normalize_student_labor_limits
+
+            merged[key] = normalize_student_labor_limits(value)
         elif key == "cell_flick_directions" and isinstance(value, list):
             from data.flick_directions import normalize_cell_flick_directions
 
@@ -94,6 +102,11 @@ def _merge_settings(data: dict | None) -> dict:
     merged["morning_off_after_night"] = True
     leave_cfg = normalize_leave_request_settings(merged)
     merged.update(leave_cfg)
+    from data.student_labor_limits import normalize_student_labor_limits
+
+    merged["student_labor_limits"] = normalize_student_labor_limits(
+        merged.get("student_labor_limits")
+    )
     return merged
 
 def get_settings() -> dict:
@@ -111,6 +124,7 @@ def get_settings() -> dict:
 def save_settings(data: dict) -> dict:
     from data.staffing_basis import validate_staffing_basis_options
 
+    previous = get_settings()
     merged = _merge_settings(data)
     validate_shift_symbols(merged)
     validate_staffing_basis_options(merged)
@@ -126,5 +140,42 @@ def save_settings(data: dict) -> dict:
             """,
             (SETTINGS_ID, json.dumps(merged, ensure_ascii=False)),
         )
+        _append_settings_change_log(
+            conn,
+            key="student_labor_limits",
+            before=previous.get("student_labor_limits"),
+            after=merged.get("student_labor_limits"),
+        )
         conn.commit()
     return merged
+
+
+def _append_settings_change_log(conn, *, key: str, before, after) -> None:
+    if before == after:
+        return
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings_change_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            changed_at TEXT NOT NULL,
+            setting_key TEXT NOT NULL,
+            before_json TEXT NOT NULL,
+            after_json TEXT NOT NULL
+        )
+        """
+    )
+    from datetime import datetime, timezone, timedelta
+
+    jst = timezone(timedelta(hours=9))
+    conn.execute(
+        """
+        INSERT INTO settings_change_log (changed_at, setting_key, before_json, after_json)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            datetime.now(jst).isoformat(timespec="seconds"),
+            key,
+            json.dumps(before, ensure_ascii=False),
+            json.dumps(after, ensure_ascii=False),
+        ),
+    )

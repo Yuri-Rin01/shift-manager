@@ -7,6 +7,10 @@ from data.staffing_basis import (
     validate_staffing_basis_ratios,
 )
 from data.masters import get_departments
+from data.student_labor_limits import (
+    default_student_labor_profile,
+    normalize_student_labor_profile,
+)
 
 
 def _allowed_floors() -> set[str]:
@@ -69,6 +73,10 @@ class StaffBase(BaseModel):
         default_factory=list,
         description="夜勤で組ませない職員ID",
     )
+    student_labor: dict = Field(
+        default_factory=default_student_labor_profile,
+        description="留学生の在留資格・労働時間制限プロフィール",
+    )
 
     @field_validator("departments")
     @classmethod
@@ -85,6 +93,11 @@ class StaffBase(BaseModel):
     def validate_staffing_basis(cls, value: dict[str, int]) -> dict[str, int]:
         return validate_staffing_basis_ratios(value)
 
+    @field_validator("student_labor", mode="before")
+    @classmethod
+    def validate_student_labor(cls, value: object) -> dict:
+        return normalize_student_labor_profile(value)
+
     @model_validator(mode="after")
     def night_leader_implies_night(self) -> Self:
         night, leader = resolve_night_flags(
@@ -93,6 +106,10 @@ class StaffBase(BaseModel):
         )
         self.can_work_night = night
         self.can_be_night_leader = leader
+        self.student_labor = normalize_student_labor_profile(
+            self.student_labor,
+            job_type=self.job_type,
+        )
         return self
 
 
@@ -134,6 +151,10 @@ class StaffUpdate(BaseModel):
         default=None,
         description="夜勤で組ませない職員ID",
     )
+    student_labor: dict | None = Field(
+        default=None,
+        description="留学生の在留資格・労働時間制限プロフィール",
+    )
 
     @field_validator("departments")
     @classmethod
@@ -155,6 +176,13 @@ class StaffUpdate(BaseModel):
         if value is None:
             return None
         return StaffBase.validate_staffing_basis(value)
+
+    @field_validator("student_labor", mode="before")
+    @classmethod
+    def validate_student_labor(cls, value: object) -> dict | None:
+        if value is None:
+            return None
+        return normalize_student_labor_profile(value)
 
     @model_validator(mode="after")
     def night_leader_implies_night(self) -> Self:

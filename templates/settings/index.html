@@ -453,6 +453,39 @@
               </div>
               </div>
 
+              <h3 class="settings-subtitle">留学生の労働時間制限</h3>
+              <p class="field-hint">在留資格「留学」の職員に適用する上限です。分単位で内部管理し、法改正時にここから変更できます。週の開始曜日はカレンダー表示の「週開始」とは別に、労働時間集計用です（初期値：月曜日）。</p>
+              <div class="settings-form-grid" id="student-labor-limits-fields">
+                <label class="form-field">
+                  <span class="form-label">通常期間の週上限（時間）</span>
+                  <input type="number" id="sl-normal-weekly-hours" min="1" max="168" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">長期休業の1日上限（時間）</span>
+                  <input type="number" id="sl-vacation-daily-hours" min="1" max="24" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">長期休業の週上限（時間）</span>
+                  <input type="number" id="sl-vacation-weekly-hours" min="1" max="168" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">上限接近警告（残り時間）</span>
+                  <input type="number" id="sl-approach-hours" min="0" max="40" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">労働時間集計の週開始曜日</span>
+                  <select id="sl-week-start">
+                    <option value="monday">月曜日</option>
+                    <option value="tuesday">火曜日</option>
+                    <option value="wednesday">水曜日</option>
+                    <option value="thursday">木曜日</option>
+                    <option value="friday">金曜日</option>
+                    <option value="saturday">土曜日</option>
+                    <option value="sunday">日曜日</option>
+                  </select>
+                </label>
+              </div>
+
               <h3 class="settings-subtitle">時間・勤務ルール</h3>
               <div class="fixed-rules-panel">
                 <p class="fixed-rules-title">固定ルール（変更不可）</p>
@@ -721,6 +754,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=20"></script>
+  <script src="/static/js/settings.js?v=21"></script>
 </body>
 </html>

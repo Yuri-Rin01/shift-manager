@@ -548,6 +548,7 @@ function applySheetViewContent(next, prev) {
 
   updateSheetTabCounts();
   syncJobFilterPanelForSheet(next);
+  syncStudentLaborPanelVisibility(next);
 
   if (next === "foreign-students" && prev !== "foreign-students") {
     savedJobFilterBeforeSheet = getSelectedFilterValues("job");
@@ -576,6 +577,137 @@ function applySheetViewContent(next, prev) {
     tableZoom,
     sheetView: next,
   });
+}
+
+function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
+  const panel = document.getElementById("student-labor-panel");
+  if (!panel) return;
+  const show = view === "foreign-students";
+  panel.classList.toggle("hidden", !show);
+  if (show) {
+    loadStudentLaborSummary();
+  }
+}
+
+function studentLaborStatusIcon(status) {
+  switch (status) {
+    case "ok":
+      return "○";
+    case "approach":
+      return "△";
+    case "reached":
+      return "●";
+    case "over":
+      return "×";
+    case "need_confirm":
+    case "blocked":
+      return "！";
+    default:
+      return "・";
+  }
+}
+
+function formatStudentLaborDateRange(startIso, endIso) {
+  if (!startIso || !endIso) return "";
+  const fmt = (iso) => {
+    const [y, m, d] = String(iso).split("-");
+    return `${Number(y)}年${Number(m)}月${Number(d)}日`;
+  };
+  return `${fmt(startIso)}～${fmt(endIso)}`;
+}
+
+async function loadStudentLaborSummary() {
+  const tbody = document.getElementById("student-labor-tbody");
+  const monthBody = document.getElementById("student-labor-month-tbody");
+  const rangeEl = document.getElementById("student-labor-week-range");
+  const monthLabel = document.getElementById("student-labor-month-label");
+  if (!tbody) return;
+
+  const year = getCalendarYear();
+  const month = getCalendarMonth();
+  if (!year || !month) return;
+
+  tbody.innerHTML = `<tr><td colspan="8">読み込み中…</td></tr>`;
+  if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">読み込み中…</td></tr>`;
+
+  try {
+    const [weekRes, monthRes] = await Promise.all([
+      fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`),
+      fetch(`/api/shifts/student-labor-month?year=${year}&month=${month}`),
+    ]);
+    if (!weekRes.ok) {
+      tbody.innerHTML = `<tr><td colspan="8">読み込みに失敗しました</td></tr>`;
+      return;
+    }
+    const weekData = await weekRes.json();
+    if (rangeEl) {
+      rangeEl.textContent = formatStudentLaborDateRange(weekData.week_start, weekData.week_end);
+    }
+    renderStudentLaborWeekRows(tbody, weekData.rows || []);
+
+    if (monthBody) {
+      if (monthRes.ok) {
+        const monthData = await monthRes.json();
+        if (monthLabel) {
+          monthLabel.textContent = `${monthData.year}年${monthData.month}月`;
+        }
+        renderStudentLaborMonthRows(monthBody, monthData.rows || []);
+      } else {
+        monthBody.innerHTML = `<tr><td colspan="5">月別集計の読み込みに失敗しました</td></tr>`;
+      }
+    }
+  } catch {
+    tbody.innerHTML = `<tr><td colspan="8">通信エラー</td></tr>`;
+    if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">通信エラー</td></tr>`;
+  }
+}
+
+function renderStudentLaborWeekRows(tbody, rows) {
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8">対象の留学生がいません</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows
+    .map((row) => {
+      const status = row.status || "ok";
+      const icon = studentLaborStatusIcon(status);
+      const reason = row.reason_label ? `<span class="student-labor-reason">${escapeHtml(row.reason_label)}</span>` : "";
+      return `<tr class="student-labor-row status-${escapeHtml(status)}" data-staff-id="${row.staff_id ?? ""}">
+        <td class="student-labor-name">${escapeHtml(row.name || "")}</td>
+        <td>${escapeHtml(row.period_label || "")}</td>
+        <td>${escapeHtml(row.facility_week_hours_label || "")}</td>
+        <td>${escapeHtml(row.other_job_hours_label || "")}</td>
+        <td>${escapeHtml(row.total_hours_label || "")}</td>
+        <td>${escapeHtml(row.limit_hours_label || "")}</td>
+        <td>${escapeHtml(row.remaining_hours_label || "")}</td>
+        <td class="student-labor-status">
+          <span class="student-labor-status-badge" title="${escapeHtml(row.status_label || "")}">
+            <span class="student-labor-status-icon" aria-hidden="true">${icon}</span>
+            ${escapeHtml(row.status_label || "")}
+          </span>
+          ${reason}
+        </td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderStudentLaborMonthRows(tbody, rows) {
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5">対象の留学生がいません</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows
+    .map(
+      (row) => `<tr>
+        <td class="student-labor-name">${escapeHtml(row.name || "")}</td>
+        <td>${escapeHtml(row.normal_hours_label || "")}</td>
+        <td>${escapeHtml(row.vacation_hours_label || "")}</td>
+        <td>${escapeHtml(row.total_with_other_hours_label || "")}</td>
+        <td>${escapeHtml(String(row.warning_count ?? 0))}件</td>
+      </tr>`
+    )
+    .join("");
 }
 
 function clearSheetFlipClasses(viewport) {
@@ -1589,6 +1721,9 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
+  if (getCurrentSheetView() === "foreign-students") {
+    loadStudentLaborSummary();
+  }
 }
 
 async function unlockManualCell(td) {
