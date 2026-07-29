@@ -2,11 +2,11 @@ from data.routes import ROUTES
 
 # サイドバーは主要画面のみ。設定の細区分は /settings 内サブナビで扱う。
 MENU = [
-    {"label": "ダッシュボード", "key": "dashboard"},
-    {"label": "シフトカレンダー", "key": "calendar"},
-    {"label": "休み希望管理", "key": "leave-request"},
-    {"label": "職員管理", "key": "staff"},
-    {"label": "各種設定", "key": "settings"},
+    {"label": "ダッシュボード", "key": "dashboard", "icon": "dashboard"},
+    {"label": "シフトカレンダー", "key": "calendar", "icon": "calendar"},
+    {"label": "休み希望管理", "key": "leave-request", "icon": "leave"},
+    {"label": "職員管理", "key": "staff", "icon": "staff"},
+    {"label": "各種設定", "key": "settings", "icon": "settings"},
 ]
 
 

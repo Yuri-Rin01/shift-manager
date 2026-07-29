@@ -3,23 +3,46 @@
   const SIDEBAR_ID = "app-sidebar";
   const LS_KEY = "sidebar_collapsed";
 
-  // ---- helpers ----
   function sidebar() {
     return document.getElementById(SIDEBAR_ID) || document.querySelector(".sidebar");
   }
+
   function overlay() {
     return document.getElementById("sidebar-overlay");
   }
-  function toggleBtn() {
-    return document.getElementById("nav-toggle");
+
+  function collapseBtn() {
+    return document.getElementById("sidebar-collapse");
   }
+
+  function mobileOpenBtn() {
+    return document.getElementById("sidebar-mobile-open");
+  }
+
   function isCompact() {
     return COMPACT_MQ.matches;
   }
 
-  // ---- desktop collapse (icon-rail mode) ----
   function isDesktopCollapsed() {
     return document.body.classList.contains("sidebar-collapsed");
+  }
+
+  function syncCollapseButton() {
+    const btn = collapseBtn();
+    if (!btn || isCompact()) return;
+    const collapsed = isDesktopCollapsed();
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    btn.setAttribute("aria-label", collapsed ? "サイドバーを開く" : "サイドバーを折りたたむ");
+  }
+
+  function syncMobileTab() {
+    const tab = mobileOpenBtn();
+    if (!tab) return;
+    if (isCompact() && !document.body.classList.contains("sidebar-open")) {
+      tab.removeAttribute("hidden");
+    } else {
+      tab.setAttribute("hidden", "");
+    }
   }
 
   function setDesktopCollapsed(collapsed) {
@@ -27,26 +50,16 @@
     try {
       localStorage.setItem(LS_KEY, collapsed ? "1" : "0");
     } catch (_) {}
-    const btn = toggleBtn();
-    if (btn) {
-      btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      btn.setAttribute("aria-label", collapsed ? "メニューを開く" : "メニューを閉じる");
-    }
+    syncCollapseButton();
   }
 
   function toggleDesktop() {
     setDesktopCollapsed(!isDesktopCollapsed());
   }
 
-  // ---- mobile drawer ----
   function setMobileOpen(open) {
     const next = Boolean(open);
     document.body.classList.toggle("sidebar-open", next);
-    const btn = toggleBtn();
-    if (btn) {
-      btn.setAttribute("aria-expanded", next ? "true" : "false");
-      btn.setAttribute("aria-label", next ? "メニューを閉じる" : "メニューを開く");
-    }
     const pane = sidebar();
     if (pane) pane.setAttribute("aria-hidden", !next ? "true" : "false");
     const veil = overlay();
@@ -54,73 +67,50 @@
       if (next) veil.removeAttribute("hidden");
       else veil.setAttribute("hidden", "");
     }
+    syncMobileTab();
   }
 
   function closeMobile() {
     setMobileOpen(false);
   }
 
-  function toggleMobile() {
-    setMobileOpen(!document.body.classList.contains("sidebar-open"));
+  function openMobile() {
+    setMobileOpen(true);
   }
 
-  // ---- dispatch ----
-  function handleToggle() {
-    if (isCompact()) {
-      toggleMobile();
-    } else {
-      toggleDesktop();
-    }
-  }
-
-  // ---- ensure toggle button (desktop topbar) ----
-  function ensureToggleButton() {
-    if (toggleBtn()) return;
-    const topbar = document.querySelector(".main > .topbar");
-    if (!topbar) return;
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "nav-toggle";
-    btn.className = "nav-toggle";
-    btn.setAttribute("aria-label", "メニューを閉じる");
-    btn.setAttribute("aria-controls", SIDEBAR_ID);
-    btn.setAttribute("aria-expanded", "true");
-    btn.innerHTML =
-      '<span class="nav-toggle-box" aria-hidden="true">' +
-      '<span class="nav-toggle-bar"></span>' +
-      '<span class="nav-toggle-bar"></span>' +
-      '<span class="nav-toggle-bar"></span>' +
-      "</span>";
-    topbar.insertBefore(btn, topbar.firstChild);
-  }
-
-  function ensureSidebarId() {
-    const pane = sidebar();
-    if (pane && !pane.id) pane.id = SIDEBAR_ID;
-  }
-
-  // ---- restore desktop state from localStorage ----
   function restoreDesktopState() {
     if (isCompact()) return;
     try {
-      const stored = localStorage.getItem(LS_KEY);
-      if (stored === "1") setDesktopCollapsed(true);
-    } catch (_) {}
+      if (localStorage.getItem(LS_KEY) === "1") setDesktopCollapsed(true);
+      else syncCollapseButton();
+    } catch (_) {
+      syncCollapseButton();
+    }
   }
 
-  // ---- bind ----
   function bind() {
-    ensureSidebarId();
-    ensureToggleButton();
-    restoreDesktopState();
+    const pane = sidebar();
+    if (pane && !pane.id) pane.id = SIDEBAR_ID;
 
-    const btn = toggleBtn();
-    if (btn && !btn.dataset.bound) {
-      btn.dataset.bound = "1";
-      btn.addEventListener("click", (e) => {
+    restoreDesktopState();
+    syncMobileTab();
+
+    const collapse = collapseBtn();
+    if (collapse && !collapse.dataset.bound) {
+      collapse.dataset.bound = "1";
+      collapse.addEventListener("click", (e) => {
         e.stopPropagation();
-        handleToggle();
+        if (isCompact()) return;
+        toggleDesktop();
+      });
+    }
+
+    const mobileTab = mobileOpenBtn();
+    if (mobileTab && !mobileTab.dataset.bound) {
+      mobileTab.dataset.bound = "1";
+      mobileTab.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openMobile();
       });
     }
 
@@ -136,51 +126,37 @@
       closeBtn.addEventListener("click", closeMobile);
     }
 
-    const pane = sidebar();
     if (pane && !pane.dataset.navBound) {
       pane.dataset.navBound = "1";
       pane.addEventListener("click", (e) => {
-        // On mobile: close drawer on nav click
         if (e.target.closest("a.nav-item") && isCompact()) closeMobile();
-        // On desktop collapsed: open on any click inside sidebar
-        if (!isCompact() && isDesktopCollapsed()) setDesktopCollapsed(false);
+        if (!isCompact() && isDesktopCollapsed() && !e.target.closest("#sidebar-collapse")) {
+          setDesktopCollapsed(false);
+        }
       });
     }
 
     if (!document.body.dataset.shellEscBound) {
       document.body.dataset.shellEscBound = "1";
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          if (isCompact()) closeMobile();
-          else setDesktopCollapsed(true);
-        }
+        if (e.key !== "Escape") return;
+        if (isCompact()) closeMobile();
+        else setDesktopCollapsed(true);
       });
     }
 
     const onMq = () => {
       if (!isCompact()) {
-        // switching to desktop: close mobile drawer, restore desktop state
         closeMobile();
         restoreDesktopState();
-        const paneEl = sidebar();
-        if (paneEl) paneEl.removeAttribute("aria-hidden");
-        const btn2 = toggleBtn();
-        if (btn2) {
-          btn2.setAttribute("aria-expanded", isDesktopCollapsed() ? "false" : "true");
-          btn2.setAttribute("aria-label", isDesktopCollapsed() ? "メニューを開く" : "メニューを閉じる");
-        }
+        if (pane) pane.removeAttribute("aria-hidden");
       } else {
-        // switching to mobile: reset desktop collapse
         document.body.classList.remove("sidebar-collapsed");
-        const paneEl = sidebar();
-        if (paneEl) paneEl.setAttribute("aria-hidden", "true");
-        const btn2 = toggleBtn();
-        if (btn2) {
-          btn2.setAttribute("aria-expanded", "false");
-          btn2.setAttribute("aria-label", "メニューを開く");
-        }
+        if (pane) pane.setAttribute("aria-hidden", "true");
       }
+      syncMobileTab();
     };
+
     if (typeof COMPACT_MQ.addEventListener === "function") COMPACT_MQ.addEventListener("change", onMq);
     else if (typeof COMPACT_MQ.addListener === "function") COMPACT_MQ.addListener(onMq);
   }
