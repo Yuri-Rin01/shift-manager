@@ -476,17 +476,17 @@ function syncSheetTabColors() {
     const accent = getSheetColor(key);
     const soft = mixHex(accent, "#FFFFFF", 0.84);
     const softMid = mixHex(accent, "#EEF2F7", 0.55);
-    const softTop = mixHex(accent, "#FFFFFF", 0.72);
+    const softTop = mixHex(accent, "#FFFFFF", 0.76);
     const bar = mixHex(accent, "#FFFFFF", 0.28);
-    const ink = mixHex(accent, "#0F172A", 0.42);
     const border = mixHex(accent, "#AEB8C6", 0.45);
     el.style.setProperty("--sheet-tab-color", accent);
     el.style.setProperty("--sheet-tab-soft", soft);
     el.style.setProperty("--sheet-tab-soft-mid", softMid);
     el.style.setProperty("--sheet-tab-soft-top", softTop);
     el.style.setProperty("--sheet-tab-bar", bar);
-    el.style.setProperty("--sheet-tab-ink", ink);
     el.style.setProperty("--sheet-tab-border", border);
+    // 文字色は常に固定の濃い色（アクセントカラーに依存しない）
+    el.style.setProperty("--sheet-tab-ink", "#1e293b");
   });
 }
 

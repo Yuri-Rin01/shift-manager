@@ -6121,7 +6121,7 @@ input[type="checkbox"]:focus-visible {
   --sheet-tab-soft-mid: #d5dce7;
   --sheet-tab-soft-top: #eef2f7;
   --sheet-tab-bar: #94a3b8;
-  --sheet-tab-ink: #475569;
+  --sheet-tab-ink: #1e293b;
   --sheet-tab-border: #aeb8c6;
   appearance: none;
   display: inline-flex;
