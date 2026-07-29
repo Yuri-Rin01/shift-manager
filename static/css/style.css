@@ -1213,7 +1213,7 @@ body.sidebar-collapsed .nav-item:hover::after {
   pointer-events: none;
 }
 
-.home-chip span {
+.home-chip-face {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1222,33 +1222,76 @@ body.sidebar-collapsed .nav-item:hover::after {
   padding: 6px 8px;
   font-size: 12px;
   line-height: 1.25;
-  color: #334155;
+  color: #1e293b;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   text-align: center;
   box-sizing: border-box;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, opacity 0.15s;
   word-break: keep-all;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.home-chip:hover span {
+.home-chip:hover .home-chip-face {
   border-color: #94a3b8;
   background: #f8fafc;
 }
 
-.home-chip input:checked + span {
+.home-chip input:checked + .home-chip-face {
   background: #dbeafe;
   border-color: #3b82f6;
-  color: #1d4ed8;
+  color: #1e3a8a;
   font-weight: 600;
 }
 
-.home-chip input:focus-visible + span {
+.home-chip input:focus-visible + .home-chip-face {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* フロアバッジは独自色を壊さない */
+.home-chip-face-badge {
+  background: #fff;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+.home-chip:hover .home-chip-face-badge {
+  background: #fff;
+}
+
+.home-chip input:checked + .home-chip-face-badge {
+  background: #fff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.home-chip input:not(:checked) + .home-chip-face-badge {
+  opacity: 0.45;
+}
+
+.home-chip .floor-badge {
+  pointer-events: none;
+}
+
+.home-check-panel.is-sheet-locked {
+  opacity: 0.72;
+}
+
+.home-check-panel.is-sheet-locked .home-chip {
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.home-check-panel-lock-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
 }
 
 .home-toolbar-note {

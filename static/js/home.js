@@ -490,6 +490,22 @@ function syncSheetTabColors() {
   });
 }
 
+function syncJobFilterPanelForSheet(view = getCurrentSheetView()) {
+  const panel = document.getElementById("home-filter-panel-job");
+  const note = document.getElementById("home-filter-job-lock-note");
+  const locked = view === "foreign-students";
+  panel?.classList.toggle("is-sheet-locked", locked);
+  note?.classList.toggle("hidden", !locked);
+  panel?.querySelectorAll(".home-filter-action").forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.disabled = locked;
+  });
+  panel?.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+    if (!(box instanceof HTMLInputElement)) return;
+    box.disabled = locked;
+  });
+}
+
 function updateSheetEmptyState() {
   const empty = document.getElementById("sheet-empty-state");
   const legend = document.getElementById("sheet-legend");
@@ -531,6 +547,7 @@ function applySheetViewContent(next, prev) {
   });
 
   updateSheetTabCounts();
+  syncJobFilterPanelForSheet(next);
 
   if (next === "foreign-students" && prev !== "foreign-students") {
     savedJobFilterBeforeSheet = getSelectedFilterValues("job");

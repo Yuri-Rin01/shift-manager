@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=77">
+  <link rel="stylesheet" href="/static/css/style.css?v=78">
 </head>
 <body>
   <div class="app">
@@ -134,13 +134,13 @@
                         {% for dept in departments %}
                           <label class="home-chip">
                             <input type="checkbox" class="filter-dept-cb" value="{{ dept.label }}" checked>
-                            {{ floor_badge(dept.label) }}
+                            <span class="home-chip-face home-chip-face-badge">{{ floor_badge(dept.label) }}</span>
                           </label>
                         {% endfor %}
                       </div>
                     </section>
 
-                    <section class="home-check-panel">
+                    <section class="home-check-panel" id="home-filter-panel-job" data-filter-panel="job">
                       <div class="home-check-panel-head">
                         <span class="home-toolbar-label">職種</span>
                         <span class="home-filter-actions">
@@ -149,11 +149,12 @@
                           <button type="button" class="home-filter-action" data-invert-filter="job">反転</button>
                         </span>
                       </div>
+                      <p class="home-check-panel-lock-note hidden" id="home-filter-job-lock-note">留学生用シートでは職種「留学生」のみ表示します</p>
                       <div class="home-chip-grid" data-filter-group="job">
                         {% for job in job_types %}
                           <label class="home-chip">
                             <input type="checkbox" class="filter-job-cb" value="{{ job.label }}" checked>
-                            <span>{{ job.label }}</span>
+                            <span class="home-chip-face">{{ job.label }}</span>
                           </label>
                         {% endfor %}
                       </div>
@@ -171,12 +172,12 @@
                       <div class="home-chip-grid" data-filter-group="position">
                         <label class="home-chip">
                           <input type="checkbox" class="filter-position-cb" value="" checked>
-                          <span>（なし）</span>
+                          <span class="home-chip-face">（なし）</span>
                         </label>
                         {% for position in positions %}
                           <label class="home-chip">
                             <input type="checkbox" class="filter-position-cb" value="{{ position.label }}" checked>
-                            <span>{{ position.label }}</span>
+                            <span class="home-chip-face">{{ position.label }}</span>
                           </label>
                         {% endfor %}
                       </div>
