@@ -3,6 +3,7 @@
   --sidebar-hover: #3a5278;
   --sidebar-active: #4a6490;
   --sidebar-width: 200px;
+  --sidebar-rail-width: 52px;
   --sidebar-menu-slot: 36px;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
@@ -90,6 +91,104 @@ body {
 
 .nav-toggle {
   display: none;
+}
+
+/* ---- Desktop sidebar collapse (icon-rail) ---- */
+.sidebar {
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+
+body.sidebar-collapsed .sidebar {
+  width: var(--sidebar-rail-width);
+}
+
+body.sidebar-collapsed .main {
+  margin-left: var(--sidebar-rail-width);
+}
+
+body.sidebar-collapsed .home-filters-dock,
+body.sidebar-collapsed .home-bottom-bar,
+body.sidebar-collapsed .status-bar,
+body.sidebar-collapsed .settings-save-bar {
+  left: var(--sidebar-rail-width);
+}
+
+/* Hide text labels when collapsed */
+body.sidebar-collapsed .sidebar-header h1,
+body.sidebar-collapsed .sidebar-header .sidebar-close,
+body.sidebar-collapsed .sidebar-footer {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+body.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+body.sidebar-collapsed .nav-item {
+  padding: 12px 0;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0;            /* hide text */
+  color: transparent;
+}
+
+body.sidebar-collapsed .nav-item::before {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.85);
+  display: block;
+  line-height: 1;
+}
+
+/* Nav item icons via ::before (fallback ● if no icon) */
+body.sidebar-collapsed .nav-item[href="/"]::before          { content: "📅"; }
+body.sidebar-collapsed .nav-item[href="/staff"]::before     { content: "👥"; }
+body.sidebar-collapsed .nav-item[href="/dashboard"]::before { content: "📊"; }
+body.sidebar-collapsed .nav-item[href*="leave"]::before     { content: "📝"; }
+body.sidebar-collapsed .nav-item[href="/settings"]::before  { content: "⚙️"; }
+body.sidebar-collapsed .nav-item:not([href="/"])
+  :not([href="/staff"])
+  :not([href="/dashboard"])
+  :not([href*="leave"])
+  :not([href="/settings"])::before { content: "●"; }
+
+body.sidebar-collapsed .nav-item:hover {
+  background: var(--sidebar-hover);
+}
+body.sidebar-collapsed .nav-item.active {
+  background: var(--sidebar-active);
+}
+
+/* Tooltip on hover when collapsed */
+body.sidebar-collapsed .nav-item {
+  position: relative;
+}
+
+body.sidebar-collapsed .nav-item::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(var(--sidebar-rail-width) + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 500;
+}
+
+body.sidebar-collapsed .nav-item:hover::after {
+  opacity: 1;
 }
 
 .sidebar-header h1 {
@@ -5027,7 +5126,7 @@ input[type="checkbox"]:focus-visible {
 
 /* ========== Responsive: tablet / phone ========== */
 .nav-toggle {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -5052,6 +5151,7 @@ input[type="checkbox"]:focus-visible {
   justify-content: center;
   gap: 4px;
   width: 18px;
+  transition: gap 0.15s;
 }
 
 .nav-toggle-bar {
@@ -5060,6 +5160,18 @@ input[type="checkbox"]:focus-visible {
   width: 100%;
   border-radius: 1px;
   background: currentColor;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+/* X animation when sidebar is open (mobile) or NOT collapsed (desktop) */
+body.sidebar-open .nav-toggle .nav-toggle-bar:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+body.sidebar-open .nav-toggle .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+body.sidebar-open .nav-toggle .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
 }
 
 .topbar {
