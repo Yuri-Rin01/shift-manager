@@ -1013,6 +1013,10 @@ function populateForm(data) {
       populateFlickDirections(value);
       continue;
     }
+    if (key === "sheet_view_colors") {
+      populateSheetViewColors(value);
+      continue;
+    }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : []);
       const byFloor = resolveMinStaffByFloor(data);
@@ -1206,6 +1210,30 @@ function clearFlickDirections() {
   rebuildFlickDirectionOptions([]);
 }
 
+function populateSheetViewColors(colors) {
+  const map = colors && typeof colors === "object" ? colors : {};
+  document.querySelectorAll("[data-sheet-color-key]").forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const key = input.dataset.sheetColorKey;
+    if (!key) return;
+    const value = map[key];
+    if (typeof value === "string" && value.trim()) {
+      input.value = value.trim();
+    }
+  });
+}
+
+function collectSheetViewColors() {
+  const colors = {};
+  document.querySelectorAll("[data-sheet-color-key]").forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const key = input.dataset.sheetColorKey;
+    if (!key) return;
+    colors[key] = input.value || "#3B82F6";
+  });
+  return colors;
+}
+
 function collectFormData() {
   const data = {};
   if (!form) return data;
@@ -1215,6 +1243,7 @@ function collectFormData() {
     if (!element.name || element.name.startsWith(SHIFT_SYMBOL_PREFIX)) continue;
     if (element.name.startsWith(VISIBLE_WORK_TYPE_PREFIX)) continue;
     if (element.name.startsWith(FLICK_DIRECTION_PREFIX)) continue;
+    if (element.name.startsWith("sheet_view_color_")) continue;
     if (element.id === "work-type-template-select") continue;
 
     if (element.type === "radio") {
@@ -1248,6 +1277,7 @@ function collectFormData() {
   data.shift_symbols = collectShiftSymbols();
   data.visible_work_types = collectVisibleWorkTypes();
   data.cell_flick_directions = collectFlickDirections();
+  data.sheet_view_colors = collectSheetViewColors();
   data.staffing_basis_options = collectStaffingBasisOptions();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=63">
+  <link rel="stylesheet" href="/static/css/style.css?v=69">
 </head>
 <body>
   <div class="app">
@@ -141,6 +141,19 @@
                 <label class="check-row settings-check">
                   <input type="checkbox" name="show_shift_legend">
                   <span>シフト凡例を表示</span>
+                </label>
+              </div>
+
+              <h3 class="settings-subtitle">シフト表シートの色</h3>
+              <p class="field-hint">ホームの上部タブ（ファイル）ごとにテーマ色を設定できます。タブ上の色ボタンからも変更できます。</p>
+              <div class="settings-form-grid settings-form-grid-compact">
+                <label class="form-field">
+                  <span class="form-label">全体シート</span>
+                  <input type="color" name="sheet_view_color_all" data-sheet-color-key="all" value="#3B82F6">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">留学生用シート</span>
+                  <input type="color" name="sheet_view_color_foreign_students" data-sheet-color-key="foreign-students" value="#217346">
                 </label>
               </div>
 
@@ -708,6 +721,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=18"></script>
+  <script src="/static/js/settings.js?v=19"></script>
 </body>
 </html>

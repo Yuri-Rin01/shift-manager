@@ -379,6 +379,10 @@ function invertFilterGroupChecked(group) {
 
 const FOREIGN_STUDENT_JOB = "留学生";
 const SHEET_VIEW_ORDER = ["all", "foreign-students"];
+const DEFAULT_SHEET_VIEW_COLORS = {
+  all: "#3B82F6",
+  "foreign-students": "#217346",
+};
 const SHEET_VIEW_META = {
   all: { title: "全体シフト表.xlsx", foreign: false },
   "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
@@ -389,6 +393,8 @@ let currentSheetView = "all";
 let savedJobFilterBeforeSheet = null;
 let sheetFlipBusy = false;
 let sheetFlipTimer = null;
+let sheetViewColors = { ...DEFAULT_SHEET_VIEW_COLORS };
+let sheetColorPersistTimer = null;
 
 function getCurrentSheetView() {
   return currentSheetView || "all";
@@ -396,6 +402,129 @@ function getCurrentSheetView() {
 
 function prefersReducedSheetMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
+
+function normalizeSheetHex(value, fallback = "#3B82F6") {
+  const raw = String(value ?? "").trim();
+  if (!/^#?[0-9A-Fa-f]{6}$/.test(raw)) return fallback;
+  return (raw.startsWith("#") ? raw : `#${raw}`).toUpperCase();
+}
+
+function hexToRgb(hex) {
+  const normalized = normalizeSheetHex(hex);
+  return {
+    r: Number.parseInt(normalized.slice(1, 3), 16),
+    g: Number.parseInt(normalized.slice(3, 5), 16),
+    b: Number.parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function rgbToHex(r, g, b) {
+  const to = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
+}
+
+function mixHex(hex, target, ratio) {
+  const a = hexToRgb(hex);
+  const b = hexToRgb(target);
+  const t = Math.max(0, Math.min(1, ratio));
+  return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+}
+
+function loadSheetViewColors() {
+  const fromSettings = serverDefaults.sheet_view_colors;
+  const fromPrefs = loadPrefs().sheetColors;
+  sheetViewColors = {
+    ...DEFAULT_SHEET_VIEW_COLORS,
+    ...(fromSettings && typeof fromSettings === "object" ? fromSettings : {}),
+    ...(fromPrefs && typeof fromPrefs === "object" ? fromPrefs : {}),
+  };
+  for (const key of SHEET_VIEW_ORDER) {
+    sheetViewColors[key] = normalizeSheetHex(
+      sheetViewColors[key],
+      DEFAULT_SHEET_VIEW_COLORS[key]
+    );
+  }
+  return sheetViewColors;
+}
+
+function getSheetColor(view = getCurrentSheetView()) {
+  return normalizeSheetHex(
+    sheetViewColors[view],
+    DEFAULT_SHEET_VIEW_COLORS[view] || DEFAULT_SHEET_VIEW_COLORS.all
+  );
+}
+
+function syncSheetColorInputs() {
+  document.querySelectorAll("[data-sheet-color-for]").forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const key = input.dataset.sheetColorFor;
+    if (!key) return;
+    input.value = getSheetColor(key);
+    const wrap = input.closest(".sheet-tab-item");
+    wrap?.style.setProperty("--sheet-tab-swatch", getSheetColor(key));
+  });
+}
+
+function applySheetTheme(view = getCurrentSheetView()) {
+  const workspace = document.querySelector(".shift-workspace");
+  if (!workspace) return;
+  const accent = getSheetColor(view);
+  const soft = mixHex(accent, "#FFFFFF", 0.86);
+  const softStrong = mixHex(accent, "#FFFFFF", 0.72);
+  const header = mixHex(accent, "#000000", 0.08);
+  const headerStrong = mixHex(accent, "#000000", 0.22);
+  workspace.style.setProperty("--sheet-accent", accent);
+  workspace.style.setProperty("--sheet-accent-soft", soft);
+  workspace.style.setProperty("--sheet-accent-soft-strong", softStrong);
+  workspace.style.setProperty("--sheet-header-bg", header);
+  workspace.style.setProperty("--sheet-header-bg-strong", headerStrong);
+  workspace.classList.add("is-sheet-themed");
+  syncSheetColorInputs();
+}
+
+async function persistSheetViewColors() {
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    sheetView: getCurrentSheetView(),
+    sheetColors: { ...sheetViewColors },
+  });
+  try {
+    const response = await fetch("/api/settings");
+    if (!response.ok) return;
+    const data = await response.json();
+    data.sheet_view_colors = { ...sheetViewColors };
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  } catch {
+    /* ignore offline / transient errors */
+  }
+}
+
+function schedulePersistSheetViewColors() {
+  if (sheetColorPersistTimer) {
+    window.clearTimeout(sheetColorPersistTimer);
+  }
+  sheetColorPersistTimer = window.setTimeout(() => {
+    sheetColorPersistTimer = null;
+    persistSheetViewColors();
+  }, 400);
+}
+
+function setSheetColor(view, color) {
+  if (!SHEET_VIEW_META[view]) return;
+  sheetViewColors[view] = normalizeSheetHex(color, DEFAULT_SHEET_VIEW_COLORS[view]);
+  if (getCurrentSheetView() === view) {
+    applySheetTheme(view);
+  } else {
+    syncSheetColorInputs();
+  }
+  schedulePersistSheetViewColors();
 }
 
 function updateSheetEmptyState() {
@@ -418,6 +547,7 @@ function applySheetViewContent(next, prev) {
   const workspace = document.querySelector(".shift-workspace");
   workspace?.setAttribute("data-sheet-view", next);
   workspace?.classList.toggle("is-sheet-foreign", Boolean(SHEET_VIEW_META[next]?.foreign));
+  applySheetTheme(next);
 
   const title = document.getElementById("sheet-window-title");
   if (title) {
@@ -553,10 +683,22 @@ function updateSheetTabCounts() {
 
 function initSheetViews() {
   const saved = loadPrefs();
+  loadSheetViewColors();
+  syncSheetColorInputs();
 
   document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
     el.addEventListener("click", () => {
       setSheetView(el.dataset.sheetView || "all");
+    });
+  });
+
+  document.querySelectorAll("[data-sheet-color-for]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const key = input.dataset.sheetColorFor || "all";
+      setSheetColor(key, input.value);
+    });
+    input.addEventListener("click", (event) => {
+      event.stopPropagation();
     });
   });
 

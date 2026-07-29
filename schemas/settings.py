@@ -14,6 +14,7 @@ from data.placement_rules import (
 )
 from data.staffing_basis import normalize_staffing_basis_options
 from data.flick_directions import default_cell_flick_directions, normalize_cell_flick_directions
+from data.sheet_view_colors import default_sheet_view_colors, normalize_sheet_view_colors
 
 
 class AppSettings(BaseModel):
@@ -30,6 +31,10 @@ class AppSettings(BaseModel):
     calendar_sort_mode: str = "dept"
     week_start: str = "sunday"
     calendar_start_day: int = Field(default=1, ge=1, le=28)
+    sheet_view_colors: dict[str, str] = Field(
+        default_factory=default_sheet_view_colors,
+        description="シフト表シートごとのアクセント色",
+    )
     off_days_per_period: int | None = Field(
         default=None,
         ge=0,
@@ -107,6 +112,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_cell_flick_directions_field(cls, value) -> list[str]:
         return normalize_cell_flick_directions(value)
+
+    @field_validator("sheet_view_colors", mode="before")
+    @classmethod
+    def normalize_sheet_view_colors_field(cls, value) -> dict[str, str]:
+        return normalize_sheet_view_colors(value)
 
     @field_validator("visible_work_types")
     @classmethod

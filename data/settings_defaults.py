@@ -26,6 +26,10 @@ DEFAULT_SETTINGS: dict = {
     "cell_flick_input_enabled": True,
     "cell_long_press_ms": 450,
     "cell_flick_directions": [],
+    "sheet_view_colors": {
+        "all": "#3B82F6",
+        "foreign-students": "#217346",
+    },
     # 印刷
     "print_paper": "A4 横",
     "print_scale": "100%",

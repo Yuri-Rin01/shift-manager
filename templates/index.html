@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=68">
+  <link rel="stylesheet" href="/static/css/style.css?v=69">
 </head>
 <body>
   <div class="app">
@@ -190,16 +190,26 @@
             <div class="shift-workspace" data-sheet-view="all">
               <div class="shift-sheet-stage">
                 <div class="sheet-tabs" role="tablist" aria-label="シート切替">
-                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">
-                    <span class="sheet-tab-icon" aria-hidden="true"></span>
-                    <span class="sheet-tab-label">全体</span>
-                    <span class="sheet-tab-count" aria-hidden="true">0</span>
-                  </button>
-                  <button type="button" class="sheet-tab" data-sheet-view="foreign-students" role="tab" aria-selected="false">
-                    <span class="sheet-tab-icon" aria-hidden="true"></span>
-                    <span class="sheet-tab-label">留学生用</span>
-                    <span class="sheet-tab-count" aria-hidden="true">0</span>
-                  </button>
+                  <div class="sheet-tab-item">
+                    <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">
+                      <span class="sheet-tab-label">全体</span>
+                      <span class="sheet-tab-count" aria-hidden="true">0</span>
+                    </button>
+                    <label class="sheet-tab-color" title="全体シートの色">
+                      <span class="visually-hidden">全体シートの色</span>
+                      <input type="color" data-sheet-color-for="all" value="#3B82F6">
+                    </label>
+                  </div>
+                  <div class="sheet-tab-item">
+                    <button type="button" class="sheet-tab" data-sheet-view="foreign-students" role="tab" aria-selected="false">
+                      <span class="sheet-tab-label">留学生用</span>
+                      <span class="sheet-tab-count" aria-hidden="true">0</span>
+                    </button>
+                    <label class="sheet-tab-color" title="留学生用シートの色">
+                      <span class="visually-hidden">留学生用シートの色</span>
+                      <input type="color" data-sheet-color-for="foreign-students" value="#217346">
+                    </label>
+                  </div>
                 </div>
                 <div class="sheet-window-chrome" aria-hidden="true">
                   <span class="sheet-window-dot"></span>
@@ -288,6 +298,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=20"></script>
-  <script src="/static/js/home.js?v=37"></script>
+  <script src="/static/js/home.js?v=38"></script>
 </body>
 </html>
