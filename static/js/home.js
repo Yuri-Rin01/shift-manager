@@ -378,16 +378,24 @@ function invertFilterGroupChecked(group) {
 }
 
 const FOREIGN_STUDENT_JOB = "留学生";
+const SHEET_VIEW_ORDER = ["all", "foreign-students"];
 const SHEET_VIEW_META = {
   all: { title: "全体シフト表.xlsx", foreign: false },
   "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
 };
+const SHEET_FLIP_MS = 520;
 
 let currentSheetView = "all";
 let savedJobFilterBeforeSheet = null;
+let sheetFlipBusy = false;
+let sheetFlipTimer = null;
 
 function getCurrentSheetView() {
   return currentSheetView || "all";
+}
+
+function prefersReducedSheetMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
 function updateSheetEmptyState() {
@@ -404,9 +412,7 @@ function updateSheetEmptyState() {
   legend?.classList.toggle("hidden", showEmpty);
 }
 
-function setSheetView(view) {
-  const next = SHEET_VIEW_META[view] ? view : "all";
-  const prev = currentSheetView;
+function applySheetViewContent(next, prev) {
   currentSheetView = next;
 
   const workspace = document.querySelector(".shift-workspace");
@@ -429,11 +435,8 @@ function setSheetView(view) {
     }
   }
 
-  document.querySelectorAll("[data-sheet-view]").forEach((el) => {
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
-    if (!el.classList.contains("sheet-tab")) {
-      return;
-    }
     const active = el.dataset.sheetView === next;
     el.classList.toggle("is-active", active);
     el.setAttribute("aria-selected", active ? "true" : "false");
@@ -470,6 +473,69 @@ function setSheetView(view) {
   });
 }
 
+function clearSheetFlipClasses(viewport) {
+  viewport?.classList.remove(
+    "is-flipping",
+    "is-flipping-forward",
+    "is-flipping-back",
+    "is-flip-mid"
+  );
+}
+
+function setSheetView(view, opts = {}) {
+  const next = SHEET_VIEW_META[view] ? view : "all";
+  const prev = currentSheetView;
+  const animate = opts.animate !== false;
+  if (next === prev && !opts.force) {
+    updateSheetTabCounts();
+    return;
+  }
+  if (sheetFlipBusy) return;
+
+  const viewport = document.getElementById("sheet-flip-viewport");
+  const canAnimate =
+    animate &&
+    Boolean(viewport) &&
+    prev !== next &&
+    !prefersReducedSheetMotion();
+
+  if (!canAnimate) {
+    applySheetViewContent(next, prev);
+    return;
+  }
+
+  const prevIndex = SHEET_VIEW_ORDER.indexOf(prev);
+  const nextIndex = SHEET_VIEW_ORDER.indexOf(next);
+  const forward = nextIndex >= prevIndex;
+  sheetFlipBusy = true;
+  clearSheetFlipClasses(viewport);
+  viewport.classList.add("is-flipping", forward ? "is-flipping-forward" : "is-flipping-back");
+
+  if (sheetFlipTimer) {
+    window.clearTimeout(sheetFlipTimer);
+  }
+  sheetFlipTimer = window.setTimeout(() => {
+    viewport.classList.add("is-flip-mid");
+    applySheetViewContent(next, prev);
+  }, Math.round(SHEET_FLIP_MS * 0.48));
+
+  const finish = () => {
+    viewport.removeEventListener("animationend", onEnd);
+    if (sheetFlipTimer) {
+      window.clearTimeout(sheetFlipTimer);
+      sheetFlipTimer = null;
+    }
+    clearSheetFlipClasses(viewport);
+    sheetFlipBusy = false;
+  };
+  const onEnd = (event) => {
+    if (event.target !== document.getElementById("sheet-flip-page")) return;
+    finish();
+  };
+  viewport.addEventListener("animationend", onEnd);
+  window.setTimeout(finish, SHEET_FLIP_MS + 80);
+}
+
 function updateSheetTabCounts() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
@@ -495,7 +561,7 @@ function initSheetViews() {
   });
 
   const initial = SHEET_VIEW_META[saved.sheetView] ? saved.sheetView : "all";
-  setSheetView(initial);
+  setSheetView(initial, { animate: false, force: true });
 }
 
 function applyRowFilters() {
