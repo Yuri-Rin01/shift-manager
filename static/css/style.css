@@ -2185,6 +2185,19 @@ body.sidebar-collapsed .nav-item:hover::after {
   display: none;
 }
 
+/* 職種／フロアを隠したとき、隣の sticky 列の left を詰め直す */
+.hide-col-job .col-dept {
+  left: 56px;
+}
+
+.hide-col-dept .col-job {
+  left: 56px;
+}
+
+.hide-col-job.hide-col-dept .col-name {
+  left: 0;
+}
+
 .legend-symbol.shift-early { background: #dcfce7; }
 .legend-symbol.shift-day { background: #fff; }
 .legend-symbol.shift-late { background: #e0f2fe; }
@@ -3740,6 +3753,12 @@ body.sidebar-collapsed .nav-item:hover::after {
   .shift-table .col-dept {
     left: 172px; /* 64 + 108 */
     min-width: 120px;
+  }
+  .hide-col-job .col-dept {
+    left: 64px;
+  }
+  .hide-col-dept .col-job {
+    left: 64px;
   }
 
   /* 検索ボックスなどツールの可視性を上げる */
@@ -5613,6 +5632,14 @@ input[type="checkbox"]:focus-visible {
     max-width: 88px;
   }
 
+  .hide-col-job .col-dept {
+    left: 52px;
+  }
+
+  .hide-col-dept .col-job {
+    left: 52px;
+  }
+
   .shift-table th.day-col,
   .shift-table td.shift-td {
     min-width: 26px;
@@ -6212,10 +6239,32 @@ input[type="checkbox"]:focus-visible {
   background: var(--sheet-accent-soft);
 }
 
+/* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
+.shift-workspace.is-sheet-themed .content-home .table-wrap .shift-table .sticky-col.col-job,
+.shift-workspace.is-sheet-themed .content-home .table-wrap .shift-table .sticky-col.col-dept,
+.shift-workspace.is-sheet-themed .shift-table td.col-job,
+.shift-workspace.is-sheet-themed .shift-table td.col-dept {
+  background-color: #fff;
+  color: #1e293b;
+}
+
+.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-job,
+.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-dept {
+  background-color: var(--sheet-accent-soft);
+  color: #1e293b;
+}
+
+.shift-workspace.is-sheet-themed .shift-table thead th.col-job,
+.shift-workspace.is-sheet-themed .shift-table thead th.col-dept {
+  background: var(--sheet-header-bg);
+  color: #fff;
+}
+
 .shift-workspace.is-sheet-themed .shift-table .col-name,
 .shift-workspace.is-sheet-themed .shift-table th.col-name,
 .shift-workspace.is-sheet-themed .shift-table td.col-name {
   background: var(--sheet-accent-soft-strong);
+  color: #1e293b;
 }
 
 .shift-workspace.is-sheet-themed .shift-table thead th.col-name {
@@ -6226,6 +6275,11 @@ input[type="checkbox"]:focus-visible {
 .shift-workspace.is-sheet-themed .shift-table .col-name.is-staff-name,
 .shift-workspace.is-sheet-themed .shift-table tbody tr:hover .col-name {
   background: var(--sheet-accent-soft);
+}
+
+.shift-workspace.is-sheet-themed .shift-table tbody tr:hover td.col-job,
+.shift-workspace.is-sheet-themed .shift-table tbody tr:hover td.col-dept {
+  background-color: var(--sheet-accent-soft);
 }
 
 @media (max-width: 900px) {
