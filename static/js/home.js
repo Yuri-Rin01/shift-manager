@@ -105,9 +105,10 @@ function getPrefs() {
 
 function applyDisplayPrefs(prefs = getPrefs()) {
   if (shiftCalendar) {
-    shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+    const foreignSheet = getCurrentSheetView() === "foreign-students";
+    shiftCalendar.classList.toggle("hide-col-job", foreignSheet || !prefs.showJob);
     shiftCalendar.classList.toggle("hide-col-dept", !prefs.showDept);
-    shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
+    shiftCalendar.classList.toggle("hide-summary", foreignSheet || !prefs.showSummary);
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
     shiftCalendar.classList.toggle("mono-cells", !prefs.colorCells);
   }
@@ -417,6 +418,17 @@ function setSheetView(view) {
     title.textContent = SHEET_VIEW_META[next]?.title ?? "シフト表.xlsx";
   }
 
+  // 留学生シートは職種列・施設集計を隠して表を見やすくする
+  if (shiftCalendar) {
+    if (SHEET_VIEW_META[next]?.foreign) {
+      shiftCalendar.classList.add("hide-col-job", "hide-summary");
+    } else {
+      const prefs = getPrefs();
+      shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+      shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
+    }
+  }
+
   document.querySelectorAll("[data-sheet-view]").forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
     if (!el.classList.contains("sheet-file-item") && !el.classList.contains("sheet-tab")) {
@@ -431,6 +443,8 @@ function setSheetView(view) {
       el.setAttribute("aria-selected", active ? "true" : "false");
     }
   });
+
+  updateSheetTabCounts();
 
   if (next === "foreign-students" && prev !== "foreign-students") {
     savedJobFilterBeforeSheet = getSelectedFilterValues("job");
@@ -458,6 +472,27 @@ function setSheetView(view) {
     ...getPrefs(),
     tableZoom,
     sheetView: next,
+  });
+}
+
+function updateSheetTabCounts() {
+  const tbody = shiftCalendar?.querySelector("tbody");
+  if (!tbody) return;
+  const rows = [...tbody.querySelectorAll("tr")];
+  const allCount = rows.length;
+  const foreignCount = rows.filter((row) => (row.dataset.job ?? "") === FOREIGN_STUDENT_JOB).length;
+
+  document.querySelectorAll('.sheet-tab[data-sheet-view="all"] .sheet-tab-count').forEach((el) => {
+    el.textContent = String(allCount);
+  });
+  document.querySelectorAll('.sheet-tab[data-sheet-view="foreign-students"] .sheet-tab-count').forEach((el) => {
+    el.textContent = String(foreignCount);
+  });
+  document.querySelectorAll('.sheet-file-item[data-sheet-view="all"] .sheet-file-item-meta').forEach((el) => {
+    el.textContent = `全職員 ${allCount}名`;
+  });
+  document.querySelectorAll('.sheet-file-item[data-sheet-view="foreign-students"] .sheet-file-item-meta').forEach((el) => {
+    el.textContent = `留学生 ${foreignCount}名`;
   });
 }
 
@@ -734,6 +769,12 @@ function syncPreviewFromCalendar() {
 
   const table = sourceTable.cloneNode(true);
   table.classList.add("shift-table-compact");
+  table.querySelectorAll("tbody tr").forEach((row) => {
+    const sourceRow = sourceTable.querySelector(`tbody tr[data-staff-id="${row.dataset.staffId}"]`);
+    if (sourceRow?.hidden) {
+      row.remove();
+    }
+  });
   table.querySelectorAll(".shift-td-editable").forEach((cell) => {
     cell.classList.remove("shift-td-editable", "is-editing");
     cell.removeAttribute("title");

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=64">
+  <link rel="stylesheet" href="/static/css/style.css?v=65">
 </head>
 <body>
   <div class="app">
@@ -273,8 +273,14 @@
                   {% endif %}
                 </div>
                 <div class="sheet-tabs" role="tablist" aria-label="シート切替">
-                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">全体</button>
-                  <button type="button" class="sheet-tab" data-sheet-view="foreign-students" role="tab" aria-selected="false">留学生用</button>
+                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">
+                    <span class="sheet-tab-label">全体</span>
+                    <span class="sheet-tab-count" aria-hidden="true">0</span>
+                  </button>
+                  <button type="button" class="sheet-tab" data-sheet-view="foreign-students" role="tab" aria-selected="false">
+                    <span class="sheet-tab-label">留学生用</span>
+                    <span class="sheet-tab-count" aria-hidden="true">0</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -320,6 +326,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=20"></script>
-  <script src="/static/js/home.js?v=33"></script>
+  <script src="/static/js/home.js?v=34"></script>
 </body>
 </html>
