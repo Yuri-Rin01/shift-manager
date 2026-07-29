@@ -376,10 +376,116 @@ function invertFilterGroupChecked(group) {
     });
 }
 
+const FOREIGN_STUDENT_JOB = "留学生";
+const SHEET_VIEW_META = {
+  all: { title: "全体シフト表.xlsx", foreign: false },
+  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
+};
+
+let currentSheetView = "all";
+let savedJobFilterBeforeSheet = null;
+
+function getCurrentSheetView() {
+  return currentSheetView || "all";
+}
+
+function updateSheetEmptyState() {
+  const empty = document.getElementById("sheet-empty-state");
+  const legend = document.getElementById("sheet-legend");
+  const tbody = shiftCalendar?.querySelector("tbody");
+  if (!empty || !tbody) return;
+
+  const isForeign = getCurrentSheetView() === "foreign-students";
+  const visibleCount = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden).length;
+  const showEmpty = isForeign && visibleCount === 0;
+  empty.classList.toggle("hidden", !showEmpty);
+  shiftCalendar?.classList.toggle("hidden", showEmpty);
+  legend?.classList.toggle("hidden", showEmpty);
+}
+
+function setSheetView(view) {
+  const next = SHEET_VIEW_META[view] ? view : "all";
+  const prev = currentSheetView;
+  currentSheetView = next;
+
+  const workspace = document.querySelector(".shift-workspace");
+  workspace?.setAttribute("data-sheet-view", next);
+  workspace?.classList.toggle("is-sheet-foreign", Boolean(SHEET_VIEW_META[next]?.foreign));
+
+  const title = document.getElementById("sheet-window-title");
+  if (title) {
+    title.textContent = SHEET_VIEW_META[next]?.title ?? "シフト表.xlsx";
+  }
+
+  document.querySelectorAll("[data-sheet-view]").forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    if (!el.classList.contains("sheet-file-item") && !el.classList.contains("sheet-tab")) {
+      return;
+    }
+    const active = el.dataset.sheetView === next;
+    el.classList.toggle("is-active", active);
+    if (el.classList.contains("sheet-file-item")) {
+      el.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+    if (el.classList.contains("sheet-tab")) {
+      el.setAttribute("aria-selected", active ? "true" : "false");
+    }
+  });
+
+  if (next === "foreign-students" && prev !== "foreign-students") {
+    savedJobFilterBeforeSheet = getSelectedFilterValues("job");
+    const jobBoxes = document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]');
+    jobBoxes.forEach((box) => {
+      box.checked = box.value === FOREIGN_STUDENT_JOB;
+    });
+  } else if (next === "all" && prev === "foreign-students") {
+    const jobBoxes = [...document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]')];
+    if (Array.isArray(savedJobFilterBeforeSheet)) {
+      jobBoxes.forEach((box) => {
+        box.checked = savedJobFilterBeforeSheet.includes(box.value);
+      });
+    } else {
+      jobBoxes.forEach((box) => {
+        box.checked = true;
+      });
+    }
+    savedJobFilterBeforeSheet = null;
+  }
+
+  applyRowFilters();
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    sheetView: next,
+  });
+}
+
+function initSheetViews() {
+  const saved = loadPrefs();
+  const folder = document.getElementById("sheet-file-folder");
+  const folderToggle = document.getElementById("sheet-folder-toggle");
+  folderToggle?.addEventListener("click", () => {
+    const open = !folder?.classList.contains("is-open");
+    folder?.classList.toggle("is-open", open);
+    folderToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  document.querySelectorAll(".sheet-file-item[data-sheet-view], .sheet-tab[data-sheet-view]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setSheetView(el.dataset.sheetView || "all");
+    });
+  });
+
+  const initial = SHEET_VIEW_META[saved.sheetView] ? saved.sheetView : "all";
+  setSheetView(initial);
+}
+
 function applyRowFilters() {
   const selectedDepts = getSelectedFilterValues("dept");
   const selectedJobs = getSelectedFilterValues("job");
   const selectedPositions = getSelectedFilterValues("position");
+  const sheetView = getCurrentSheetView();
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
 
@@ -387,7 +493,11 @@ function applyRowFilters() {
     const floors = (row.dataset.floors ?? row.dataset.dept ?? "").split(",").filter(Boolean);
     const matchDept =
       selectedDepts.length === 0 || floors.some((floor) => selectedDepts.includes(floor));
-    const matchJob = selectedJobs.length === 0 || selectedJobs.includes(row.dataset.job ?? "");
+    const job = row.dataset.job ?? "";
+    const matchJob =
+      sheetView === "foreign-students"
+        ? job === FOREIGN_STUDENT_JOB
+        : selectedJobs.length === 0 || selectedJobs.includes(job);
     const rowPosition = row.dataset.position ?? "";
     const matchPosition =
       selectedPositions.length === 0 || selectedPositions.includes(rowPosition);
@@ -395,6 +505,7 @@ function applyRowFilters() {
   });
   refreshSummaryCounts();
   updateFiltersSummary();
+  updateSheetEmptyState();
   saveFilterPrefs();
 }
 
@@ -562,6 +673,7 @@ function initCalendarControls() {
   initRowFilters();
   initSortState();
   initFiltersPanelCollapse();
+  initSheetViews();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =

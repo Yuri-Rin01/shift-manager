@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=63">
+  <link rel="stylesheet" href="/static/css/style.css?v=64">
 </head>
 <body>
   <div class="app">
@@ -187,33 +187,96 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="shift-calendar-shell">
-              <div
-                id="shift-calendar"
-                class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_dept_column %} hide-col-dept{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
-              >
-                {% with show_summary=true, editable=true, show_week_number=app_settings.show_week_number %}
-                  {% include "partials/shift_table.html" %}
-                {% endwith %}
+            <div class="shift-workspace" data-sheet-view="all">
+              <aside class="sheet-file-rail" aria-label="表示シート">
+                <div class="sheet-file-rail-head">
+                  <span class="sheet-file-rail-icon" aria-hidden="true"></span>
+                  <span class="sheet-file-rail-title">シフト表</span>
+                </div>
+                <div class="sheet-file-folder is-open" id="sheet-file-folder">
+                  <button type="button" class="sheet-file-folder-btn" id="sheet-folder-toggle" aria-expanded="true">
+                    <span class="sheet-file-chevron" aria-hidden="true"></span>
+                    <span class="sheet-file-folder-icon" aria-hidden="true"></span>
+                    <span class="sheet-file-folder-label">今月のシフト</span>
+                  </button>
+                  <ul class="sheet-file-list" id="sheet-file-list">
+                    <li>
+                      <button
+                        type="button"
+                        class="sheet-file-item is-active"
+                        data-sheet-view="all"
+                        aria-pressed="true"
+                      >
+                        <span class="sheet-file-item-icon sheet-file-item-icon-xlsx" aria-hidden="true"></span>
+                        <span class="sheet-file-item-text">
+                          <span class="sheet-file-item-name">全体シフト表</span>
+                          <span class="sheet-file-item-meta">全職員</span>
+                        </span>
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="sheet-file-item"
+                        data-sheet-view="foreign-students"
+                        aria-pressed="false"
+                      >
+                        <span class="sheet-file-item-icon sheet-file-item-icon-xlsx" aria-hidden="true"></span>
+                        <span class="sheet-file-item-text">
+                          <span class="sheet-file-item-name">留学生用シフト表</span>
+                          <span class="sheet-file-item-meta">職種：留学生</span>
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </aside>
+
+              <div class="shift-sheet-stage">
+                <div class="sheet-window-chrome" aria-hidden="true">
+                  <span class="sheet-window-dot"></span>
+                  <span class="sheet-window-dot"></span>
+                  <span class="sheet-window-dot"></span>
+                  <span class="sheet-window-title" id="sheet-window-title">全体シフト表.xlsx</span>
+                </div>
+                <div class="shift-calendar-shell">
+                  <div
+                    id="shift-calendar"
+                    class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_dept_column %} hide-col-dept{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
+                  >
+                    {% with show_summary=true, editable=true, show_week_number=app_settings.show_week_number %}
+                      {% include "partials/shift_table.html" %}
+                    {% endwith %}
+                  </div>
+                  <div id="sheet-empty-state" class="sheet-empty-state hidden" role="status">
+                    <p class="sheet-empty-title">表示できる留学生がいません</p>
+                    <p class="sheet-empty-body">職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。</p>
+                    <a class="btn btn-primary btn-sm" href="/staff">職員管理を開く</a>
+                  </div>
+                  {% if app_settings.show_shift_legend %}
+                  <div class="legend" id="sheet-legend">
+                    {% for item in legend %}
+                      <span class="legend-item">
+                        <span class="legend-symbol {{ item.class }}">{{ item.symbol }}</span>
+                        {{ item.label }}
+                      </span>
+                    {% endfor %}
+                    <span class="legend-item">
+                      <span class="legend-symbol legend-manual">手</span>
+                      手動入力
+                    </span>
+                    <span class="legend-item">
+                      <span class="legend-symbol legend-leave-request">休</span>
+                      希望休
+                    </span>
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="sheet-tabs" role="tablist" aria-label="シート切替">
+                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">全体</button>
+                  <button type="button" class="sheet-tab" data-sheet-view="foreign-students" role="tab" aria-selected="false">留学生用</button>
+                </div>
               </div>
-              {% if app_settings.show_shift_legend %}
-              <div class="legend">
-                {% for item in legend %}
-                  <span class="legend-item">
-                    <span class="legend-symbol {{ item.class }}">{{ item.symbol }}</span>
-                    {{ item.label }}
-                  </span>
-                {% endfor %}
-                <span class="legend-item">
-                  <span class="legend-symbol legend-manual">手</span>
-                  手動入力
-                </span>
-                <span class="legend-item">
-                  <span class="legend-symbol legend-leave-request">休</span>
-                  希望休
-                </span>
-              </div>
-              {% endif %}
             </div>
           </div>
         </section>
@@ -257,6 +320,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=20"></script>
-  <script src="/static/js/home.js?v=32"></script>
+  <script src="/static/js/home.js?v=33"></script>
 </body>
 </html>

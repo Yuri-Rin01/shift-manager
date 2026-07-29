@@ -62,8 +62,8 @@ _SEED_STAFF_BASE: list[dict] = [
     {"department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"department": "1F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
+    {"department": "1F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
+    {"department": "1F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
     # --- 2F 介護 ---
     {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
@@ -72,8 +72,8 @@ _SEED_STAFF_BASE: list[dict] = [
     {"department": "2F", "job_type": "介護士", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["1F", "2F"]},
     {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
     {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
-    {"department": "2F", "job_type": "介護士", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
+    {"department": "2F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
+    {"department": "2F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
     # --- 看護 ---
     {"department": "1F", "job_type": "看護師", "position": "主任", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["1F", "2F"]},
     {"department": "1F", "job_type": "看護師", "position": "一般", "can_work_night": True, "can_be_night_leader": False},
@@ -81,8 +81,8 @@ _SEED_STAFF_BASE: list[dict] = [
     {"department": "2F", "job_type": "看護師", "position": "一般", "can_work_night": True, "can_be_night_leader": False, "placement_floors": ["1F", "2F"]},
     {"department": "2F", "job_type": "看護師", "position": "リーダー", "can_work_night": True, "can_be_night_leader": True, "placement_floors": ["1F", "2F"]},
     # --- 日勤中心（夜勤不可） ---
-    {"department": "1F", "job_type": "理学療法士", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
-    {"department": "2F", "job_type": "作業療法士", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
+    {"department": "1F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
+    {"department": "2F", "job_type": "留学生", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
     {"department": "1F", "job_type": "ケアマネ", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
     {"department": "2F", "job_type": "相談員", "position": "一般", "can_work_night": False, "can_be_night_leader": False},
 ]

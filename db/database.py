@@ -169,6 +169,7 @@ def init_db() -> None:
         _sync_seed_staff_names(conn)
         _sync_seed_staff_floors(conn)
         _sync_seed_staff_night_flags(conn)
+        _sync_seed_staff_job_types(conn)
         _migrate_departments_to_floors(conn)
         conn.commit()
     get_settings()
@@ -753,4 +754,19 @@ def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
                 int(can_be_night_leader),
                 row["name"],
             ),
+        )
+
+
+def _sync_seed_staff_job_types(conn: sqlite3.Connection) -> None:
+    """テスト要因: シード定義の職種・役職を既存レコードへ反映する。"""
+    from data.staff_seed import SEED_STAFF
+
+    for row in SEED_STAFF:
+        conn.execute(
+            """
+            UPDATE staff
+            SET job_type = ?, position = ?
+            WHERE name = ?
+            """,
+            (row["job_type"], row["position"], row["name"]),
         )

@@ -408,7 +408,7 @@ body.sidebar-collapsed .nav-item:hover::after {
   letter-spacing: 0.08em;
   line-height: 1;
   color: #1e293b;
-  opacity: 0.045;
+  opacity: 0.055;
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -811,17 +811,20 @@ body.sidebar-collapsed .nav-item:hover::after {
   padding: 8px;
 }
 
+.content-home .home-shift-card .shift-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
 .content-home .home-shift-card .shift-calendar-shell {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: #fff;
-  border: 1px solid #d0d8e4;
-  border-radius: 8px;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 4px 14px rgba(15, 23, 42, 0.08);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -5517,11 +5520,15 @@ input[type="checkbox"]:focus-visible {
 
 @media (max-width: 768px) {
   .topbar {
-    padding: 8px 10px;
+    padding: 4px 10px 0;
+    min-height: 32px;
   }
 
-  .page-title {
-    font-size: 16px;
+  .page-watermark {
+    top: 36px;
+    right: 10px;
+    font-size: clamp(28px, 12vw, 56px);
+    opacity: 0.04;
   }
 
   .content {
@@ -5719,5 +5726,392 @@ input[type="checkbox"]:focus-visible {
   .home-period-skip {
     min-width: 36px;
     min-height: 36px;
+  }
+}
+
+/* File-like shift sheet browser */
+.shift-workspace {
+  --sheet-rail-bg: #f3f4f6;
+  --sheet-rail-border: #d1d5db;
+  --sheet-accent: #217346;
+  --sheet-accent-soft: #e8f5ee;
+  display: flex;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid #c5ced9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8edf3;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.sheet-file-rail {
+  width: 196px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sheet-rail-bg);
+  border-right: 1px solid var(--sheet-rail-border);
+  font-size: 12px;
+}
+
+.sheet-file-rail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--sheet-rail-border);
+  color: #334155;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sheet-file-rail-icon {
+  width: 14px;
+  height: 12px;
+  border-radius: 2px 2px 1px 1px;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sheet-file-rail-icon::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 7px;
+  height: 4px;
+  border-radius: 1px 1px 0 0;
+  background: #f59e0b;
+}
+
+.sheet-file-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-file-folder-btn:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.sheet-file-chevron {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid #64748b;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sheet-file-folder.is-open .sheet-file-chevron {
+  transform: rotate(90deg);
+}
+
+.sheet-file-folder-icon {
+  width: 14px;
+  height: 11px;
+  border-radius: 1px 2px 1px 1px;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sheet-file-folder-icon::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 6px;
+  height: 3px;
+  border-radius: 1px 1px 0 0;
+  background: #0ea5e9;
+}
+
+.sheet-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 10px 22px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sheet-file-folder.is-open .sheet-file-list {
+  display: flex;
+}
+
+.sheet-file-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-file-item:hover {
+  background: #fff;
+  border-color: #dbe3ee;
+}
+
+.sheet-file-item.is-active {
+  background: #fff;
+  border-color: #86b39a;
+  box-shadow: inset 3px 0 0 var(--sheet-accent);
+}
+
+.sheet-file-item-icon {
+  width: 16px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.sheet-file-item-icon-xlsx::before {
+  content: "";
+  position: absolute;
+  inset: 3px 2px 2px;
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  border-radius: 1px;
+  opacity: 0.9;
+}
+
+.sheet-file-item-icon-xlsx::after {
+  content: "X";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.04em;
+}
+
+.sheet-file-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sheet-file-item-name {
+  font-weight: 600;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.sheet-file-item-meta {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.shift-sheet-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.sheet-window-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border-bottom: 1px solid #d7dee8;
+  flex-shrink: 0;
+}
+
+.sheet-window-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.sheet-window-dot:nth-child(1) {
+  background: #f87171;
+}
+
+.sheet-window-dot:nth-child(2) {
+  background: #fbbf24;
+}
+
+.sheet-window-dot:nth-child(3) {
+  background: #34d399;
+}
+
+.sheet-window-title {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.shift-workspace .shift-calendar-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.sheet-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 24px;
+  min-height: 220px;
+  background:
+    linear-gradient(180deg, rgba(232, 245, 238, 0.55), rgba(255, 255, 255, 0.9)),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 23px,
+      rgba(148, 163, 184, 0.18) 23px,
+      rgba(148, 163, 184, 0.18) 24px
+    );
+}
+
+.sheet-empty-state.hidden {
+  display: none;
+}
+
+.sheet-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.sheet-empty-body {
+  margin: 0;
+  max-width: 28em;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.sheet-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 8px;
+  background: #e8edf3;
+  border-top: 1px solid #d0d8e4;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+
+.sheet-tab {
+  appearance: none;
+  border: 1px solid #c5ced9;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #dbe3ee;
+  color: #475569;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px 6px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.sheet-tab:hover {
+  background: #eef2f7;
+}
+
+.sheet-tab.is-active {
+  background: #fff;
+  color: #14532d;
+  border-color: #86b39a;
+  box-shadow: inset 0 2px 0 var(--sheet-accent);
+}
+
+.shift-workspace.is-sheet-foreign .sheet-window-chrome {
+  background: linear-gradient(180deg, #e8f5ee 0%, #dcefe4 100%);
+  border-bottom-color: #a7d4b8;
+}
+
+.shift-workspace.is-sheet-foreign .sheet-window-title {
+  color: #14532d;
+}
+
+.shift-workspace.is-sheet-foreign .shift-table thead th {
+  background: #217346;
+  color: #fff;
+  border-color: #1a5c38;
+}
+
+.shift-workspace.is-sheet-foreign .shift-table tbody tr:nth-child(even) td {
+  background: #f3fbf6;
+}
+
+.shift-workspace.is-sheet-foreign .shift-table .col-name,
+.shift-workspace.is-sheet-foreign .shift-table th.col-name,
+.shift-workspace.is-sheet-foreign .shift-table td.col-name {
+  background: #e8f5ee;
+}
+
+.shift-workspace.is-sheet-foreign .shift-table thead th.col-name {
+  background: #1a5c38;
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .shift-workspace {
+    flex-direction: column;
+  }
+
+  .sheet-file-rail {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--sheet-rail-border);
+  }
+
+  .sheet-file-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 8px 8px;
+  }
+
+  .sheet-file-folder.is-open .sheet-file-list {
+    display: flex;
+  }
+
+  .sheet-file-list > li {
+    flex: 1 1 160px;
   }
 }
