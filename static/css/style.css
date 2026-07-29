@@ -5943,12 +5943,6 @@ input[type="checkbox"]:focus-visible {
   background: #fff;
 }
 
-.sheet-window-chrome,
-.sheet-window-dot,
-.sheet-window-title {
-  display: none !important;
-}
-
 .shift-workspace .shift-calendar-shell {
   flex: 1;
   min-height: 0;
