@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=83">
+  <link rel="stylesheet" href="/static/css/style.css?v=84">
 </head>
 <body>
   <div class="app">
@@ -205,6 +205,7 @@
                 <div class="sheet-flip-viewport" id="sheet-flip-viewport">
                   <div class="sheet-flip-page" id="sheet-flip-page">
                     <div class="shift-calendar-shell">
+                      <div class="sheet-main-scroll" id="sheet-main-scroll">
                       <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
                         <div class="student-labor-panel-head">
                           <strong>留学生 週労働時間</strong>
@@ -267,6 +268,7 @@
                         <p class="sheet-empty-title">表示できる留学生がいません</p>
                         <p class="sheet-empty-body">職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。</p>
                         <a class="btn btn-primary btn-sm" href="/staff">職員管理を開く</a>
+                      </div>
                       </div>
                       {% if app_settings.show_shift_legend %}
                       <div class="legend" id="sheet-legend">

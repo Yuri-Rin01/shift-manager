@@ -6049,6 +6049,34 @@ input[type="checkbox"]:focus-visible {
   height: 100%;
 }
 
+.sheet-main-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 留学生シートは労働時間＋表を1スクロールにまとめる */
+.shift-workspace.is-sheet-foreign .sheet-main-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.shift-workspace.is-sheet-foreign .calendar-scroll {
+  flex: 0 0 auto;
+  min-height: auto;
+  display: block;
+}
+
+.shift-workspace.is-sheet-foreign .calendar-scroll .table-wrap,
+.content-home .shift-workspace.is-sheet-foreign .calendar-scroll .table-wrap {
+  flex: none;
+  max-height: none;
+  overflow: visible;
+}
+
 .sheet-flip-viewport {
   position: relative;
   flex: 1;
@@ -6384,17 +6412,13 @@ input[type="checkbox"]:focus-visible {
 /* 留学生労働時間パネル */
 .student-labor-panel {
   flex: 0 0 auto;
-  max-height: min(34vh, 260px);
   margin: 0;
   padding: 8px 10px 10px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   background: linear-gradient(180deg, #f3faf5 0%, #eef6f1 100%);
   border: none;
   border-bottom: 1px solid #b7d4c2;
   border-radius: 0;
-  min-height: 0;
 }
 
 .student-labor-panel.hidden {
