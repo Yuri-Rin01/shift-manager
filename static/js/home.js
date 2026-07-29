@@ -201,7 +201,7 @@ function syncSortSegments(mode = getCurrentSortMode()) {
 
 function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
   const segment =
-    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
+    document.querySelector("#home-filters-body .home-segment") ??
     document.querySelector(".home-segment");
   const indicator = segment?.querySelector(".home-segment-indicator");
   const active =
@@ -732,7 +732,7 @@ function updateFiltersSummary() {
     ? "絞り込みパネルを閉じます"
     : isFiltered
       ? `絞り込み中（非表示 ${hiddenCount} 項目）`
-      : "フロア・職種・役職で表示を絞り込みます";
+      : "並び順・表示・フロア・職種・役職を設定します";
 
   if (badge) {
     if (isFiltered) {
@@ -756,6 +756,9 @@ function setFiltersPanelCollapsed(collapsed) {
     body.hidden = collapsed;
   }
   updateFiltersSummary();
+  if (!collapsed) {
+    scheduleSortSegmentIndicatorUpdate();
+  }
   savePrefs({
     ...loadPrefs(),
     ...getPrefs(),
@@ -815,9 +818,10 @@ function initCalendarControls() {
   btnNextYear?.addEventListener("click", () => navigateYear(1));
 
   const homeToolbarTools = document.querySelector(".home-toolbar-inline-tools");
-  homeToolbarTools?.addEventListener("click", (event) => {
+  const filtersBody = document.getElementById("home-filters-body");
+  filtersBody?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-sort-mode]");
-    if (!button || !homeToolbarTools.contains(button)) return;
+    if (!button || !filtersBody.contains(button)) return;
     const sortSelect = getCalendarSortSelect();
     if (!sortSelect) return;
     sortSelect.value = button.dataset.sortMode ?? "dept";
@@ -831,7 +835,7 @@ function initCalendarControls() {
     applyTableZoom(selected / 100);
     savePrefs({ ...loadPrefs(), ...getPrefs(), tableZoom });
   });
-  homeToolbarTools?.addEventListener("change", (event) => {
+  filtersBody?.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
     if (!["home-color-cells", "home-show-job", "home-show-dept", "home-show-summary"].includes(input.id)) {
@@ -867,7 +871,7 @@ function initCalendarControls() {
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =
-    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
+    document.querySelector("#home-filters-body .home-segment") ??
     document.querySelector(".home-segment");
   if (sortSegment && typeof ResizeObserver !== "undefined") {
     const segmentObserver = new ResizeObserver(scheduleSortSegmentIndicatorUpdate);

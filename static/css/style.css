@@ -648,6 +648,20 @@ body.sidebar-collapsed .nav-item:hover::after {
 
 .home-controls-panel-filters-only {
   grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.home-filters-view-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.home-filters-view-tools .home-toolbar-block {
+  min-width: 0;
 }
 
 .home-toolbar-inline-tools {
