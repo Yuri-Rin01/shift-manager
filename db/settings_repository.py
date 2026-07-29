@@ -57,6 +57,10 @@ def _merge_settings(data: dict | None) -> dict:
             merged[key] = normalize_leave_request_visible_types(value)
         elif key == "leave_request_max_by_type" and isinstance(value, dict):
             merged[key] = normalize_leave_request_max_by_type(value)
+        elif key == "cell_flick_directions" and isinstance(value, list):
+            from data.flick_directions import normalize_cell_flick_directions
+
+            merged[key] = normalize_cell_flick_directions(value)
         else:
             merged[key] = value
     from data.shift_symbols import normalize_visible_work_types
@@ -64,6 +68,11 @@ def _merge_settings(data: dict | None) -> dict:
     merged["visible_work_types"] = normalize_visible_work_types(merged)
     merged["allow_paid_leave_half"] = merged["visible_work_types"].get("half_leave", True)
     merged["show_training_mark"] = merged["visible_work_types"].get("training", True)
+    from data.flick_directions import normalize_cell_flick_directions
+
+    merged["cell_flick_directions"] = normalize_cell_flick_directions(
+        merged.get("cell_flick_directions")
+    )
     merged["staffing_requirement_mode"] = normalize_staffing_requirement_mode(
         merged.get("staffing_requirement_mode")
     )

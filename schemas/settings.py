@@ -13,6 +13,7 @@ from data.placement_rules import (
     normalize_time_slot_staffing_rules,
 )
 from data.staffing_basis import normalize_staffing_basis_options
+from data.flick_directions import default_cell_flick_directions, normalize_cell_flick_directions
 
 
 class AppSettings(BaseModel):
@@ -39,6 +40,10 @@ class AppSettings(BaseModel):
     show_week_number: bool = False
     cell_flick_input_enabled: bool = True
     cell_long_press_ms: int = Field(default=450, ge=300, le=1500)
+    cell_flick_directions: list[str] = Field(
+        default_factory=default_cell_flick_directions,
+        description="フリック8方向に割り当てるシフト記号（空なら表示中の区分順）",
+    )
 
     print_paper: str = "A4 横"
     print_scale: str = "100%"
@@ -97,6 +102,11 @@ class AppSettings(BaseModel):
     show_training_mark: bool = True
     visible_work_types: dict[str, bool] = Field(default_factory=default_visible_work_types)
     shift_symbols: dict[str, str] = Field(default_factory=lambda: dict(DEFAULT_SHIFT_SYMBOLS))
+
+    @field_validator("cell_flick_directions", mode="before")
+    @classmethod
+    def normalize_cell_flick_directions_field(cls, value) -> list[str]:
+        return normalize_cell_flick_directions(value)
 
     @field_validator("visible_work_types")
     @classmethod

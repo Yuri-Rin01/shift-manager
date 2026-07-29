@@ -25,6 +25,7 @@ DEFAULT_SETTINGS: dict = {
     "show_week_number": False,
     "cell_flick_input_enabled": True,
     "cell_long_press_ms": 450,
+    "cell_flick_directions": [],
     # 印刷
     "print_paper": "A4 横",
     "print_scale": "100%",

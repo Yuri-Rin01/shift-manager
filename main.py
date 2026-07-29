@@ -37,6 +37,7 @@ from data.calendar_period import (
 from data.account_plan import get_account_plan_context
 from data.settings_panels import SETTINGS_PANELS, resolve_settings_panel
 from data.shift_symbols import get_work_type_setting_groups
+from data.flick_directions import FLICK_DIRECTIONS, FLICK_GRID_ORDER
 from data.routes import ROUTES, STUB_PAGES
 from db.database import init_db
 from db.settings_repository import get_settings
@@ -186,6 +187,8 @@ async def settings_page(request: Request, panel: str | None = None):
         table_zoom_options=TABLE_ZOOM_OPTIONS,
         work_type_setting_groups=get_work_type_setting_groups(),
         work_type_templates=get_work_type_templates(),
+        flick_directions=FLICK_DIRECTIONS,
+        flick_grid_order=FLICK_GRID_ORDER,
         settings_panels=SETTINGS_PANELS,
         settings_panel=current_panel["id"],
         settings_panel_meta=current_panel,

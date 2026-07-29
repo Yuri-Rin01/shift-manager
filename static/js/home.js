@@ -822,7 +822,23 @@ let flickPad = null;
 let flickBackdrop = null;
 
 function getFlickOptions() {
-  return shiftOptions.slice(0, FLICK_MAX_OPTIONS);
+  const assigned = Array.isArray(serverDefaults.cell_flick_directions)
+    ? serverDefaults.cell_flick_directions
+    : [];
+  const hasCustom = assigned.some((symbol) => String(symbol || "").trim());
+  if (!hasCustom) {
+    const defaults = shiftOptions.slice(0, FLICK_MAX_OPTIONS);
+    while (defaults.length < FLICK_MAX_OPTIONS) defaults.push(null);
+    return defaults;
+  }
+
+  const bySymbol = new Map(shiftOptions.map((item) => [item.symbol, item]));
+  const options = [];
+  for (let i = 0; i < FLICK_MAX_OPTIONS; i += 1) {
+    const key = String(assigned[i] || "").trim();
+    options.push(key ? bySymbol.get(key) || null : null);
+  }
+  return options;
 }
 
 function getFlickDirectionIndex(dx, dy) {
@@ -886,7 +902,7 @@ function updateFlickHighlight(directionIndex) {
   const center = flickPad.querySelector(".shift-flick-center-symbol");
   const options = getFlickOptions();
   if (center) {
-    if (directionIndex >= 0 && directionIndex < options.length) {
+    if (directionIndex >= 0 && directionIndex < options.length && options[directionIndex]) {
       center.textContent = options[directionIndex].symbol;
       center.className = `shift-flick-center-symbol ${options[directionIndex].class}`;
     } else {
@@ -928,6 +944,7 @@ function openFlickPad(td) {
   pad.appendChild(center);
 
   options.forEach((option, index) => {
+    if (!option) return;
     const angle = (-90 + index * 45) * (Math.PI / 180);
     const left = centerX + radius * Math.cos(angle) - 28;
     const top = centerY + radius * Math.sin(angle) - 28;
@@ -1409,8 +1426,9 @@ function initShiftCellEditor() {
 
     if (flickActive) {
       const options = getFlickOptions();
-      if (directionIndex >= 0 && directionIndex < options.length) {
-        saveCellSymbol(td, options[directionIndex].symbol);
+      const selected = directionIndex >= 0 ? options[directionIndex] : null;
+      if (selected?.symbol) {
+        saveCellSymbol(td, selected.symbol);
       } else {
         closeFlickPad();
       }
