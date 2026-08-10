@@ -5688,12 +5688,12 @@ input[type="checkbox"]:focus-visible {
 
   .shift-table th.day-col,
   .shift-table td.shift-td {
-    min-width: 30px;
-    min-height: 34px;
+    min-width: 34px;
+    min-height: 40px;
   }
 
   .shift-td-editable {
-    min-height: 34px;
+    min-height: 40px;
   }
 
   .sheet-tabs {
@@ -5824,19 +5824,40 @@ input[type="checkbox"]:focus-visible {
 
   .content-home .shift-table .col-name {
     left: 0;
-    min-width: 64px;
-    max-width: 88px;
+    min-width: 76px;
+    max-width: 110px;
+    font-size: 13px;
+  }
+
+  .content-home .shift-table .day-head-num {
+    font-size: 15px;
+  }
+
+  .content-home .shift-table .day-head-weekday {
+    font-size: 10px;
   }
 
   .shift-table th.day-col,
   .shift-table td.shift-td {
-    min-width: 28px;
-    padding: 4px 1px;
-    min-height: 36px;
+    min-width: 36px;
+    padding: 5px 2px;
+    min-height: 44px;
+    font-size: 14px;
   }
 
   .shift-td-editable {
-    min-height: 36px;
+    min-height: 44px;
+  }
+
+  .shift-td > .shift-cell,
+  .shift-td > .shift-cell::after {
+    font-size: 14px;
+  }
+
+  .shift-paid-leave,
+  .shift-cell.shift-paid-leave,
+  .shift-cell.shift-paid-leave::after {
+    font-size: 11px;
   }
 
   .content-home .home-shift-card .calendar-scroll .table-wrap {
@@ -7016,7 +7037,7 @@ body.is-phone .content-home {
 body.is-phone .content-home .shift-calendar-shell,
 body.is-phone .sheet-main-scroll,
 body.is-phone .content-home .calendar-scroll {
-  min-height: 42dvh;
+  min-height: 54dvh;
 }
 
 body.is-phone .content-home .shift-table .col-job,
@@ -7024,10 +7045,47 @@ body.is-phone .content-home .shift-table .col-dept {
   display: none;
 }
 
+body.is-phone .content-home .shift-table .col-name {
+  min-width: 80px;
+  max-width: 120px;
+  font-size: 13px;
+}
+
+body.is-phone .content-home .shift-table .day-head-num {
+  font-size: 16px;
+}
+
+body.is-phone .content-home .shift-table .day-head-weekday {
+  font-size: 11px;
+}
+
 body.is-phone .shift-table th.day-col,
 body.is-phone .shift-table td.shift-td {
-  min-width: 30px;
-  min-height: 38px;
+  min-width: 40px;
+  min-height: 46px;
+  padding: 6px 2px;
+  font-size: 15px;
+}
+
+body.is-phone .shift-td-editable {
+  min-height: 46px;
+}
+
+body.is-phone .shift-td > .shift-cell,
+body.is-phone .shift-td > .shift-cell::after {
+  font-size: 15px;
+}
+
+body.is-phone .shift-paid-leave,
+body.is-phone .shift-cell.shift-paid-leave,
+body.is-phone .shift-cell.shift-paid-leave::after {
+  font-size: 12px;
+}
+
+body.is-phone .sheet-tab {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 13px;
 }
 
 /* Phone landscape / short viewport: prioritize the calendar */
@@ -7071,7 +7129,13 @@ body.is-phone.is-landscape .content-home .shift-calendar-shell,
 body.is-short-viewport .content-home .shift-calendar-shell,
 body.is-phone.is-landscape .sheet-main-scroll,
 body.is-short-viewport .sheet-main-scroll {
-  min-height: 58dvh;
+  min-height: 68dvh;
+}
+
+body.is-phone.is-landscape .shift-table th.day-col,
+body.is-phone.is-landscape .shift-table td.shift-td {
+  min-width: 38px;
+  min-height: 42px;
 }
 
 body.is-phone.is-landscape .home-bottom-print-btn,
@@ -7106,8 +7170,18 @@ body.is-tablet .content-home .calendar-scroll .table-wrap {
 
 body.is-tablet .shift-table th.day-col,
 body.is-tablet .shift-table td.shift-td {
-  min-width: 32px;
-  min-height: 36px;
+  min-width: 36px;
+  min-height: 42px;
+  font-size: 14px;
+}
+
+body.is-tablet .shift-td > .shift-cell,
+body.is-tablet .shift-td > .shift-cell::after {
+  font-size: 14px;
+}
+
+body.is-tablet .content-home .shift-table .day-head-num {
+  font-size: 16px;
 }
 
 /* Transparent hit target above glyphs — iOS long-press has no text node to select */

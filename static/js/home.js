@@ -1072,11 +1072,24 @@ function initDisplayFromSettings() {
 
 function initTableZoom() {
   const saved = loadPrefs();
+  const compact = window.matchMedia("(max-width: 1024px)").matches;
+  const phone = window.matchMedia("(max-width: 768px)").matches;
   let baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
-  // First visit on phone/tablet: slightly smaller so more days fit
-  if (saved.tableZoom == null && window.matchMedia("(max-width: 1024px)").matches) {
-    baseZoom = window.matchMedia("(max-width: 768px)").matches ? 0.8 : 0.9;
+
+  // Prefer readable size on touch devices (was 80%/90% and felt too small)
+  if (compact) {
+    const target = phone ? 1.1 : 1.0;
+    if (saved.tableZoom == null) {
+      baseZoom = target;
+    } else if (!saved.sheetReadableV1 && Number(saved.tableZoom) < target) {
+      // One-time bump for users stuck on the old compact default
+      baseZoom = target;
+      savePrefs({ ...saved, tableZoom: target, sheetReadableV1: true });
+    } else if (!saved.sheetReadableV1) {
+      savePrefs({ ...saved, sheetReadableV1: true });
+    }
   }
+
   applyTableZoom(baseZoom);
   zoomControls?.addEventListener("wheel", handleZoomWheel, { passive: false });
   shiftCalendar?.addEventListener(
