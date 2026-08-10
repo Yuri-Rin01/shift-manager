@@ -1033,6 +1033,7 @@ function initCalendarControls() {
   initSortState();
   initFiltersPanelCollapse();
   initSheetViews();
+  initPullToReload();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =
@@ -2502,6 +2503,121 @@ async function runClearShifts() {
 }
 
 clearShiftsButton?.addEventListener("click", runClearShifts);
+
+function initPullToReload() {
+  const THRESHOLD = 72;
+  const MAX_PULL = 120;
+  const targets = [
+    document.getElementById("sheet-main-scroll"),
+    shiftCalendar?.querySelector(".table-wrap"),
+    document.querySelector(".content-home"),
+  ].filter(Boolean);
+
+  if (!targets.length) return;
+
+  let indicator = document.getElementById("pull-reload-indicator");
+  if (!indicator) {
+    indicator = document.createElement("div");
+    indicator.id = "pull-reload-indicator";
+    indicator.className = "pull-reload-indicator";
+    indicator.setAttribute("aria-live", "polite");
+    indicator.innerHTML = `<span class="pull-reload-spinner" aria-hidden="true"></span><span class="pull-reload-text">引き下げて再読み込み</span>`;
+    (document.querySelector(".shift-workspace") || document.querySelector(".content-home") || document.body).prepend(
+      indicator
+    );
+  }
+
+  let startY = 0;
+  let pulling = false;
+  let armed = false;
+  let reloading = false;
+  let activeTarget = null;
+
+  function setIndicator(distance) {
+    const progress = Math.min(1, distance / THRESHOLD);
+    indicator.style.setProperty("--pull", String(progress));
+    indicator.classList.toggle("is-visible", distance > 8);
+    indicator.classList.toggle("is-ready", distance >= THRESHOLD);
+    const text = indicator.querySelector(".pull-reload-text");
+    if (text) {
+      text.textContent = distance >= THRESHOLD ? "離すと再読み込み" : "引き下げて再読み込み";
+    }
+  }
+
+  function resetIndicator() {
+    indicator.classList.remove("is-visible", "is-ready", "is-reloading");
+    indicator.style.setProperty("--pull", "0");
+    const text = indicator.querySelector(".pull-reload-text");
+    if (text) text.textContent = "引き下げて再読み込み";
+  }
+
+  function canPull(el) {
+    if (!el || reloading) return false;
+    if (document.body.classList.contains("sidebar-open")) return false;
+    if (document.querySelector(".shift-picker:not(.hidden), .cell-editor:not(.hidden), .modal:not(.hidden)")) {
+      return false;
+    }
+    return el.scrollTop <= 0;
+  }
+
+  function onTouchStart(event) {
+    if (reloading || event.touches.length !== 1) return;
+    const el = event.currentTarget;
+    if (!canPull(el)) {
+      pulling = false;
+      return;
+    }
+    activeTarget = el;
+    startY = event.touches[0].clientY;
+    pulling = true;
+    armed = false;
+  }
+
+  function onTouchMove(event) {
+    if (!pulling || !activeTarget || reloading) return;
+    if (!canPull(activeTarget)) {
+      pulling = false;
+      resetIndicator();
+      return;
+    }
+    const dy = event.touches[0].clientY - startY;
+    if (dy <= 0) {
+      armed = false;
+      resetIndicator();
+      return;
+    }
+    const distance = Math.min(MAX_PULL, dy * 0.55);
+    armed = distance >= THRESHOLD;
+    setIndicator(distance);
+    if (dy > 10) event.preventDefault();
+  }
+
+  function onTouchEnd() {
+    if (!pulling) return;
+    pulling = false;
+    if (armed && !reloading) {
+      reloading = true;
+      indicator.classList.add("is-visible", "is-ready", "is-reloading");
+      const text = indicator.querySelector(".pull-reload-text");
+      if (text) text.textContent = "再読み込み中…";
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 180);
+      return;
+    }
+    resetIndicator();
+    activeTarget = null;
+    armed = false;
+  }
+
+  targets.forEach((el) => {
+    el.classList.add("pull-reload-host");
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+  });
+}
 
 shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");
