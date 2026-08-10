@@ -345,12 +345,55 @@ body.sidebar-collapsed .nav-item:hover::after {
   background: transparent;
   border-bottom: none;
   padding: 6px 14px 0;
+  padding-top: calc(6px + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
   min-height: 36px;
+}
+
+.topbar-leading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.topbar-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.topbar-menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.topbar-menu-btn:hover,
+.topbar-menu-btn:focus-visible {
+  background: #eef2ff;
+  border-color: #93c5fd;
+  outline: none;
+}
+
+.topbar-menu-btn[hidden] {
+  display: none !important;
 }
 
 .topbar-title {
@@ -5456,9 +5499,14 @@ input[type="checkbox"]:focus-visible {
     justify-content: center;
   }
 
+  .topbar-menu-btn:not([hidden]) {
+    display: inline-flex;
+  }
+
   .sidebar {
     width: min(280px, 86vw);
     max-width: 320px;
+    padding-top: env(safe-area-inset-top, 0px);
     transform: translateX(-105%);
     transition: transform 0.22s ease;
     box-shadow: none;
@@ -5506,8 +5554,14 @@ input[type="checkbox"]:focus-visible {
     display: none !important;
   }
 
+  body.sidebar-open .topbar-menu-btn {
+    display: none !important;
+  }
+
   .content {
     padding: 10px 12px 88px;
+    padding-left: calc(12px + env(safe-area-inset-left, 0px));
+    padding-right: calc(12px + env(safe-area-inset-right, 0px));
   }
 
   .content-no-footer {
@@ -5606,16 +5660,71 @@ input[type="checkbox"]:focus-visible {
     flex-wrap: wrap;
     gap: 8px;
   }
+
+  /* Tablet: keep shift cells finger-friendly */
+  .content-home .home-shift-card .card-body {
+    padding: 6px;
+  }
+
+  .content-home .home-shift-card .calendar-scroll .table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .shift-table th.day-col,
+  .shift-table td.shift-td {
+    min-width: 30px;
+    min-height: 34px;
+  }
+
+  .shift-td-editable {
+    min-height: 34px;
+  }
+
+  .sheet-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .sheet-tab {
+    flex: 0 0 auto;
+  }
+
+  .home-toolbar-row-actions {
+    gap: 8px;
+  }
+
+  .home-period-step,
+  .home-period-skip,
+  .btn.btn-sm.btn-icon {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .student-labor-panel {
+    padding: 12px 10px 10px;
+  }
+
+  .student-labor-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
   .topbar {
     padding: 4px 10px 0;
-    min-height: 32px;
+    padding-top: calc(4px + env(safe-area-inset-top, 0px));
+    min-height: 44px;
+  }
+
+  .topbar-menu-btn:not([hidden]) {
+    width: 42px;
+    height: 42px;
   }
 
   .page-watermark {
-    top: 36px;
+    top: 44px;
     right: 10px;
     font-size: clamp(28px, 12vw, 56px);
     opacity: 0.04;
@@ -5623,10 +5732,13 @@ input[type="checkbox"]:focus-visible {
 
   .content {
     padding: 8px 8px 96px;
+    padding-left: calc(8px + env(safe-area-inset-left, 0px));
+    padding-right: calc(8px + env(safe-area-inset-right, 0px));
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 
   .content-home {
-    padding-bottom: 80px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
   .card-header {
@@ -5654,9 +5766,10 @@ input[type="checkbox"]:focus-visible {
   }
 
   .home-segment-btn {
-    padding: 6px 8px;
-    font-size: 11px;
+    padding: 8px 10px;
+    font-size: 12px;
     white-space: nowrap;
+    min-height: 36px;
   }
 
   .home-toolbar-actions {
@@ -5669,6 +5782,7 @@ input[type="checkbox"]:focus-visible {
   .home-toolbar-actions .btn {
     width: 100%;
     justify-content: center;
+    min-height: 40px;
   }
 
   .home-toolbar-actions .btn-danger,
@@ -5684,37 +5798,50 @@ input[type="checkbox"]:focus-visible {
     flex-wrap: wrap;
   }
 
-  /* Calendar: shrink sticky columns so day cells stay usable */
-  .shift-table .col-name {
-    min-width: 52px;
+  /* Phone: keep name sticky, hide job/dept to free day columns */
+  .content-home .shift-table .col-job,
+  .content-home .shift-table .col-dept,
+  .content-home .shift-table thead th.col-job,
+  .content-home .shift-table thead th.col-dept {
+    display: none;
   }
 
-  .shift-table .col-job {
-    left: 52px;
-    min-width: 64px;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .shift-table .col-dept {
-    left: 116px;
+  .content-home .shift-table .col-name {
+    left: 0;
     min-width: 64px;
     max-width: 88px;
   }
 
-  .hide-col-job .col-dept {
-    left: 52px;
-  }
-
-  .hide-col-dept .col-job {
-    left: 52px;
-  }
-
   .shift-table th.day-col,
   .shift-table td.shift-td {
-    min-width: 26px;
-    padding: 3px 1px;
+    min-width: 28px;
+    padding: 4px 1px;
+    min-height: 36px;
+  }
+
+  .shift-td-editable {
+    min-height: 36px;
+  }
+
+  .content-home .home-shift-card .calendar-scroll .table-wrap {
+    border-radius: 0;
+  }
+
+  .sheet-tabs {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .student-labor-title {
+    font-size: 16px;
+  }
+
+  .student-labor-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-labor-card-top {
+    align-items: flex-start;
   }
 
   /* Staff: hide dense columns on phone; edit still has full detail */

@@ -1,8 +1,17 @@
 {# Compact topbar + page watermark. Expects: page_heading #}
 <header class="topbar">
-  <h1 class="visually-hidden">{{ page_heading }}</h1>
-  <div class="topbar-meta">
-    <span class="topbar-facility">{{ facility_name }}</span>
+  <div class="topbar-leading">
+    <button type="button" class="topbar-menu-btn" id="topbar-menu-open" aria-label="メニューを開く" aria-controls="app-sidebar" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <line x1="4" y1="7" x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
+      </svg>
+    </button>
+    <h1 class="visually-hidden">{{ page_heading }}</h1>
+    <div class="topbar-meta">
+      <span class="topbar-facility">{{ facility_name }}</span>
+    </div>
   </div>
   <div class="topbar-actions">
     <span class="topbar-admin">{{ admin_name }}</span>

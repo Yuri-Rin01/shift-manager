@@ -1071,7 +1071,11 @@ function initDisplayFromSettings() {
 
 function initTableZoom() {
   const saved = loadPrefs();
-  const baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
+  let baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
+  // First visit on phone/tablet: slightly smaller so more days fit
+  if (saved.tableZoom == null && window.matchMedia("(max-width: 1024px)").matches) {
+    baseZoom = window.matchMedia("(max-width: 768px)").matches ? 0.8 : 0.9;
+  }
   applyTableZoom(baseZoom);
   zoomControls?.addEventListener("wheel", handleZoomWheel, { passive: false });
   shiftCalendar?.addEventListener(
