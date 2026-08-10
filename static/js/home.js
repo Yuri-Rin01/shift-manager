@@ -1081,6 +1081,7 @@ function initTableZoom() {
     const target = phone ? 1.1 : 1.0;
     if (saved.tableZoom == null) {
       baseZoom = target;
+      savePrefs({ ...saved, tableZoom: target, sheetReadableV1: true });
     } else if (!saved.sheetReadableV1 && Number(saved.tableZoom) < target) {
       // One-time bump for users stuck on the old compact default
       baseZoom = target;
