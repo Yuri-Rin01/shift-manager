@@ -2,25 +2,22 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=34">
+  <link rel="stylesheet" href="/static/css/style.css?v=89">
 </head>
 <body>
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      <header class="topbar">
-        <div class="page-title-bar">
-          <h1 class="page-title">{{ settings_panel_meta.label }}</h1>
-          <p class="page-subtitle">{{ settings_panel_meta.subtitle }}</p>
-        </div>
-        <div class="topbar-actions">
-          <span>?</span>
-          <span>{{ admin_name }}</span>
-        </div>
-      </header>
+      {% with page_heading=settings_panel_meta.label %}
+        {% include "partials/topbar.html" %}
+      {% endwith %}
+      <p class="page-lead">{{ settings_panel_meta.subtitle }}</p>
 
       <div class="content content-settings">
         <div id="settings-alert" class="alert hidden" role="alert"></div>
@@ -90,7 +87,7 @@
                     <option value="{{ opt.value }}">{{ opt.label }}</option>
                   {% endfor %}
                 </select>
-                <span class="field-hint">介護施設・病院を選ぶと、職種・カレンダー表示がその種別に合わせて切り替わります（フロアは 1F〜4F のみ使用）。</span>
+                <span class="field-hint">介護施設を選ぶと医師など病院専用の職種は一覧から外れます。病院に切り替えると病院向け職種・役職に変わります（フロアは 1F〜4F）。</span>
               </label>
               <label class="form-field">
                 <span class="form-label">管理者表示名</span>
@@ -150,6 +147,19 @@
                 </label>
               </div>
 
+              <h3 class="settings-subtitle">シフト表シートの色</h3>
+              <p class="field-hint">ホーム上部のシートタブごとにテーマ色を設定します。保存後にカレンダーを再読み込みすると反映されます。</p>
+              <div class="settings-form-grid settings-form-grid-compact">
+                <label class="form-field">
+                  <span class="form-label">全体シート</span>
+                  <input type="color" name="sheet_view_color_all" data-sheet-color-key="all" value="#3B82F6">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">留学生用シート</span>
+                  <input type="color" name="sheet_view_color_foreign_students" data-sheet-color-key="foreign-students" value="#217346">
+                </label>
+              </div>
+
               <h3 class="settings-subtitle">日付・カレンダー</h3>
               <div class="settings-form-grid settings-form-grid-compact">
                 <label class="form-field">
@@ -171,15 +181,8 @@
                   <span class="field-hint">週番号行の区切りに使用します。</span>
                 </label>
                 <label class="form-field">
-                  <span class="form-label">休み日数（1期間あたり）</span>
-                  <input
-                    type="number"
-                    name="off_days_per_period"
-                    min="0"
-                    max="31"
-                    placeholder="自動（土日）"
-                  >
-                  <span class="field-hint">全職員共通。空欄のときは表示期間内の土日数を使います。勤務割合の約日数と自動生成の休み割当に反映されます。</span>
+                  <span class="form-label">休みの数（1期間あたり）</span>
+                  <p class="field-hint">施設全体の標準は <a href="/settings?panel=auto">自動生成設定の「休みの数」</a> で変更します。職員ごとの上書きは職員管理で設定します。</p>
                 </label>
               </div>
               <div class="settings-checkbox-grid">
@@ -206,8 +209,43 @@
                     max="1500"
                     step="50"
                   >
-                  <span class="field-hint">セルを長押しすると方向フリックでシフトを選べます。短くタップすると従来の一覧から選択します（最大8区分までフリックに割り当て）。</span>
+                  <span class="field-hint">セルを長押しすると方向フリックでシフトを選べます。短くタップすると従来の一覧から選択します。</span>
                 </label>
+              </div>
+
+              <h3 class="settings-subtitle">スライド（フリック）方向の割り当て</h3>
+              <p class="field-hint">
+                長押し後に指を動かした方向へ割り当てる勤務区分です。空欄の方向は使いません。
+                すべて空のときは、上の勤務区分の表示順から最大8つを自動割り当てします。
+              </p>
+              <div class="flick-assign-toolbar">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-flick-auto-fill">表示区分で自動配置</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-flick-clear">すべて空にする</button>
+              </div>
+              <div class="flick-assign-grid" id="flick-assign-grid" role="group" aria-label="フリック方向の割り当て">
+                {% for dir_index in flick_grid_order %}
+                  {% if dir_index is none %}
+                    <div class="flick-assign-cell flick-assign-center" aria-hidden="true">
+                      <span class="flick-assign-center-mark">長押し</span>
+                    </div>
+                  {% else %}
+                    {% set direction = flick_directions[dir_index] %}
+                    <label class="flick-assign-cell">
+                      <span class="flick-assign-dir">
+                        <span class="flick-assign-arrow" aria-hidden="true">{{ direction.arrow }}</span>
+                        <span class="flick-assign-dir-label">{{ direction.label }}</span>
+                      </span>
+                      <select
+                        class="input-select flick-assign-select"
+                        name="cell_flick_direction__{{ dir_index }}"
+                        data-flick-index="{{ dir_index }}"
+                        aria-label="{{ direction.label }}方向の勤務区分"
+                      >
+                        <option value="">（なし）</option>
+                      </select>
+                    </label>
+                  {% endif %}
+                {% endfor %}
               </div>
 
               <h3 class="settings-subtitle">勤務区分</h3>
@@ -309,7 +347,7 @@
           <section class="card settings-section{% if settings_panel != 'staffing' %} is-hidden-panel{% endif %}" id="section-staffing" data-panel="staffing">
             <div class="card-header">
               <h2>配置ルール</h2>
-              <p class="card-header-note">勤務区分・勤務時間、必要人数（2方式）など、シフト配置に必要な設定です。時間帯モードでは登録済みの勤務区分の時間帯と重なる区分から自動配置します。</p>
+              <p class="card-header-note">勤務区分と日勤帯の必要人数を設定します。夜勤人数・連勤上限・リーダー設定は「自動生成」パネルの基本／詳細で行います。</p>
             </div>
             <div class="card-body">
               <h3 class="settings-subtitle">勤務区分・勤務時間</h3>
@@ -379,7 +417,7 @@
 
               <div id="panel-time-slot-staffing" class="requirement-panel" data-requirement-mode="time_slot">
                 <h4 class="requirement-panel-title">時間帯ごとの必要人数</h4>
-                <p class="field-hint requirement-panel-desc">時間帯ごとに必要人数を設定します。フロアを指定すると、そのフロア担当の職員だけが割り当て対象になります。上で登録した勤務区分のうち、時間が重なる区分から自動配置されます。</p>
+                <p class="field-hint requirement-panel-desc">日中の時間帯ごとに必要人数を設定します。フロアを指定すると、そのフロア担当の職員だけが割り当て対象になります。登録済みの勤務区分のうち、時間が重なる<strong>日中区分</strong>から自動配置されます。<strong>夜勤は人数固定のため下の別枠</strong>で設定します。</p>
                 <div class="staffing-basis-table-wrap">
                   <table class="data-table time-slot-staffing-table" id="time-slot-staffing-table">
                     <thead>
@@ -396,37 +434,70 @@
                   </table>
                 </div>
                 <button type="button" class="btn btn-sm" id="btn-add-time-slot">+ 時間帯を追加</button>
+
+                <h4 class="requirement-panel-title" style="margin-top:1.25rem">夜勤（人数固定・別枠）</h4>
+                <p class="field-hint requirement-panel-desc">夜勤は時間帯ルールではなく、フロアごとの必要人数を固定で設定します。自動生成ではこの人数を優先して配置します。目安の登録人数は <a href="/settings?panel=auto">自動生成設定</a> にも表示されます。</p>
+                <div class="staffing-basis-table-wrap">
+                  <table class="data-table floor-night-min-staff-table" id="floor-night-min-staff-table">
+                    <thead>
+                      <tr>
+                        <th class="col-floor">フロア</th>
+                        <th class="col-min-staff">夜勤 必要人数</th>
+                      </tr>
+                    </thead>
+                    <tbody id="floor-night-min-staff-tbody"></tbody>
+                  </table>
+                </div>
+                <div id="staffing-night-guidance" class="auto-gen-guidance" aria-live="polite">
+                  <p class="auto-gen-guidance-title">この人数が必要です（目安）</p>
+                  <p class="auto-gen-guidance-body" id="staffing-night-guidance-body">自動生成パネルと同じ計算です。読み込み中…</p>
+                  <ul class="auto-gen-guidance-floors" id="staffing-night-guidance-floors"></ul>
+                </div>
               </div>
+              </div>
+
+              <h3 class="settings-subtitle">留学生の労働時間制限</h3>
+              <p class="field-hint">在留資格「留学」の職員に適用する上限です。分単位で内部管理し、法改正時にここから変更できます。週の開始曜日はカレンダー表示の「週開始」とは別に、労働時間集計用です（初期値：月曜日）。</p>
+              <div class="settings-form-grid" id="student-labor-limits-fields">
+                <label class="form-field">
+                  <span class="form-label">通常期間の週上限（時間）</span>
+                  <input type="number" id="sl-normal-weekly-hours" min="1" max="168" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">長期休業の1日上限（時間）</span>
+                  <input type="number" id="sl-vacation-daily-hours" min="1" max="24" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">長期休業の週上限（時間）</span>
+                  <input type="number" id="sl-vacation-weekly-hours" min="1" max="168" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">上限接近警告（残り時間）</span>
+                  <input type="number" id="sl-approach-hours" min="0" max="40" step="1">
+                </label>
+                <label class="form-field">
+                  <span class="form-label">労働時間集計の週開始曜日</span>
+                  <select id="sl-week-start">
+                    <option value="monday">月曜日</option>
+                    <option value="tuesday">火曜日</option>
+                    <option value="wednesday">水曜日</option>
+                    <option value="thursday">木曜日</option>
+                    <option value="friday">金曜日</option>
+                    <option value="saturday">土曜日</option>
+                    <option value="sunday">日曜日</option>
+                  </select>
+                </label>
               </div>
 
               <h3 class="settings-subtitle">時間・勤務ルール</h3>
               <div class="fixed-rules-panel">
                 <p class="fixed-rules-title">固定ルール（変更不可）</p>
                 <ul class="fixed-rules-list">
-                  <li>夜勤の<strong>翌日は明け</strong>に自動設定します（自動生成・手動入力とも）。</li>
+                  <li>夜勤の<strong>翌日は明け</strong>、その<strong>翌日は休み</strong>に自動設定します（自動生成・手動入力とも）。</li>
                   <li>明けの<strong>翌日</strong>は<strong>早番・日勤・遅出</strong>には入れません。</li>
                 </ul>
               </div>
-              <div class="settings-form-grid settings-form-grid-compact">
-                <label class="form-field">
-                  <span class="form-label">連続勤務 上限日数</span>
-                  <input type="number" name="max_consecutive_days" min="1" max="14">
-                </label>
-                <label class="form-field">
-                  <span class="form-label">週あたり夜勤 上限回数</span>
-                  <input type="number" name="max_night_per_week" min="0" max="7">
-                </label>
-              </div>
-              <div class="settings-checkbox-grid">
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="night_shift_counts_as_two_days">
-                  <span>夜勤を2日分としてカウント</span>
-                </label>
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="require_leader_on_night">
-                  <span>夜勤にリーダー以上を必須</span>
-                </label>
-              </div>
+              <p class="field-hint">連続勤務の上限・週の夜勤上限・夜勤リーダー必須は <a href="/settings?panel=auto">自動生成設定</a> で変更します。</p>
             </div>
           </section>
 
@@ -462,33 +533,123 @@
           <section class="card settings-section{% if settings_panel != 'auto' %} is-hidden-panel{% endif %}" id="section-auto" data-panel="auto">
             <div class="card-header">
               <h2>シフト自動生成</h2>
-              <p class="card-header-note">カレンダー画面の「シフト自動生成」から実行できます。優先順位は下記のとおりです。</p>
+              <p class="card-header-note">はじめての方は「基本設定」だけで生成できます。細かい調整は「詳細設定」を開いてください。職員の夜勤可否などは職員管理の内容を参照します。</p>
             </div>
-            <div class="card-body settings-form-grid">
-              <label class="check-row settings-check">
-                <input type="checkbox" name="prioritize_leave_requests">
-                <span>休み希望を優先</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="consider_night_eligibility">
-                <span>夜勤可否を考慮</span>
-              </label>
-              <label class="form-field">
-                <span class="form-label">公平性モード</span>
-                <select name="fairness_mode">
-                  {% for opt in fairness_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="confirm_after_generate">
-                <span>生成後に確認画面を表示</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="auto_fill_holidays">
-                <span>祝日を自動で休みに設定</span>
-              </label>
+            <div class="card-body">
+              <div class="auto-gen-basic-panel">
+                <h3 class="settings-subtitle">基本設定</h3>
+                <p class="field-hint">標準の夜勤体制は毎日 <strong>1F夜勤1名・2F夜勤1名・夜勤リーダー1名</strong>（計3名）です。</p>
+
+                <label class="form-field">
+                  <span class="form-label">休みの数（公休・1期間あたり）</span>
+                  <input type="number" name="off_days_per_period" min="0" max="31" placeholder="未設定＝土日の日数">
+                  <span class="field-hint">自動生成で割り当てる休み（公休）の標準日数です。空欄だと表示期間内の土日数を使います。職員ごとに違う場合は職員管理で上書きできます。</span>
+                </label>
+
+                <div class="auto-gen-night-model">
+                  <h4 class="requirement-panel-title">夜勤の必要人数（フロア）</h4>
+                  <p class="field-hint">配置ルールのフロア別必要人数のうち、夜勤だけをここで確認・調整できます。日勤帯の人数は「配置ルール」で設定します。</p>
+                  <div class="staffing-basis-table-wrap">
+                    <table class="data-table" id="auto-gen-night-min-table">
+                      <thead>
+                        <tr>
+                          <th>フロア</th>
+                          <th class="col-min-staff">夜勤 必要人数</th>
+                        </tr>
+                      </thead>
+                      <tbody id="auto-gen-night-min-tbody"></tbody>
+                    </table>
+                  </div>
+                  <div id="auto-gen-night-guidance" class="auto-gen-guidance" aria-live="polite">
+                    <p class="auto-gen-guidance-title">この人数が必要です（目安）</p>
+                    <p class="auto-gen-guidance-body" id="auto-gen-night-guidance-body">読み込み中…</p>
+                    <ul class="auto-gen-guidance-floors" id="auto-gen-night-guidance-floors"></ul>
+                  </div>
+                </div>
+
+                <div class="settings-checkbox-grid" style="margin-top:1rem">
+                  <label class="check-row settings-check">
+                    <input type="checkbox" name="require_leader_on_night" id="require-leader-on-night-auto">
+                    <span>夜勤リーダーを毎日置く</span>
+                  </label>
+                  <span class="field-hint form-field-full">職員管理の「夜勤リーダー可」の人だけが候補です。リーダー可の人は夜勤にも入ります（役職とは別設定です）。</span>
+                  <div id="auto-gen-leader-guidance" class="auto-gen-guidance form-field-full" aria-live="polite">
+                    <p class="auto-gen-guidance-title">夜勤リーダーに必要な人数（目安）</p>
+                    <p class="auto-gen-guidance-body" id="auto-gen-leader-guidance-body">読み込み中…</p>
+                  </div>
+                </div>
+
+                <div class="auto-gen-staff-readiness" id="auto-gen-staff-readiness">
+                  <h4 class="requirement-panel-title">職員の準備状況（参照）</h4>
+                  <p class="field-hint">自動生成画面では変更できません。不足があれば職員管理で設定してください。</p>
+                  <ul class="auto-gen-readiness-list" id="auto-gen-readiness-list">
+                    <li>読み込み中…</li>
+                  </ul>
+                  <p class="field-hint"><a href="/staff">職員管理を開く</a> ／ <a href="/settings?panel=staffing">配置ルール（日勤の必要人数）</a></p>
+                </div>
+
+                <div class="fixed-rules-panel" style="margin-top:1rem">
+                  <p class="fixed-rules-title">希望休について</p>
+                  <ul class="fixed-rules-list">
+                    <li>承認済みの希望休は<strong>必ず守ります</strong>（自動生成で上書きしません）。</li>
+                    <li>夜勤の翌日は明け、その翌日は休みに自動設定します（固定ルール）。</li>
+                  </ul>
+                </div>
+              </div>
+
+              <details class="auto-gen-advanced" id="auto-gen-advanced">
+                <summary class="auto-gen-advanced-summary">詳細設定を開く</summary>
+                <div class="auto-gen-advanced-body settings-form-grid">
+                  <label class="form-field">
+                    <span class="form-label">連続勤務の上限日数</span>
+                    <input type="number" name="max_consecutive_days" min="1" max="14">
+                    <span class="field-hint">連続して勤務できる最大日数です。初期値は5日です（小さいほど厳しくなります）。</span>
+                  </label>
+                  <label class="form-field">
+                    <span class="form-label">1週間の夜勤回数上限</span>
+                    <input type="number" name="max_night_per_week" min="0" max="7">
+                    <span class="field-hint">1週間に割り当てる夜勤の上限です。0は制限なしです。</span>
+                  </label>
+                  <label class="check-row settings-check">
+                    <input type="checkbox" name="night_shift_counts_as_two_days">
+                    <span>夜勤を勤務日数の計算で2日分として扱う</span>
+                  </label>
+                  <span class="field-hint form-field-full">職員管理の勤務割合の目安表示に使います。自動生成では夜勤の翌日を明けとして扱う固定ルールがあります。</span>
+                  <label class="check-row settings-check">
+                    <input type="checkbox" name="balance_workload" id="field-balance-workload">
+                    <span>勤務の偏りを抑える</span>
+                  </label>
+                  <span class="field-hint form-field-full">夜勤や出勤が一部の職員に偏らないように調整します。</span>
+                  <label class="check-row settings-check">
+                    <input type="checkbox" name="consider_night_eligibility">
+                    <span>夜勤可否を考慮する</span>
+                  </label>
+                  <span class="field-hint form-field-full">OFFにすると「夜勤に入れる」が未設定でも夜勤候補に含みます（通常はONのまま）。</span>
+                  <input type="hidden" name="prioritize_leave_requests" value="1" id="hidden-prioritize-leave">
+                  <input type="hidden" name="fairness_mode" id="hidden-fairness-mode" value="balance">
+                  <input type="hidden" name="confirm_after_generate" value="1">
+                  <input type="hidden" name="auto_fill_holidays" value="0">
+
+                  <div id="night-leader-groups-panel-auto" class="night-leader-groups-panel form-field-full">
+                    <h4 class="requirement-panel-title">夜勤リーダー配置（フロアグループ）</h4>
+                    <p class="field-hint">初めての利用では標準の「1・2階で1人」のままで問題ありません。</p>
+                    <div class="staffing-basis-table-wrap">
+                      <table class="data-table night-leader-groups-table" id="night-leader-groups-table">
+                        <thead>
+                          <tr>
+                            <th>名称</th>
+                            <th>対象フロア</th>
+                            <th class="col-min-staff">必要人数</th>
+                            <th class="col-actions">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody id="night-leader-groups-tbody"></tbody>
+                      </table>
+                    </div>
+                    <button type="button" class="btn btn-sm" id="btn-add-night-leader-group">+ グループを追加</button>
+                  </div>
+                </div>
+              </details>
             </div>
           </section>
 
@@ -587,7 +748,7 @@
 
   <div class="settings-save-bar" role="region" aria-label="設定の保存">
     <div class="settings-save-bar-inner">
-      <button type="button" class="btn" id="btn-reset-defaults">デフォルトに戻す</button>
+      <button type="button" class="btn btn-secondary" id="btn-reset-defaults">デフォルトに戻す</button>
       <button type="submit" form="settings-form" class="btn btn-primary" id="btn-save-settings">設定を適用</button>
     </div>
   </div>
@@ -596,6 +757,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=8"></script>
+  <script src="/static/js/settings.js?v=21"></script>
 </body>
 </html>

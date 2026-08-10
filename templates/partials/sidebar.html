@@ -1,22 +1,37 @@
-<aside class="sidebar">
+{% from "partials/nav_icons.html" import nav_icon %}
+<aside class="sidebar" id="app-sidebar">
   <div class="sidebar-header">
-    <h1>シフト作成システム</h1>
+    <h1 class="sidebar-title">シフト作成システム</h1>
+    <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse" aria-expanded="true" aria-controls="app-sidebar" aria-label="サイドバーを折りたたむ">
+      <svg class="sidebar-collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="15 6 9 12 15 18"/>
+      </svg>
+    </button>
+    <button type="button" class="sidebar-close" id="sidebar-close" aria-label="メニューを閉じる">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
   </div>
   <nav class="sidebar-nav">
     {% for item in sidebar_menu %}
-      {% if item.children %}
-        <div class="nav-group-title">{{ item.label }}</div>
-        {% for child in item.children %}
-          <a href="{{ child.href }}" class="nav-item nav-child{% if item.key == 'settings' %} nav-settings-child{% endif %}{% if child.active %} active{% endif %}">{{ child.label }}</a>
-        {% endfor %}
-      {% else %}
-        <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
-      {% endif %}
+      <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}" data-label="{{ item.label }}">
+        {{ nav_icon(item.icon) }}
+        <span class="nav-item-label">{{ item.label }}</span>
+      </a>
     {% endfor %}
   </nav>
   <div class="sidebar-footer">
     <div class="facility">{{ facility_name }}</div>
-    <div>{{ facility_label }} / {{ admin_name }}</div>
+    <div class="sidebar-footer-meta">{{ facility_label }} / {{ admin_name }}</div>
     <button class="btn-logout" type="button" disabled title="管理者ログイン実装後に有効化予定">ログアウト（ログイン実装予定）</button>
   </div>
 </aside>
+<button type="button" class="sidebar-mobile-tab" id="sidebar-mobile-open" aria-label="メニューを開く" aria-controls="app-sidebar" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="9 6 15 12 9 18"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+<script src="/static/js/app-shell.js?v=6"></script>

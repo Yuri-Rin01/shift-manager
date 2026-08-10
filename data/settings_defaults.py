@@ -1,9 +1,16 @@
+from data.auto_generate_defaults import (
+    FACILITY_NIGHT_FLOOR_MINS,
+    FAIRNESS_UI_OPTIONS,
+    auto_generate_defaults_for_settings,
+)
+
+_AUTO = auto_generate_defaults_for_settings()
+
 DEFAULT_SETTINGS: dict = {
     # 施設
-    "facility_name": "○○病院",
-    "facility_type": "all",
-    "admin_name": "管理者",
-    # 表示ルール
+    "facility_name": "○○施設",
+    "facility_type": "care",
+    "admin_name": "管理者",    # 表示ルール
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
@@ -18,6 +25,18 @@ DEFAULT_SETTINGS: dict = {
     "show_week_number": False,
     "cell_flick_input_enabled": True,
     "cell_long_press_ms": 450,
+    "cell_flick_directions": [],
+    "sheet_view_colors": {
+        "all": "#3B82F6",
+        "foreign-students": "#217346",
+    },
+    "student_labor_limits": {
+        "normal_weekly_minutes": 28 * 60,
+        "vacation_daily_minutes": 8 * 60,
+        "vacation_weekly_minutes": 40 * 60,
+        "approach_remaining_minutes": 4 * 60,
+        "week_start": "monday",
+    },
     # 印刷
     "print_paper": "A4 横",
     "print_scale": "100%",
@@ -43,31 +62,34 @@ DEFAULT_SETTINGS: dict = {
         "day": 2,
         "night": 1,
     },
-    "min_staff_by_floor": {},
-    "staffing_requirement_mode": "time_slot",
+    "min_staff_by_floor": {
+        floor: {"early": 1, "day": 2, "late": 0, "night": night_min}
+        for floor, night_min in FACILITY_NIGHT_FLOOR_MINS.items()
+    },
+    "staffing_requirement_mode": _AUTO["staffing_requirement_mode"],
     "time_slot_staffing_rules": [
         {"label": "早番帯", "start_time": "07:00", "end_time": "16:00", "min_staff": 2, "floor": "1F"},
         {"label": "日勤帯", "start_time": "08:30", "end_time": "17:30", "min_staff": 3, "floor": "1F"},
-        {"label": "夜勤帯", "start_time": "16:30", "end_time": "09:00", "min_staff": 1, "floor": "1F"},
     ],
-    "block_work_after_night": True,
-    "morning_off_after_night": True,
-    "night_shift_counts_as_two_days": True,
-    "max_consecutive_days": 5,
-    "max_night_per_week": 2,
-    "require_leader_on_night": True,
+    "block_work_after_night": _AUTO["block_work_after_night"],
+    "morning_off_after_night": _AUTO["morning_off_after_night"],
+    "night_shift_counts_as_two_days": _AUTO["night_shift_counts_as_two_days"],
+    "max_consecutive_days": _AUTO["max_consecutive_days"],
+    "max_night_per_week": _AUTO["max_night_per_week"],
+    "require_leader_on_night": _AUTO["require_leader_on_night"],
+    "night_leader_groups": list(_AUTO["night_leader_groups"]),
     # アラート
     "leave_alert_threshold": 72,
     "leave_fulfill_target": 90,
     "warn_overstaffing": True,
     "warn_understaffing": True,
     "show_status_bar": True,
-    # 自動生成
-    "prioritize_leave_requests": True,
-    "consider_night_eligibility": True,
-    "fairness_mode": "balance",
-    "confirm_after_generate": True,
-    "auto_fill_holidays": False,
+    # 自動生成（詳細は data/auto_generate_defaults.py）
+    "prioritize_leave_requests": _AUTO["prioritize_leave_requests"],
+    "consider_night_eligibility": _AUTO["consider_night_eligibility"],
+    "fairness_mode": _AUTO["fairness_mode"],
+    "confirm_after_generate": _AUTO["confirm_after_generate"],
+    "auto_fill_holidays": _AUTO["auto_fill_holidays"],
     # セキュリティ
     "log_retention_days": 90,
     "session_timeout_minutes": 60,
@@ -131,9 +153,9 @@ DEFAULT_SETTINGS: dict = {
 }
 
 FACILITY_TYPE_OPTIONS = [
-    {"value": "all", "label": "病院・介護施設（統合）"},
-    {"value": "hospital", "label": "病院"},
     {"value": "care", "label": "介護施設"},
+    {"value": "hospital", "label": "病院"},
+    {"value": "all", "label": "病院・介護施設（統合）"},
 ]
 
 FACILITY_LABELS = {
@@ -163,11 +185,7 @@ STAFF_SORT_OPTIONS = [
 
 TABLE_ZOOM_OPTIONS = [50, 70, 80, 90, 100, 110, 120, 130, 150, 200]
 
-FAIRNESS_OPTIONS = [
-    {"value": "balance", "label": "均等配分"},
-    {"value": "experience", "label": "経験者優先"},
-    {"value": "newcomer", "label": "新人配慮"},
-]
+FAIRNESS_OPTIONS = list(FAIRNESS_UI_OPTIONS)
 
 PRINT_PAPER_OPTIONS = ["A4 横", "A4 縦", "A3 横"]
 PRINT_SCALE_OPTIONS = ["100%", "90%", "80%", "70%"]
