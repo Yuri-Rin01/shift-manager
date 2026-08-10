@@ -1,5 +1,8 @@
 (() => {
   const COMPACT_MQ = window.matchMedia("(max-width: 1024px)");
+  const PHONE_MQ = window.matchMedia("(max-width: 768px)");
+  const LANDSCAPE_MQ = window.matchMedia("(orientation: landscape)");
+  const SHORT_MQ = window.matchMedia("(max-height: 520px)");
   const SIDEBAR_ID = "app-sidebar";
   const LS_KEY = "sidebar_collapsed";
 
@@ -31,6 +34,21 @@
     return document.body.classList.contains("sidebar-collapsed");
   }
 
+  function syncDeviceMode() {
+    const phone = PHONE_MQ.matches || (COMPACT_MQ.matches && SHORT_MQ.matches);
+    const tablet = COMPACT_MQ.matches && !phone;
+    const device = phone ? "phone" : tablet ? "tablet" : "desktop";
+    const orientation = LANDSCAPE_MQ.matches ? "landscape" : "portrait";
+    document.body.dataset.device = device;
+    document.body.dataset.orientation = orientation;
+    document.body.classList.toggle("is-phone", device === "phone");
+    document.body.classList.toggle("is-tablet", device === "tablet");
+    document.body.classList.toggle("is-desktop", device === "desktop");
+    document.body.classList.toggle("is-landscape", orientation === "landscape");
+    document.body.classList.toggle("is-portrait", orientation === "portrait");
+    document.body.classList.toggle("is-short-viewport", SHORT_MQ.matches);
+  }
+
   function syncCollapseButton() {
     const btn = collapseBtn();
     if (!btn || isCompact()) return;
@@ -41,15 +59,13 @@
 
   function syncMobileTab() {
     const open = document.body.classList.contains("sidebar-open");
-    const show = isCompact() && !open;
+    const showMenu = isCompact() && !open;
+    // Prefer topbar hamburger; keep edge tab hidden to avoid overlap on iPhone
     const tab = mobileOpenBtn();
-    if (tab) {
-      if (show) tab.removeAttribute("hidden");
-      else tab.setAttribute("hidden", "");
-    }
+    if (tab) tab.setAttribute("hidden", "");
     const menu = topbarMenuBtn();
     if (menu) {
-      if (show) menu.removeAttribute("hidden");
+      if (showMenu) menu.removeAttribute("hidden");
       else menu.setAttribute("hidden", "");
     }
   }
@@ -101,6 +117,7 @@
     const pane = sidebar();
     if (pane && !pane.id) pane.id = SIDEBAR_ID;
 
+    syncDeviceMode();
     restoreDesktopState();
     syncMobileTab();
 
@@ -164,6 +181,7 @@
     }
 
     const onMq = () => {
+      syncDeviceMode();
       if (!isCompact()) {
         closeMobile();
         restoreDesktopState();
@@ -175,8 +193,13 @@
       syncMobileTab();
     };
 
-    if (typeof COMPACT_MQ.addEventListener === "function") COMPACT_MQ.addEventListener("change", onMq);
-    else if (typeof COMPACT_MQ.addListener === "function") COMPACT_MQ.addListener(onMq);
+    [COMPACT_MQ, PHONE_MQ, LANDSCAPE_MQ, SHORT_MQ].forEach((mq) => {
+      if (typeof mq.addEventListener === "function") mq.addEventListener("change", onMq);
+      else if (typeof mq.addListener === "function") mq.addListener(onMq);
+    });
+    window.addEventListener("orientationchange", () => {
+      window.setTimeout(onMq, 50);
+    });
   }
 
   if (document.readyState === "loading") {

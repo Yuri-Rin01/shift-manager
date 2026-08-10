@@ -6919,3 +6919,171 @@ input[type="checkbox"]:focus-visible {
     transform: rotate(360deg);
   }
 }
+
+/* ========== Device-specific layouts (body[data-device]) ========== */
+body.is-phone .sidebar-mobile-tab,
+body.is-tablet .sidebar-mobile-tab {
+  display: none !important;
+}
+
+/* Phone: stack home toolbar, enlarge controls */
+body.is-phone .home-toolbar-row-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+body.is-phone .home-toolbar-leading {
+  width: 100%;
+}
+
+body.is-phone .home-toolbar-inline-tools {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+body.is-phone .home-toolbar-actions {
+  margin-left: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+body.is-phone .home-toolbar-actions .btn {
+  min-height: 42px;
+  justify-content: center;
+}
+
+body.is-phone .home-toolbar-actions .btn-primary,
+body.is-phone .home-toolbar-actions .btn-danger {
+  grid-column: 1 / -1;
+}
+
+body.is-phone .home-period-skip {
+  display: none;
+}
+
+body.is-phone .home-period-step,
+body.is-phone .btn.btn-sm.btn-icon {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+body.is-phone .home-bottom-bar {
+  gap: 8px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
+body.is-phone .home-bottom-bar-status {
+  display: none;
+}
+
+body.is-phone .home-bottom-print-btn {
+  width: 100%;
+  margin-left: 0;
+  min-height: 44px;
+}
+
+body.is-phone .content-home {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+body.is-phone .content-home .shift-calendar-shell,
+body.is-phone .sheet-main-scroll,
+body.is-phone .content-home .calendar-scroll {
+  min-height: 42dvh;
+}
+
+body.is-phone .content-home .shift-table .col-job,
+body.is-phone .content-home .shift-table .col-dept {
+  display: none;
+}
+
+body.is-phone .shift-table th.day-col,
+body.is-phone .shift-table td.shift-td {
+  min-width: 30px;
+  min-height: 38px;
+}
+
+/* Phone landscape / short viewport: prioritize the calendar */
+body.is-phone.is-landscape .topbar,
+body.is-short-viewport .topbar {
+  min-height: 40px;
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  padding-bottom: 4px;
+}
+
+body.is-phone.is-landscape .topbar-facility,
+body.is-short-viewport .topbar-facility {
+  display: none;
+}
+
+body.is-phone.is-landscape .home-toolbar-note,
+body.is-short-viewport .home-toolbar-note,
+body.is-phone.is-landscape .home-bottom-bar-status,
+body.is-short-viewport .home-bottom-bar-status {
+  display: none !important;
+}
+
+body.is-phone.is-landscape .card-header-stacked,
+body.is-short-viewport .card-header-stacked {
+  padding: 6px 8px;
+}
+
+body.is-phone.is-landscape .home-toolbar-actions,
+body.is-short-viewport .home-toolbar-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+body.is-phone.is-landscape .home-toolbar-actions .btn-primary,
+body.is-phone.is-landscape .home-toolbar-actions .btn-danger,
+body.is-short-viewport .home-toolbar-actions .btn-primary,
+body.is-short-viewport .home-toolbar-actions .btn-danger {
+  grid-column: auto;
+}
+
+body.is-phone.is-landscape .content-home .shift-calendar-shell,
+body.is-short-viewport .content-home .shift-calendar-shell,
+body.is-phone.is-landscape .sheet-main-scroll,
+body.is-short-viewport .sheet-main-scroll {
+  min-height: 58dvh;
+}
+
+body.is-phone.is-landscape .home-bottom-print-btn,
+body.is-short-viewport .home-bottom-print-btn {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+body.is-phone.is-landscape .sheet-legend,
+body.is-short-viewport #sheet-legend {
+  display: none;
+}
+
+/* Tablet: keep more chrome, but still touch-friendly */
+body.is-tablet .home-period-step,
+body.is-tablet .btn.btn-sm.btn-icon,
+body.is-tablet .home-filters-btn {
+  min-height: 38px;
+}
+
+body.is-tablet .home-toolbar-actions .btn {
+  min-height: 40px;
+}
+
+body.is-tablet .home-toolbar-row-actions {
+  gap: 10px;
+}
+
+body.is-tablet .content-home .calendar-scroll .table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+body.is-tablet .shift-table th.day-col,
+body.is-tablet .shift-table td.shift-td {
+  min-width: 32px;
+  min-height: 36px;
+}
