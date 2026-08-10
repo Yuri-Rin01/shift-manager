@@ -342,16 +342,16 @@ body.sidebar-collapsed .nav-item:hover::after {
 }
 
 .topbar {
-  background: transparent;
-  border-bottom: none;
-  padding: 6px 14px 0;
-  padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
-  min-height: 36px;
+  min-height: 48px;
 }
 
 .topbar-leading {
@@ -360,6 +360,13 @@ body.sidebar-collapsed .nav-item:hover::after {
   gap: 8px;
   min-width: 0;
   flex: 1;
+}
+
+.topbar-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .topbar-menu-btn {
@@ -397,9 +404,14 @@ body.sidebar-collapsed .nav-item:hover::after {
 }
 
 .topbar-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-meta {
@@ -416,7 +428,7 @@ body.sidebar-collapsed .nav-item:hover::after {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: min(240px, 40vw);
+  max-width: min(280px, 50vw);
 }
 
 .topbar-actions {
@@ -439,26 +451,7 @@ body.sidebar-collapsed .nav-item:hover::after {
   font-weight: 600;
 }
 
-/* Page title as soft watermark in the main pane */
-.page-watermark {
-  position: absolute;
-  right: 18px;
-  top: 42px;
-  z-index: 0;
-  margin: 0;
-  font-size: clamp(40px, 7vw, 88px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  color: #1e293b;
-  opacity: 0.055;
-  pointer-events: none;
-  user-select: none;
-  white-space: nowrap;
-  max-width: calc(100% - 48px);
-  overflow: hidden;
-  text-overflow: clip;
-}
+/* Removed soft page watermark; title lives in .topbar-title */
 
 .page-lead {
   position: relative;
@@ -5713,9 +5706,9 @@ input[type="checkbox"]:focus-visible {
 
 @media (max-width: 768px) {
   .topbar {
-    padding: 4px 10px 0;
-    padding-top: calc(4px + env(safe-area-inset-top, 0px));
-    min-height: 44px;
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+    min-height: 52px;
   }
 
   .topbar-menu-btn:not([hidden]) {
@@ -5723,11 +5716,12 @@ input[type="checkbox"]:focus-visible {
     height: 42px;
   }
 
-  .page-watermark {
-    top: 44px;
-    right: 10px;
-    font-size: clamp(28px, 12vw, 56px);
-    opacity: 0.04;
+  .topbar-title {
+    font-size: 15px;
+  }
+
+  .topbar-facility {
+    max-width: min(180px, 42vw);
   }
 
   .content {
