@@ -915,10 +915,14 @@ body.sidebar-collapsed .nav-item:hover::after {
   min-height: 0;
   max-height: none;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: #fff;
   border: none;
   border-radius: 0;
   box-shadow: none;
+  /* Keep last rows reachable above the fixed bottom bar / rubber-band */
+  padding-bottom: 24px;
 }
 
 /* Home: subdued toolbar, emphasized shift table */
@@ -7224,11 +7228,12 @@ body.is-ios .content-home [contenteditable="true"] {
   -webkit-touch-callout: default !important;
 }
 
-body.is-ios .content-home .shift-td-editable {
-  touch-action: manipulation;
+/* Phone: allow pan scrolling from day cells (manipulation alone can feel sticky) */
+body.is-phone .content-home .shift-td-editable {
+  touch-action: pan-x pan-y manipulation;
 }
 
-body.is-ios .content-home .table-wrap {
+body.is-phone .content-home .table-wrap {
   touch-action: pan-x pan-y;
 }
 
