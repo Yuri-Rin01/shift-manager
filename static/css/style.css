@@ -2037,6 +2037,17 @@ body.sidebar-collapsed .nav-item:hover::after {
 .color-cells .shift-td.shift-public { background: #f8fafc; }
 .shift-td-editable {
   cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shift-td-editable .shift-cell,
+.shift-table .shift-cell {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .shift-td.is-manual {

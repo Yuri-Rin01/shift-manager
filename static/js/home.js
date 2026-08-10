@@ -1852,6 +1852,8 @@ function initShiftCellEditor() {
     };
 
     td.setPointerCapture?.(event.pointerId);
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount) sel.removeAllRanges();
 
     if (flickInputEnabled()) {
       cellPointer.longPressTimer = window.setTimeout(() => {
@@ -1944,11 +1946,28 @@ function initShiftCellEditor() {
   });
 
   shiftCalendar?.addEventListener("contextmenu", (event) => {
-    if (!flickInputEnabled()) return;
-    const td = event.target.closest(".shift-td-editable");
+    const td = event.target.closest(".shift-td-editable, .shift-table th, .shift-table td, .col-name");
     if (!td || !shiftCalendar.contains(td)) return;
     event.preventDefault();
   });
+
+  shiftCalendar?.addEventListener("selectstart", (event) => {
+    if (event.target.closest("input, textarea, select")) return;
+    event.preventDefault();
+  });
+
+  // iOS Safari: block native long-press selection while keeping scroll
+  shiftCalendar?.addEventListener(
+    "touchstart",
+    (event) => {
+      const td = event.target.closest(".shift-td-editable");
+      if (!td || !shiftCalendar.contains(td)) return;
+      // Clear any existing selection so long-press does not expand to "Select All"
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount) sel.removeAllRanges();
+    },
+    { passive: true }
+  );
 
   shiftCalendar?.addEventListener("dblclick", (event) => {
     const td = event.target.closest(".shift-td-editable");
