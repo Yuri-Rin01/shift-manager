@@ -6906,7 +6906,11 @@ input[type="checkbox"]:focus-visible {
   border-radius: 0;
 }
 
-/* Pull-to-reload (上端を下へ引っ張って再読み込み) */
+/* Pull-to-reload (ページ上端を下へ引っ張って再読み込み) */
+.main.pull-reload-host {
+  position: relative;
+}
+
 .pull-reload-indicator {
   position: absolute;
   top: calc(8px + env(safe-area-inset-top, 0px));

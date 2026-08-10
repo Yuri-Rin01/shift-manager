@@ -2705,21 +2705,29 @@ clearShiftsButton?.addEventListener("click", runClearShifts);
 function initPullToReload() {
   const THRESHOLD = 72;
   const MAX_PULL = 120;
-  const host =
-    document.querySelector(".shift-workspace") ||
-    document.querySelector(".content-home");
+  // Page-level host (not the sheet). Pull from topbar/toolbar chrome.
+  const host = document.querySelector(".main") || document.body;
   if (!host || host.dataset.pullReloadBound === "1") return;
   host.dataset.pullReloadBound = "1";
 
-  function resolveScrollport() {
-    const main = document.getElementById("sheet-main-scroll");
-    const wrap = shiftCalendar?.querySelector(".table-wrap");
-    if (main) {
-      const oy = window.getComputedStyle(main).overflowY;
-      // Foreign sheet uses one shared vertical scroller on #sheet-main-scroll
-      if (oy === "auto" || oy === "scroll" || oy === "overlay") return main;
-    }
-    return wrap || main;
+  function pageScrollTop() {
+    const content = document.querySelector(".content");
+    return Math.max(
+      window.scrollY || 0,
+      document.documentElement.scrollTop || 0,
+      document.body.scrollTop || 0,
+      content?.scrollTop || 0
+    );
+  }
+
+  function isSheetSurface(target) {
+    if (!(target instanceof Element)) return false;
+    // Sheet / table gestures must keep native scrolling — never hijack those
+    return Boolean(
+      target.closest(
+        ".table-wrap, .calendar-scroll, .sheet-main-scroll, .student-labor-panel, .sheet-flip-viewport, .sheet-empty-state"
+      )
+    );
   }
 
   let indicator = document.getElementById("pull-reload-indicator");
@@ -2762,10 +2770,7 @@ function initPullToReload() {
     if (document.querySelector(".shift-picker:not(.hidden), .cell-editor:not(.hidden), .modal:not(.hidden)")) {
       return false;
     }
-    const el = resolveScrollport();
-    if (!el) return false;
-    // Allow pull even when content fits the viewport (no overflow yet)
-    return el.scrollTop <= 1;
+    return pageScrollTop() <= 1;
   }
 
   host.classList.add("pull-reload-host");
@@ -2774,7 +2779,12 @@ function initPullToReload() {
     "touchstart",
     (event) => {
       if (reloading || event.touches.length !== 1) return;
-      if (event.target.closest("input, textarea, select, button, a")) return;
+      if (event.target.closest("input, textarea, select, button, a, label")) return;
+      if (isSheetSurface(event.target)) {
+        tracking = false;
+        pulling = false;
+        return;
+      }
       if (!canPull()) {
         tracking = false;
         pulling = false;
@@ -2799,7 +2809,6 @@ function initPullToReload() {
         return;
       }
       const dy = event.touches[0].clientY - startY;
-      // Finger moving up = scroll down the sheet — never capture that
       if (dy <= 0) {
         pulling = false;
         armed = false;
@@ -2810,7 +2819,6 @@ function initPullToReload() {
       const distance = Math.min(MAX_PULL, dy * 0.55);
       armed = distance >= THRESHOLD;
       setIndicator(distance);
-      // Only lock native scroll while actively pulling down from the top
       if (dy > 12) event.preventDefault();
     },
     { passive: false }
