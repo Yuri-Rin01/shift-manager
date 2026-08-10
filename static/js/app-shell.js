@@ -39,6 +39,9 @@
     const tablet = COMPACT_MQ.matches && !phone;
     const device = phone ? "phone" : tablet ? "tablet" : "desktop";
     const orientation = LANDSCAPE_MQ.matches ? "landscape" : "portrait";
+    const isIos =
+      /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     document.body.dataset.device = device;
     document.body.dataset.orientation = orientation;
     document.body.classList.toggle("is-phone", device === "phone");
@@ -47,6 +50,7 @@
     document.body.classList.toggle("is-landscape", orientation === "landscape");
     document.body.classList.toggle("is-portrait", orientation === "portrait");
     document.body.classList.toggle("is-short-viewport", SHORT_MQ.matches);
+    document.body.classList.toggle("is-ios", isIos);
   }
 
   function syncCollapseButton() {

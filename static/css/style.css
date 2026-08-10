@@ -7110,17 +7110,44 @@ body.is-tablet .shift-table td.shift-td {
   min-height: 36px;
 }
 
-/* Stronger iOS selection lock on the shift grid */
-body.is-ios .content-home .shift-table,
-body.is-ios .content-home .shift-table th,
-body.is-ios .content-home .shift-table td,
-body.is-ios .content-home .shift-table .shift-cell,
-body.is-ios .content-home .sheet-tabs,
-body.is-ios .content-home .student-labor-panel {
+/* Transparent hit target above glyphs — iOS long-press has no text node to select */
+.shift-td {
+  position: relative;
+}
+
+.shift-cell-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shift-td > .shift-cell {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Stronger iOS selection lock — whole home surface, not only cells */
+body.is-ios .content-home,
+body.is-ios .content-home * {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent;
+}
+
+body.is-ios .content-home input,
+body.is-ios .content-home textarea,
+body.is-ios .content-home select,
+body.is-ios .content-home [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 body.is-ios .content-home .shift-td-editable {
@@ -7131,8 +7158,16 @@ body.is-ios .content-home .table-wrap {
   touch-action: pan-x pan-y;
 }
 
-body.is-ios .content-home .staff-name-link {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
+body.is-ios .content-home .shift-cell::after,
+body.is-ios .content-home .shift-cell-hit {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+body.is-ios .content-home .shift-table ::selection,
+body.is-ios .content-home .sheet-tabs ::selection,
+body.is-ios .content-home .student-labor-panel ::selection {
+  background: transparent;
+  color: inherit;
 }

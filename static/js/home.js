@@ -1483,13 +1483,18 @@ function applyCellSymbol(td, symbol, options = {}) {
   if (source === "leave") className += " is-leave-request";
   td.className = className;
 
+  const hit = document.createElement("span");
+  hit.className = "shift-cell-hit";
+  hit.setAttribute("aria-hidden", "true");
+
   const span = document.createElement("span");
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
   span.dataset.symbol = symbol || "";
   span.setAttribute("aria-label", symbol || "未入力");
   // Keep text out of the DOM so iOS long-press cannot select cell symbols
   span.textContent = "";
-  td.replaceChildren(span);
+  // Transparent hit layer sits above the glyph so iOS callout has no text target
+  td.replaceChildren(hit, span);
 }
 
 function captureCellState(td) {
@@ -1844,6 +1849,8 @@ function initShiftSelectionGuard() {
 
   let fingerDown = false;
   let clearTimer = null;
+  let holdTimer = null;
+  let touchOrigin = null;
 
   function selectionInsideCalendar() {
     const sel = window.getSelection?.();
@@ -1858,35 +1865,35 @@ function initShiftSelectionGuard() {
     if (fingerDown || selectionInsideCalendar()) clearDomSelection();
   }
 
+  function blockZoomWheel(event) {
+    // Trackpad pinch-zoom sends wheel + ctrl/meta on iPad / Magic Keyboard
+    if (event.ctrlKey || event.metaKey) event.preventDefault();
+  }
+
   document.addEventListener("selectionchange", scrubSelection);
 
-  // iOS gesture pinch zoom on calendar
+  // iOS gesture pinch zoom (Safari-specific events)
   ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
-    shiftCalendar.addEventListener(
+    document.addEventListener(
       type,
       (event) => {
+        if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
         event.preventDefault();
       },
-      { passive: false }
+      { passive: false, capture: true }
     );
   });
 
-  // Mouse / trackpad wheel: keep scroll, block pinch-zoom (ctrl/meta + wheel)
-  shiftCalendar.addEventListener(
+  // Wheel / trackpad pinch-zoom: keep normal scroll, block zoom
+  shiftCalendar.addEventListener("wheel", blockZoomWheel, { passive: false });
+  document.addEventListener(
     "wheel",
     (event) => {
-      if (event.ctrlKey || event.metaKey) event.preventDefault();
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
+      event.preventDefault();
     },
-    { passive: false }
-  );
-
-  const tableWrapEl = shiftCalendar.querySelector(".table-wrap");
-  tableWrapEl?.addEventListener(
-    "wheel",
-    (event) => {
-      if (event.ctrlKey || event.metaKey) event.preventDefault();
-    },
-    { passive: false }
+    { passive: false, capture: true }
   );
 
   shiftCalendar.addEventListener(
@@ -1894,28 +1901,82 @@ function initShiftSelectionGuard() {
     (event) => {
       if (event.target.closest("input, textarea, select")) return;
       if (!event.target.closest(".shift-table, .sheet-tabs, .student-labor-panel")) return;
+
+      if (event.touches.length > 1) {
+        event.preventDefault();
+        clearDomSelection();
+        return;
+      }
+
       fingerDown = true;
       clearDomSelection();
       if (clearTimer) window.clearInterval(clearTimer);
+      if (holdTimer) window.clearTimeout(holdTimer);
       // Keep clearing while the finger is down (iOS inserts a selection mid-hold)
-      clearTimer = window.setInterval(scrubSelection, 50);
+      clearTimer = window.setInterval(scrubSelection, 40);
+
+      const touch = event.touches[0];
+      touchOrigin = touch ? { x: touch.clientX, y: touch.clientY } : null;
+      // Mid-hold scrub: iOS often injects "Select All" just before the callout
+      holdTimer = window.setTimeout(() => {
+        scrubSelection();
+        clearDomSelection();
+      }, 280);
     },
-    { passive: true }
+    { passive: false }
+  );
+
+  shiftCalendar.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+        if (holdTimer) {
+          window.clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        return;
+      }
+      if (!touchOrigin || !event.touches[0]) return;
+      const dx = event.touches[0].clientX - touchOrigin.x;
+      const dy = event.touches[0].clientY - touchOrigin.y;
+      if (Math.hypot(dx, dy) > 8 && holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    },
+    { passive: false }
   );
 
   const endTouch = () => {
     fingerDown = false;
+    touchOrigin = null;
     if (clearTimer) {
       window.clearInterval(clearTimer);
       clearTimer = null;
     }
+    if (holdTimer) {
+      window.clearTimeout(holdTimer);
+      holdTimer = null;
+    }
     clearDomSelection();
     window.setTimeout(clearDomSelection, 0);
-    window.setTimeout(clearDomSelection, 120);
+    window.setTimeout(clearDomSelection, 80);
+    window.setTimeout(clearDomSelection, 200);
   };
 
   shiftCalendar.addEventListener("touchend", endTouch, { passive: true });
   shiftCalendar.addEventListener("touchcancel", endTouch, { passive: true });
+
+  // Extra belt: never start a text selection from the grid
+  shiftCalendar.addEventListener(
+    "selectstart",
+    (event) => {
+      if (event.target.closest("input, textarea, select")) return;
+      event.preventDefault();
+    },
+    { capture: true }
+  );
 }
 
 function initShiftCellEditor() {
