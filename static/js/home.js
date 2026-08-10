@@ -166,13 +166,25 @@ function syncZoomSelect() {
 function applyTableZoom(zoom = tableZoom) {
   tableZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
   if (tableWrap) {
-    if (SUPPORTS_CSS_ZOOM) {
-      tableWrap.style.zoom = String(tableZoom);
-      tableWrap.style.transform = "";
-    } else {
-      tableWrap.style.zoom = "";
-      tableWrap.style.transform = `scale(${tableZoom})`;
-      tableWrap.style.transformOrigin = "top left";
+    // Zoom the table, not the scrollport — zooming .table-wrap clips the bottom on iOS
+    const table = tableWrap.querySelector(".shift-table");
+    tableWrap.style.zoom = "";
+    tableWrap.style.transform = "";
+    tableWrap.style.transformOrigin = "";
+    tableWrap.style.marginBottom = "";
+    if (table) {
+      if (SUPPORTS_CSS_ZOOM) {
+        table.style.zoom = String(tableZoom);
+        table.style.transform = "";
+        table.style.transformOrigin = "";
+        table.style.marginBottom = "";
+      } else {
+        table.style.zoom = "";
+        table.style.transform = `scale(${tableZoom})`;
+        table.style.transformOrigin = "top left";
+        // transform does not expand layout; pad so the scroller can reach the bottom
+        table.style.marginBottom = tableZoom > 1 ? `${Math.ceil(table.offsetHeight * (tableZoom - 1))}px` : "";
+      }
     }
   }
   syncZoomSelect();
@@ -2017,9 +2029,10 @@ function initShiftCellEditor() {
       flickActive: false,
       directionIndex: -1,
       cancelled: false,
+      capturing: false,
     };
 
-    td.setPointerCapture?.(event.pointerId);
+    // Do not capture yet — capturing here blocks native table scrolling on touch
     const sel = window.getSelection?.();
     if (sel && sel.rangeCount) sel.removeAllRanges();
 
@@ -2029,6 +2042,8 @@ function initShiftCellEditor() {
         closeCellEditor();
         cellPointer.flickActive = true;
         cellPointer.directionIndex = -1;
+        cellPointer.capturing = true;
+        td.setPointerCapture?.(event.pointerId);
         openFlickPad(td);
         window.requestAnimationFrame(() => {
           if (!cellPointer?.flickActive || !flickPad) return;
@@ -2052,6 +2067,10 @@ function initShiftCellEditor() {
         clearTimeout(cellPointer.longPressTimer);
         cellPointer.longPressTimer = null;
         cellPointer.cancelled = true;
+        if (cellPointer.capturing) {
+          cellPointer.td.releasePointerCapture?.(event.pointerId);
+          cellPointer.capturing = false;
+        }
       }
       return;
     }
@@ -2077,7 +2096,10 @@ function initShiftCellEditor() {
       clearTimeout(longPressTimer);
     }
 
-    cellPointer.td.releasePointerCapture?.(event.pointerId);
+    if (cellPointer.capturing) {
+      cellPointer.td.releasePointerCapture?.(event.pointerId);
+      cellPointer.capturing = false;
+    }
 
     if (flickActive) {
       const options = getFlickOptions();
@@ -2683,10 +2705,20 @@ clearShiftsButton?.addEventListener("click", runClearShifts);
 function initPullToReload() {
   const THRESHOLD = 72;
   const MAX_PULL = 120;
+
+  function isScrollableY(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    const oy = style.overflowY;
+    if (oy !== "auto" && oy !== "scroll" && oy !== "overlay") return false;
+    return el.scrollHeight > el.clientHeight + 1;
+  }
+
+  // Never bind to non-scroll hosts like .content-home (overflow:hidden + scrollTop always 0),
+  // or pull preventDefault blocks the nested table scroller.
   const targets = [
     document.getElementById("sheet-main-scroll"),
     shiftCalendar?.querySelector(".table-wrap"),
-    document.querySelector(".content-home"),
   ].filter(Boolean);
 
   if (!targets.length) return;
@@ -2733,6 +2765,7 @@ function initPullToReload() {
     if (document.querySelector(".shift-picker:not(.hidden), .cell-editor:not(.hidden), .modal:not(.hidden)")) {
       return false;
     }
+    if (!isScrollableY(el)) return false;
     return el.scrollTop <= 0;
   }
 
