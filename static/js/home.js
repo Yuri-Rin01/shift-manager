@@ -2705,23 +2705,22 @@ clearShiftsButton?.addEventListener("click", runClearShifts);
 function initPullToReload() {
   const THRESHOLD = 72;
   const MAX_PULL = 120;
+  const host =
+    document.querySelector(".shift-workspace") ||
+    document.querySelector(".content-home");
+  if (!host || host.dataset.pullReloadBound === "1") return;
+  host.dataset.pullReloadBound = "1";
 
-  function isScrollableY(el) {
-    if (!el) return false;
-    const style = window.getComputedStyle(el);
-    const oy = style.overflowY;
-    if (oy !== "auto" && oy !== "scroll" && oy !== "overlay") return false;
-    return el.scrollHeight > el.clientHeight + 1;
+  function resolveScrollport() {
+    const main = document.getElementById("sheet-main-scroll");
+    const wrap = shiftCalendar?.querySelector(".table-wrap");
+    if (main) {
+      const oy = window.getComputedStyle(main).overflowY;
+      // Foreign sheet uses one shared vertical scroller on #sheet-main-scroll
+      if (oy === "auto" || oy === "scroll" || oy === "overlay") return main;
+    }
+    return wrap || main;
   }
-
-  // Never bind to non-scroll hosts like .content-home (overflow:hidden + scrollTop always 0),
-  // or pull preventDefault blocks the nested table scroller.
-  const targets = [
-    document.getElementById("sheet-main-scroll"),
-    shiftCalendar?.querySelector(".table-wrap"),
-  ].filter(Boolean);
-
-  if (!targets.length) return;
 
   let indicator = document.getElementById("pull-reload-indicator");
   if (!indicator) {
@@ -2730,16 +2729,14 @@ function initPullToReload() {
     indicator.className = "pull-reload-indicator";
     indicator.setAttribute("aria-live", "polite");
     indicator.innerHTML = `<span class="pull-reload-spinner" aria-hidden="true"></span><span class="pull-reload-text">引き下げて再読み込み</span>`;
-    (document.querySelector(".shift-workspace") || document.querySelector(".content-home") || document.body).prepend(
-      indicator
-    );
+    host.prepend(indicator);
   }
 
   let startY = 0;
   let pulling = false;
   let armed = false;
   let reloading = false;
-  let activeTarget = null;
+  let tracking = false;
 
   function setIndicator(distance) {
     const progress = Math.min(1, distance / THRESHOLD);
@@ -2759,52 +2756,71 @@ function initPullToReload() {
     if (text) text.textContent = "引き下げて再読み込み";
   }
 
-  function canPull(el) {
-    if (!el || reloading) return false;
+  function canPull() {
+    if (reloading) return false;
     if (document.body.classList.contains("sidebar-open")) return false;
     if (document.querySelector(".shift-picker:not(.hidden), .cell-editor:not(.hidden), .modal:not(.hidden)")) {
       return false;
     }
-    if (!isScrollableY(el)) return false;
-    return el.scrollTop <= 0;
+    const el = resolveScrollport();
+    if (!el) return false;
+    // Allow pull even when content fits the viewport (no overflow yet)
+    return el.scrollTop <= 1;
   }
 
-  function onTouchStart(event) {
-    if (reloading || event.touches.length !== 1) return;
-    const el = event.currentTarget;
-    if (!canPull(el)) {
-      pulling = false;
-      return;
-    }
-    activeTarget = el;
-    startY = event.touches[0].clientY;
-    pulling = true;
-    armed = false;
-  }
+  host.classList.add("pull-reload-host");
 
-  function onTouchMove(event) {
-    if (!pulling || !activeTarget || reloading) return;
-    if (!canPull(activeTarget)) {
+  host.addEventListener(
+    "touchstart",
+    (event) => {
+      if (reloading || event.touches.length !== 1) return;
+      if (event.target.closest("input, textarea, select, button, a")) return;
+      if (!canPull()) {
+        tracking = false;
+        pulling = false;
+        return;
+      }
+      startY = event.touches[0].clientY;
+      tracking = true;
       pulling = false;
-      resetIndicator();
-      return;
-    }
-    const dy = event.touches[0].clientY - startY;
-    if (dy <= 0) {
       armed = false;
-      resetIndicator();
-      return;
-    }
-    const distance = Math.min(MAX_PULL, dy * 0.55);
-    armed = distance >= THRESHOLD;
-    setIndicator(distance);
-    if (dy > 10) event.preventDefault();
-  }
+    },
+    { passive: true }
+  );
 
-  function onTouchEnd() {
-    if (!pulling) return;
-    pulling = false;
-    if (armed && !reloading) {
+  host.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!tracking || reloading) return;
+      if (!canPull()) {
+        tracking = false;
+        pulling = false;
+        resetIndicator();
+        return;
+      }
+      const dy = event.touches[0].clientY - startY;
+      // Finger moving up = scroll down the sheet — never capture that
+      if (dy <= 0) {
+        pulling = false;
+        armed = false;
+        resetIndicator();
+        return;
+      }
+      pulling = true;
+      const distance = Math.min(MAX_PULL, dy * 0.55);
+      armed = distance >= THRESHOLD;
+      setIndicator(distance);
+      // Only lock native scroll while actively pulling down from the top
+      if (dy > 12) event.preventDefault();
+    },
+    { passive: false }
+  );
+
+  const endTouch = () => {
+    if (!tracking && !pulling) return;
+    tracking = false;
+    if (pulling && armed && !reloading) {
+      pulling = false;
       reloading = true;
       indicator.classList.add("is-visible", "is-ready", "is-reloading");
       const text = indicator.querySelector(".pull-reload-text");
@@ -2814,18 +2830,13 @@ function initPullToReload() {
       }, 180);
       return;
     }
-    resetIndicator();
-    activeTarget = null;
+    pulling = false;
     armed = false;
-  }
+    resetIndicator();
+  };
 
-  targets.forEach((el) => {
-    el.classList.add("pull-reload-host");
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
-  });
+  host.addEventListener("touchend", endTouch);
+  host.addEventListener("touchcancel", endTouch);
 }
 
 shiftCalendar?.addEventListener("click", (event) => {
