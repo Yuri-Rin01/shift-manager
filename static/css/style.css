@@ -7098,3 +7098,30 @@ body.is-tablet .shift-table td.shift-td {
   min-width: 32px;
   min-height: 36px;
 }
+
+/* Stronger iOS selection lock on the shift grid */
+body.is-ios .content-home .shift-table,
+body.is-ios .content-home .shift-table th,
+body.is-ios .content-home .shift-table td,
+body.is-ios .content-home .shift-table .shift-cell,
+body.is-ios .content-home .sheet-tabs,
+body.is-ios .content-home .student-labor-panel {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.is-ios .content-home .shift-td-editable {
+  touch-action: manipulation;
+}
+
+body.is-ios .content-home .table-wrap {
+  touch-action: pan-x pan-y;
+}
+
+body.is-ios .content-home .staff-name-link {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

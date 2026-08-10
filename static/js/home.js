@@ -1485,7 +1485,10 @@ function applyCellSymbol(td, symbol, options = {}) {
 
   const span = document.createElement("span");
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
-  span.textContent = symbol;
+  span.dataset.symbol = symbol || "";
+  span.setAttribute("aria-label", symbol || "未入力");
+  // Keep text out of the DOM so iOS long-press cannot select cell symbols
+  span.textContent = "";
   td.replaceChildren(span);
 }
 
@@ -1825,6 +1828,96 @@ function resetCellPointer() {
   cellPointer = null;
 }
 
+function clearDomSelection() {
+  const sel = window.getSelection?.();
+  if (sel && sel.rangeCount) sel.removeAllRanges();
+}
+
+function initShiftSelectionGuard() {
+  if (!shiftCalendar || shiftCalendar.dataset.selectionGuardBound === "1") return;
+  shiftCalendar.dataset.selectionGuardBound = "1";
+
+  const isIos =
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIos) document.body.classList.add("is-ios");
+
+  let fingerDown = false;
+  let clearTimer = null;
+
+  function selectionInsideCalendar() {
+    const sel = window.getSelection?.();
+    if (!sel || !sel.rangeCount) return false;
+    const node = sel.anchorNode;
+    if (!node) return false;
+    const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    return Boolean(el && shiftCalendar.contains(el));
+  }
+
+  function scrubSelection() {
+    if (fingerDown || selectionInsideCalendar()) clearDomSelection();
+  }
+
+  document.addEventListener("selectionchange", scrubSelection);
+
+  // iOS gesture pinch zoom on calendar
+  ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+    shiftCalendar.addEventListener(
+      type,
+      (event) => {
+        event.preventDefault();
+      },
+      { passive: false }
+    );
+  });
+
+  // Mouse / trackpad wheel: keep scroll, block pinch-zoom (ctrl/meta + wheel)
+  shiftCalendar.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.ctrlKey || event.metaKey) event.preventDefault();
+    },
+    { passive: false }
+  );
+
+  const tableWrapEl = shiftCalendar.querySelector(".table-wrap");
+  tableWrapEl?.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.ctrlKey || event.metaKey) event.preventDefault();
+    },
+    { passive: false }
+  );
+
+  shiftCalendar.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.target.closest("input, textarea, select")) return;
+      if (!event.target.closest(".shift-table, .sheet-tabs, .student-labor-panel")) return;
+      fingerDown = true;
+      clearDomSelection();
+      if (clearTimer) window.clearInterval(clearTimer);
+      // Keep clearing while the finger is down (iOS inserts a selection mid-hold)
+      clearTimer = window.setInterval(scrubSelection, 50);
+    },
+    { passive: true }
+  );
+
+  const endTouch = () => {
+    fingerDown = false;
+    if (clearTimer) {
+      window.clearInterval(clearTimer);
+      clearTimer = null;
+    }
+    clearDomSelection();
+    window.setTimeout(clearDomSelection, 0);
+    window.setTimeout(clearDomSelection, 120);
+  };
+
+  shiftCalendar.addEventListener("touchend", endTouch, { passive: true });
+  shiftCalendar.addEventListener("touchcancel", endTouch, { passive: true });
+}
+
 function initShiftCellEditor() {
   shiftCalendar?.addEventListener("pointerdown", (event) => {
     const td = event.target.closest(".shift-td-editable");
@@ -1946,8 +2039,8 @@ function initShiftCellEditor() {
   });
 
   shiftCalendar?.addEventListener("contextmenu", (event) => {
-    const td = event.target.closest(".shift-td-editable, .shift-table th, .shift-table td, .col-name");
-    if (!td || !shiftCalendar.contains(td)) return;
+    if (event.target.closest("input, textarea, select")) return;
+    if (!shiftCalendar.contains(event.target)) return;
     event.preventDefault();
   });
 
@@ -1956,18 +2049,7 @@ function initShiftCellEditor() {
     event.preventDefault();
   });
 
-  // iOS Safari: block native long-press selection while keeping scroll
-  shiftCalendar?.addEventListener(
-    "touchstart",
-    (event) => {
-      const td = event.target.closest(".shift-td-editable");
-      if (!td || !shiftCalendar.contains(td)) return;
-      // Clear any existing selection so long-press does not expand to "Select All"
-      const sel = window.getSelection?.();
-      if (sel && sel.rangeCount) sel.removeAllRanges();
-    },
-    { passive: true }
-  );
+  initShiftSelectionGuard();
 
   shiftCalendar?.addEventListener("dblclick", (event) => {
     const td = event.target.closest(".shift-td-editable");
