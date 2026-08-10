@@ -2004,6 +2004,17 @@ body.sidebar-collapsed .nav-item:hover::after {
   font-weight: 600;
   line-height: 1.2;
   color: #000;
+  display: inline-block;
+  min-width: 1em;
+  min-height: 1em;
+}
+
+.shift-cell::after {
+  content: attr(data-symbol);
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  font-size: inherit;
 }
 
 .shift-paid-leave,
