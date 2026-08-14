@@ -274,6 +274,72 @@ body {
   gap: 4px;
 }
 
+.home-filters-collapse {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.home-filters-btn.is-open {
+  background: #1e3a5f;
+  border-color: #1e3a5f;
+  color: #fff;
+}
+
+.home-filters-btn.is-filtered:not(.is-open) {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.home-filters-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.home-filters-btn.is-open .home-filters-btn-badge {
+  background: #fff;
+  color: #1e3a5f;
+}
+
+.home-filters-btn-chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.home-filters-btn.is-open .home-filters-btn-chevron {
+  transform: rotate(180deg);
+}
+
+.home-filters-collapse.is-collapsed #home-filters-body {
+  display: none;
+}
+
 .home-controls-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1514,6 +1580,78 @@ body {
   font-weight: 600;
   line-height: 1.2;
   color: #000;
+  display: inline-block;
+  min-width: 1em;
+  min-height: 1em;
+}
+
+.shift-cell::after {
+  content: attr(data-symbol);
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  font-size: inherit;
+}
+
+.shift-td {
+  position: relative;
+}
+
+.shift-cell-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shift-td > .shift-cell {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.content-home .shift-table,
+.content-home .shift-table th,
+.content-home .shift-table td,
+.content-home .shift-table .shift-cell,
+.content-home .shift-table .shift-cell-hit,
+.content-home .shift-table .staff-name-link,
+.content-home .legend,
+.content-home .legend * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+.content-home .shift-table ::selection,
+.content-home .legend ::selection {
+  background: transparent;
+  color: inherit;
+}
+
+body.is-ios .content-home .shift-calendar-shell,
+body.is-ios .content-home .shift-calendar-shell * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+}
+
+body.is-ios .content-home input,
+body.is-ios .content-home textarea,
+body.is-ios .content-home select {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
+body.is-ios .content-home .table-wrap {
+  touch-action: pan-x pan-y;
 }
 
 .shift-paid-leave,
@@ -1672,6 +1810,7 @@ body {
   inset: 0;
   z-index: 1999;
   background: rgba(15, 23, 42, 0.12);
+  touch-action: none;
 }
 
 .shift-flick-backdrop.hidden {
@@ -1779,6 +1918,21 @@ body {
 .shift-flick-dir.shift-public { background: #f8fafc; }
 .shift-flick-dir.shift-training { background: #fef9c3; }
 .shift-flick-dir.shift-half-leave { background: #fce7f3; }
+.shift-flick-dir.shift-clear {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+body.is-flicking {
+  overscroll-behavior: none;
+}
+
+body.is-flicking .content-home .table-wrap,
+body.is-flicking .content-home .calendar-scroll {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
 
 .mono-cells .shift-td {
   background: #fff !important;
@@ -4462,5 +4616,212 @@ input[type="checkbox"]:focus-visible {
   .dashboard-toolbar-actions {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+/* ========== Phone / compact layout ========== */
+.topbar-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  width: 40px;
+  height: 40px;
+  margin: 0 8px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar-menu-btn span {
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: #334155;
+  border-radius: 1px;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .topbar-menu-btn:not([hidden]) {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    width: min(280px, 86vw);
+    box-shadow: none;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.28);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: rgba(15, 23, 42, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  body.sidebar-open .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .main {
+    margin-left: 0;
+    max-height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .home-bottom-bar,
+  .settings-save-bar,
+  .status-bar {
+    left: 0;
+  }
+
+  .content {
+    padding-left: calc(8px + env(safe-area-inset-left, 0px));
+    padding-right: calc(8px + env(safe-area-inset-right, 0px));
+  }
+
+  .content-home,
+  .content-home .home-shift-card,
+  .content-home .home-shift-card .card-body,
+  .content-home .shift-calendar-shell,
+  .content-home .calendar-scroll {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .content-home .home-shift-card .calendar-scroll .table-wrap,
+  .content-home .table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+    min-height: 48px;
+  }
+
+  .content-home {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .home-toolbar-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .home-toolbar-inline-tools {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .home-toolbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .home-toolbar-actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .home-toolbar-actions .btn-primary,
+  .home-toolbar-actions .btn-danger,
+  .home-toolbar-actions #btn-auto-generate,
+  .home-toolbar-actions #btn-clear-shifts {
+    grid-column: 1 / -1;
+  }
+
+  .home-period-skip {
+    display: none;
+  }
+
+  .home-bottom-bar-status {
+    display: none;
+  }
+
+  .home-bottom-print-btn {
+    width: 100%;
+    margin-left: 0;
+    min-height: 44px;
+  }
+
+  /* Keep name sticky; hide job/dept so day cells fit */
+  .content-home .shift-table .col-job,
+  .content-home .shift-table .col-dept,
+  .content-home .shift-table thead th.col-job,
+  .content-home .shift-table thead th.col-dept {
+    display: none;
+  }
+
+  .content-home .shift-table .col-name {
+    left: 0;
+    min-width: 76px;
+    max-width: 110px;
+    font-size: 13px;
+  }
+
+  .content-home .shift-table .day-head-num {
+    font-size: 15px;
+  }
+
+  .shift-table th.day-col,
+  .shift-table td.shift-td {
+    min-width: 36px;
+    min-height: 42px;
+    padding: 5px 2px;
+    font-size: 14px;
+  }
+
+  .content-home .home-shift-card .calendar-scroll,
+  .content-home .home-shift-card .shift-calendar-shell {
+    min-height: 52dvh;
+  }
+
+  .content-home .home-shift-card .calendar-scroll .table-wrap {
+    min-height: 52dvh;
+    padding-bottom: 16px;
+  }
+
+  body.is-ios .content-home .shift-td-editable,
+  .content-home .shift-td-editable {
+    touch-action: manipulation;
+  }
+
+  .content-home .table-wrap {
+    touch-action: pan-x pan-y;
   }
 }

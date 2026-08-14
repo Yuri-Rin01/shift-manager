@@ -52,13 +52,14 @@
                 data-day="{{ cell.day }}"
                 data-symbol="{{ cell.symbol }}"
                 {% if cell.source %}data-source="{{ cell.source }}"{% endif %}
-                title="クリックで編集"
               >
-                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}">{{ cell.symbol }}</span>
+                <span class="shift-cell-hit" aria-hidden="true"></span>
+                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
               </td>
             {% else %}
               <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
-                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}">{{ cell.symbol }}</span>
+                <span class="shift-cell-hit" aria-hidden="true"></span>
+                <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
               </td>
             {% endif %}
           {% endfor %}
