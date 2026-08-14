@@ -1392,14 +1392,6 @@ function initShiftSelectionGuard() {
   }
 
   shiftCalendar.addEventListener("wheel", onSheetWheel, { passive: false, capture: true });
-  document.addEventListener(
-    "wheel",
-    (event) => {
-      if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
-      onSheetWheel(event);
-    },
-    { passive: false, capture: true }
-  );
 
   ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
     document.addEventListener(
