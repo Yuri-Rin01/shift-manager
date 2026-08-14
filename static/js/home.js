@@ -157,13 +157,24 @@ function syncZoomSelect() {
 function applyTableZoom(zoom = tableZoom) {
   tableZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
   if (tableWrap) {
-    if (SUPPORTS_CSS_ZOOM) {
-      tableWrap.style.zoom = String(tableZoom);
-      tableWrap.style.transform = "";
-    } else {
-      tableWrap.style.zoom = "";
-      tableWrap.style.transform = `scale(${tableZoom})`;
-      tableWrap.style.transformOrigin = "top left";
+    // Zoom the table, not the scrollport — zooming .table-wrap clips the sheet on phones
+    const table = tableWrap.querySelector(".shift-table");
+    tableWrap.style.zoom = "";
+    tableWrap.style.transform = "";
+    tableWrap.style.transformOrigin = "";
+    if (table) {
+      if (SUPPORTS_CSS_ZOOM) {
+        table.style.zoom = String(tableZoom);
+        table.style.transform = "";
+        table.style.transformOrigin = "";
+        table.style.marginBottom = "";
+      } else {
+        table.style.zoom = "";
+        table.style.transform = `scale(${tableZoom})`;
+        table.style.transformOrigin = "top left";
+        table.style.marginBottom =
+          tableZoom > 1 ? `${Math.ceil(table.offsetHeight * (tableZoom - 1))}px` : "";
+      }
     }
   }
   syncZoomSelect();
@@ -592,7 +603,11 @@ function initDisplayFromSettings() {
 
 function initTableZoom() {
   const saved = loadPrefs();
-  const baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
+  const phone = window.matchMedia("(max-width: 768px)").matches;
+  let baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
+  if (saved.tableZoom == null && phone) {
+    baseZoom = 1;
+  }
   applyTableZoom(baseZoom);
   zoomControls?.addEventListener("wheel", handleZoomWheel, { passive: false });
   shiftCalendar?.addEventListener(
