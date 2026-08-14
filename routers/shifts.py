@@ -71,8 +71,8 @@ def _to_generate_response(raw: dict) -> ShiftGenerateResponse:
 @router.put("/cell", response_model=ShiftCellResponse)
 def update_shift_cell(data: ShiftCellUpdate):
     settings = get_settings()
-    symbol = normalize_symbol(data.symbol, settings)
-    if symbol not in _valid_symbols():
+    symbol = normalize_symbol(data.symbol, settings) if data.symbol else ""
+    if symbol and symbol not in _valid_symbols():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"無効なシフト記号です: {data.symbol}",
@@ -81,7 +81,7 @@ def update_shift_cell(data: ShiftCellUpdate):
     if staff is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="職員が見つかりません")
 
-    if would_block_day_work_after_night(
+    if symbol and would_block_day_work_after_night(
         data.staff_id,
         data.year,
         data.month,
@@ -94,13 +94,11 @@ def update_shift_cell(data: ShiftCellUpdate):
             detail="明けの翌日は早番・日勤・遅出を割り当てできません（固定ルール）。",
         )
 
-    result = repo.upsert_shift_cell(
-        data.staff_id,
-        data.year,
-        data.month,
-        data.day,
-        symbol,
-    )
+    try:
+        shift_date = date(data.year, data.month, data.day)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="日付が不正です") from exc
+
     related: list[dict] = []
     related.extend(
         clear_auto_morning_off_after_night(
@@ -111,6 +109,24 @@ def update_shift_cell(data: ShiftCellUpdate):
             symbol,
             settings,
         )
+    )
+
+    if not symbol:
+        repo.delete_shift_cell(data.staff_id, shift_date)
+        return ShiftCellResponse(
+            staff_id=data.staff_id,
+            shift_date=shift_date.isoformat(),
+            symbol="",
+            source="",
+            related=[ShiftCellResponse(**item) for item in related],
+        )
+
+    result = repo.upsert_shift_cell(
+        data.staff_id,
+        data.year,
+        data.month,
+        data.day,
+        symbol,
     )
     related.extend(
         apply_morning_off_after_night(

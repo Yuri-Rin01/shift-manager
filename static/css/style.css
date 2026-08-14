@@ -1918,6 +1918,11 @@ body.is-ios .content-home .table-wrap {
 .shift-flick-dir.shift-public { background: #f8fafc; }
 .shift-flick-dir.shift-training { background: #fef9c3; }
 .shift-flick-dir.shift-half-leave { background: #fce7f3; }
+.shift-flick-dir.shift-clear {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
 
 body.is-flicking {
   overscroll-behavior: none;

@@ -854,7 +854,15 @@ function unlockSheetScroll() {
 }
 
 function getFlickOptions() {
-  return shiftOptions.slice(0, FLICK_MAX_OPTIONS);
+  const work = shiftOptions.filter((option) => option.key !== "morning_off");
+  const clearOption = { key: "clear", symbol: "", label: "削除", class: "shift-clear" };
+  return [...work, clearOption].slice(0, FLICK_MAX_OPTIONS);
+}
+
+function flickOptionGlyph(option) {
+  if (!option) return "·";
+  if (option.key === "clear" || option.symbol === "") return "削";
+  return option.symbol || "·";
 }
 
 function getFlickDirectionIndex(dx, dy) {
@@ -920,7 +928,7 @@ function updateFlickHighlight(directionIndex) {
   const options = getFlickOptions();
   if (center) {
     if (directionIndex >= 0 && directionIndex < options.length) {
-      center.textContent = options[directionIndex].symbol;
+      center.textContent = flickOptionGlyph(options[directionIndex]);
       center.className = `shift-flick-center-symbol ${options[directionIndex].class}`;
     } else {
       const currentSymbol = activeEditCell?.dataset.symbol ?? "";
@@ -973,7 +981,7 @@ function openFlickPad(td) {
 
     const symbolSpan = document.createElement("span");
     symbolSpan.className = "shift-flick-dir-symbol";
-    symbolSpan.textContent = option.symbol;
+    symbolSpan.textContent = flickOptionGlyph(option);
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-flick-dir-label";
@@ -1251,7 +1259,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   const previousSource = td.dataset.source;
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
-  applyCellSymbol(td, symbol, { source: "manual" });
+  applyCellSymbol(td, symbol, { source: symbol ? "manual" : "" });
 
   const response = await fetch("/api/shifts/cell", {
     method: "PUT",
