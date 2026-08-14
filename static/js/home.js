@@ -827,6 +827,31 @@ const POINTER_MOVE_CANCEL_PX = 12;
 
 let flickPad = null;
 let flickBackdrop = null;
+let sheetScrollLock = null;
+
+function lockSheetScroll() {
+  document.body.classList.add("is-flicking");
+  const scroller = tableWrap || shiftCalendar?.querySelector(".table-wrap");
+  if (!scroller) return;
+  if (sheetScrollLock) {
+    scroller.removeEventListener("scroll", sheetScrollLock.freeze);
+  }
+  const top = scroller.scrollTop;
+  const left = scroller.scrollLeft;
+  const freeze = () => {
+    scroller.scrollTop = top;
+    scroller.scrollLeft = left;
+  };
+  scroller.addEventListener("scroll", freeze);
+  sheetScrollLock = { el: scroller, freeze };
+}
+
+function unlockSheetScroll() {
+  document.body.classList.remove("is-flicking");
+  if (!sheetScrollLock) return;
+  sheetScrollLock.el.removeEventListener("scroll", sheetScrollLock.freeze);
+  sheetScrollLock = null;
+}
 
 function getFlickOptions() {
   return shiftOptions.slice(0, FLICK_MAX_OPTIONS);
@@ -866,6 +891,7 @@ function hideFlickPad() {
   flickPad?.classList.add("hidden");
   flickPad?.replaceChildren();
   flickBackdrop?.classList.add("hidden");
+  unlockSheetScroll();
 }
 
 function positionFlickPad(pad, td) {
@@ -959,6 +985,7 @@ function openFlickPad(td) {
 
   flickBackdrop?.classList.remove("hidden");
   pad.classList.remove("hidden");
+  lockSheetScroll();
   window.requestAnimationFrame(() => positionFlickPad(pad, td));
 }
 
@@ -1386,6 +1413,7 @@ function initShiftSelectionGuard() {
     clearDomSelection();
     event.preventDefault();
     if (event.ctrlKey || event.metaKey) return;
+    if (cellPointer?.flickActive || (flickPad && !flickPad.classList.contains("hidden"))) return;
     const scroller = sheetScroller();
     scroller.scrollLeft += wheelDelta(event, "x");
     scroller.scrollTop += wheelDelta(event, "y");
@@ -1625,6 +1653,15 @@ function initShiftCellEditor() {
       positionFlickPad(flickPad, activeEditCell);
     }
   });
+
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!cellPointer?.flickActive && !(flickPad && !flickPad.classList.contains("hidden"))) return;
+      event.preventDefault();
+    },
+    { passive: false }
+  );
 
   initShiftSelectionGuard();
 }

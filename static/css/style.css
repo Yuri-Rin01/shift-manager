@@ -1810,6 +1810,7 @@ body.is-ios .content-home .table-wrap {
   inset: 0;
   z-index: 1999;
   background: rgba(15, 23, 42, 0.12);
+  touch-action: none;
 }
 
 .shift-flick-backdrop.hidden {
@@ -1917,6 +1918,16 @@ body.is-ios .content-home .table-wrap {
 .shift-flick-dir.shift-public { background: #f8fafc; }
 .shift-flick-dir.shift-training { background: #fef9c3; }
 .shift-flick-dir.shift-half-leave { background: #fce7f3; }
+
+body.is-flicking {
+  overscroll-behavior: none;
+}
+
+body.is-flicking .content-home .table-wrap,
+body.is-flicking .content-home .calendar-scroll {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
 
 .mono-cells .shift-td {
   background: #fff !important;
