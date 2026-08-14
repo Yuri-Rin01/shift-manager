@@ -1357,21 +1357,38 @@ function initShiftSelectionGuard() {
     const node = sel.anchorNode;
     if (!node) return false;
     const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    return Boolean(el && shiftCalendar.contains(el));
+    return Boolean(el && (shiftCalendar.contains(el) || el === shiftCalendar));
   }
 
   function scrubSelection() {
     if (selectionInsideCalendar()) clearDomSelection();
   }
 
+  function sheetScroller() {
+    return shiftCalendar.querySelector(".table-wrap") || shiftCalendar;
+  }
+
+  function wheelDelta(event, axis) {
+    const raw = axis === "x" ? event.deltaX : event.deltaY;
+    if (event.deltaMode === 1) return raw * 16;
+    if (event.deltaMode === 2) {
+      const scroller = sheetScroller();
+      return raw * (axis === "x" ? scroller.clientWidth : scroller.clientHeight);
+    }
+    return raw;
+  }
+
   document.addEventListener("selectionchange", scrubSelection);
 
-  // Mouse / trackpad wheel over the sheet: keep scroll, drop any selection,
-  // and block pinch-zoom (ctrl/meta + wheel) that Safari turns into Select All.
+  // iOS + mouse/trackpad: native wheel over text starts Select All.
+  // Take over scrolling so Safari never begins a selection.
   function onSheetWheel(event) {
-    scrubSelection();
     clearDomSelection();
-    if (event.ctrlKey || event.metaKey) event.preventDefault();
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) return;
+    const scroller = sheetScroller();
+    scroller.scrollLeft += wheelDelta(event, "x");
+    scroller.scrollTop += wheelDelta(event, "y");
   }
 
   shiftCalendar.addEventListener("wheel", onSheetWheel, { passive: false, capture: true });
@@ -1385,13 +1402,14 @@ function initShiftSelectionGuard() {
   );
 
   ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
-    shiftCalendar.addEventListener(
+    document.addEventListener(
       type,
       (event) => {
+        if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
         event.preventDefault();
         clearDomSelection();
       },
-      { passive: false }
+      { passive: false, capture: true }
     );
   });
 
@@ -1404,14 +1422,29 @@ function initShiftSelectionGuard() {
     { capture: true }
   );
 
-  // Middle mouse / wheel-click should not start a selection
+  shiftCalendar.addEventListener(
+    "dragstart",
+    (event) => {
+      event.preventDefault();
+    },
+    { capture: true }
+  );
+
+  // Block the selection caret before a wheel tick can extend it
   shiftCalendar.addEventListener(
     "mousedown",
     (event) => {
-      if (event.button === 1) {
-        event.preventDefault();
-        clearDomSelection();
-      }
+      if (event.target.closest("input, textarea, select, button, a")) return;
+      event.preventDefault();
+      clearDomSelection();
+    },
+    { capture: true }
+  );
+
+  shiftCalendar.addEventListener(
+    "mousemove",
+    () => {
+      if (window.getSelection?.()?.rangeCount) scrubSelection();
     },
     { capture: true }
   );

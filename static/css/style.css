@@ -1618,22 +1618,36 @@ body {
 .content-home .shift-table th,
 .content-home .shift-table td,
 .content-home .shift-table .shift-cell,
-.content-home .shift-table .shift-cell-hit {
+.content-home .shift-table .shift-cell-hit,
+.content-home .shift-table .staff-name-link,
+.content-home .legend,
+.content-home .legend * {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  -webkit-user-drag: none;
 }
 
-.content-home .shift-table ::selection {
+.content-home .shift-table ::selection,
+.content-home .legend ::selection {
   background: transparent;
   color: inherit;
 }
 
-body.is-ios .content-home .shift-table,
-body.is-ios .content-home .shift-table * {
+body.is-ios .content-home .shift-calendar-shell,
+body.is-ios .content-home .shift-calendar-shell * {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+}
+
+body.is-ios .content-home input,
+body.is-ios .content-home textarea,
+body.is-ios .content-home select {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 body.is-ios .content-home .table-wrap {
