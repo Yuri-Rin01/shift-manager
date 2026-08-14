@@ -856,7 +856,8 @@ function unlockSheetScroll() {
 function getFlickOptions() {
   const work = shiftOptions.filter((option) => option.key !== "morning_off");
   const clearOption = { key: "clear", symbol: "", label: "削除", class: "shift-clear" };
-  return [...work, clearOption].slice(0, FLICK_MAX_OPTIONS);
+  // Always keep 削除 on the wheel (8 directions max)
+  return [clearOption, ...work.slice(0, FLICK_MAX_OPTIONS - 1)];
 }
 
 function flickOptionGlyph(option) {
