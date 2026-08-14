@@ -1580,6 +1580,64 @@ body {
   font-weight: 600;
   line-height: 1.2;
   color: #000;
+  display: inline-block;
+  min-width: 1em;
+  min-height: 1em;
+}
+
+.shift-cell::after {
+  content: attr(data-symbol);
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  font-size: inherit;
+}
+
+.shift-td {
+  position: relative;
+}
+
+.shift-cell-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shift-td > .shift-cell {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.content-home .shift-table,
+.content-home .shift-table th,
+.content-home .shift-table td,
+.content-home .shift-table .shift-cell,
+.content-home .shift-table .shift-cell-hit {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.content-home .shift-table ::selection {
+  background: transparent;
+  color: inherit;
+}
+
+body.is-ios .content-home .shift-table,
+body.is-ios .content-home .shift-table * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+body.is-ios .content-home .table-wrap {
+  touch-action: pan-x pan-y;
 }
 
 .shift-paid-leave,

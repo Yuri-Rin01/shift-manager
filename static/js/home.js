@@ -976,10 +976,17 @@ function applyCellSymbol(td, symbol, options = {}) {
   if (source === "leave") className += " is-leave-request";
   td.className = className;
 
+  const hit = document.createElement("span");
+  hit.className = "shift-cell-hit";
+  hit.setAttribute("aria-hidden", "true");
+
   const span = document.createElement("span");
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
-  span.textContent = symbol;
-  td.replaceChildren(span);
+  span.dataset.symbol = symbol || "";
+  span.setAttribute("aria-label", symbol || "未入力");
+  // Keep text out of the DOM so iOS wheel / long-press cannot Select All
+  span.textContent = "";
+  td.replaceChildren(hit, span);
 }
 
 function captureCellState(td) {
@@ -1315,6 +1322,94 @@ function resetCellPointer() {
   cellPointer = null;
 }
 
+function clearDomSelection() {
+  const sel = window.getSelection?.();
+  if (sel && sel.rangeCount) sel.removeAllRanges();
+}
+
+function initShiftSelectionGuard() {
+  if (!shiftCalendar || shiftCalendar.dataset.selectionGuardBound === "1") return;
+  shiftCalendar.dataset.selectionGuardBound = "1";
+
+  const isIos =
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIos) document.body.classList.add("is-ios");
+
+  function selectionInsideCalendar() {
+    const sel = window.getSelection?.();
+    if (!sel || !sel.rangeCount) return false;
+    const node = sel.anchorNode;
+    if (!node) return false;
+    const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    return Boolean(el && shiftCalendar.contains(el));
+  }
+
+  function scrubSelection() {
+    if (selectionInsideCalendar()) clearDomSelection();
+  }
+
+  document.addEventListener("selectionchange", scrubSelection);
+
+  // Mouse / trackpad wheel over the sheet: keep scroll, drop any selection,
+  // and block pinch-zoom (ctrl/meta + wheel) that Safari turns into Select All.
+  function onSheetWheel(event) {
+    scrubSelection();
+    clearDomSelection();
+    if (event.ctrlKey || event.metaKey) event.preventDefault();
+  }
+
+  shiftCalendar.addEventListener("wheel", onSheetWheel, { passive: false, capture: true });
+  document.addEventListener(
+    "wheel",
+    (event) => {
+      if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
+      onSheetWheel(event);
+    },
+    { passive: false, capture: true }
+  );
+
+  ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+    shiftCalendar.addEventListener(
+      type,
+      (event) => {
+        event.preventDefault();
+        clearDomSelection();
+      },
+      { passive: false }
+    );
+  });
+
+  shiftCalendar.addEventListener(
+    "selectstart",
+    (event) => {
+      if (event.target.closest("input, textarea, select")) return;
+      event.preventDefault();
+    },
+    { capture: true }
+  );
+
+  // Middle mouse / wheel-click should not start a selection
+  shiftCalendar.addEventListener(
+    "mousedown",
+    (event) => {
+      if (event.button === 1) {
+        event.preventDefault();
+        clearDomSelection();
+      }
+    },
+    { capture: true }
+  );
+
+  shiftCalendar.addEventListener(
+    "auxclick",
+    (event) => {
+      if (event.button === 1) event.preventDefault();
+    },
+    { capture: true }
+  );
+}
+
 function initShiftCellEditor() {
   shiftCalendar?.addEventListener("pointerdown", (event) => {
     const td = event.target.closest(".shift-td-editable");
@@ -1341,7 +1436,8 @@ function initShiftCellEditor() {
       cancelled: false,
     };
 
-    td.setPointerCapture?.(event.pointerId);
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount) sel.removeAllRanges();
 
     if (flickInputEnabled()) {
       cellPointer.longPressTimer = window.setTimeout(() => {
@@ -1349,6 +1445,7 @@ function initShiftCellEditor() {
         closeCellEditor();
         cellPointer.flickActive = true;
         cellPointer.directionIndex = -1;
+        td.setPointerCapture?.(event.pointerId);
         openFlickPad(td);
         window.requestAnimationFrame(() => {
           if (!cellPointer?.flickActive || !flickPad) return;
@@ -1397,7 +1494,9 @@ function initShiftCellEditor() {
       clearTimeout(longPressTimer);
     }
 
-    cellPointer.td.releasePointerCapture?.(event.pointerId);
+    if (flickActive) {
+      cellPointer.td.releasePointerCapture?.(event.pointerId);
+    }
 
     if (flickActive) {
       const options = getFlickOptions();
@@ -1433,10 +1532,10 @@ function initShiftCellEditor() {
   });
 
   shiftCalendar?.addEventListener("contextmenu", (event) => {
-    if (!flickInputEnabled()) return;
-    const td = event.target.closest(".shift-td-editable");
-    if (!td || !shiftCalendar.contains(td)) return;
+    if (event.target.closest("input, textarea, select")) return;
+    if (!shiftCalendar.contains(event.target)) return;
     event.preventDefault();
+    clearDomSelection();
   });
 
   shiftCalendar?.addEventListener("dblclick", (event) => {
@@ -1486,6 +1585,8 @@ function initShiftCellEditor() {
       positionFlickPad(flickPad, activeEditCell);
     }
   });
+
+  initShiftSelectionGuard();
 }
 
 initShiftCellEditor();
