@@ -244,7 +244,7 @@ def build_dashboard(year: int | None = None, month: int | None = None) -> dict:
     staff = list_staff()
     staff_ids = {person["id"] for person in staff}
     staffing_staff = [person for person in staff if not person.get("exclude_from_staffing")]
-    night_capable = sum(1 for person in staff if person.get("can_work_night"))
+    night_capable = sum(1 for person in staff if person.get("can_work_night") or person.get("can_be_night_leader"))
     fixed_night = sum(1 for person in staff if person.get("fix_night_shift_count"))
 
     shifts = get_shifts_between(period_start, period_end)

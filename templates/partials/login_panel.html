@@ -1,0 +1,51 @@
+<div
+  class="sidebar-login-panel"
+  data-login-implemented="{{ 'true' if auth_status.login_implemented else 'false' }}"
+  data-default-admin="{{ admin_name | e }}"
+  data-default-facility="{{ facility_name | e }}"
+  data-default-label="{{ facility_label | e }}"
+>
+  <div class="login-panel-summary">
+    <div class="login-panel-avatar" aria-hidden="true">{{ admin_name[:1] }}</div>
+    <div class="login-panel-meta">
+      <div class="login-panel-facility">{{ facility_name }}</div>
+      <div class="login-panel-user">{{ facility_label }} / {{ admin_name }}</div>
+    </div>
+    <button
+      type="button"
+      class="login-panel-toggle"
+      aria-expanded="false"
+      aria-controls="sidebar-login-body"
+      aria-label="アカウントパネルを開く"
+    >
+      <span class="login-panel-toggle-icon" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  <div class="login-panel-body" id="sidebar-login-body" hidden>
+    <p class="login-panel-badge">ログイン機能は準備中です。UIのみ表示しています。</p>
+
+    <div class="login-panel-session-view">
+      <form class="login-panel-form" novalidate>
+        <label class="login-panel-field">
+          <span>メールアドレス</span>
+          <input type="email" name="login_email" autocomplete="username" placeholder="admin@example.com">
+        </label>
+        <label class="login-panel-field">
+          <span>パスワード</span>
+          <input type="password" name="login_password" autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <p class="login-panel-error" hidden></p>
+        <div class="login-panel-actions">
+          <button type="submit" class="login-panel-btn login-panel-btn-primary login-panel-btn-login" disabled title="管理者ログイン実装後に有効化予定">ログイン</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="login-panel-logged-in" hidden>
+      <div class="login-panel-actions">
+        <button type="button" class="login-panel-btn login-panel-btn-ghost login-panel-btn-logout" disabled title="ログイン後に利用できます">ログアウト</button>
+      </div>
+    </div>
+  </div>
+</div>
