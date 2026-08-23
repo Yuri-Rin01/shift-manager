@@ -14,6 +14,7 @@ from data.calendar_period import (
     period_bounds,
     period_day_count,
 )
+from data.night_eligibility import staff_can_be_night_leader, staff_can_work_night
 from data.placement_rules import (
     get_floor_labels,
     normalize_min_staff_by_floor,
@@ -39,8 +40,8 @@ from services.morning_off import (
 PRIORITY_ORDER = [
     "手動選択分",
     "希望休",
-    "担当フロア",
-    "夜勤必要人員（勤務割合）",
+    "配置可能フロア",
+    "夜勤必要人員（固定回数）",
     "夜勤回数",
     "各時間の必要人員数と勤務割合",
     "日勤各割合ごとの配置",
@@ -55,23 +56,69 @@ SEMI_TO_BASE = {
     "semi_late": "late",
     "semi_night": "night",
 }
-LEADER_OR_ABOVE_POSITIONS = frozenset(
-    {
-        "施設長",
-        "管理者",
-        "主任",
-        "リーダー",
-        "サブリーダー",
-        "院長",
-        "副院長",
-        "部長",
-        "師長",
-    }
-)
-
-
 def _warning(level: str, code: str, message: str) -> dict:
-    return {"level": level, "code": code, "message": message}
+    from data.auto_generate_suggestions import enrich_warning
+
+    return enrich_warning({"level": level, "code": code, "message": message})
+
+
+def build_generate_result_summary(warnings: list[dict], stats: dict) -> dict:
+    """生成結果を画面用に分類する（警告コードはそのまま保持）。"""
+    from data.auto_generate_suggestions import enrich_warnings, unique_suggestions
+
+    warnings = enrich_warnings(warnings)
+    understaffed: list[str] = []
+    unfilled_days: list[str] = []
+    unmet_preferences: list[str] = []
+    night_imbalance: list[str] = []
+    off_imbalance: list[str] = []
+    leader_issues: list[str] = []
+    fix_needed: list[str] = []
+    info: list[str] = []
+
+    for item in warnings:
+        level = item.get("level") or "info"
+        code = item.get("code") or ""
+        message = item.get("message") or ""
+        suggestion = (item.get("suggestion") or "").strip()
+        display = f"{message} → {suggestion}" if suggestion else message
+        if level == "error":
+            fix_needed.append(display)
+            continue
+        if code in {"understaffed", "time_slot_understaffed", "staff_capacity_low", "student_labor_limit"}:
+            understaffed.append(display)
+            fix_needed.append(display)
+        elif code in {"empty_cells_unfilled"}:
+            unfilled_days.append(display)
+            fix_needed.append(display)
+        elif code in {"leader_on_night_missing"}:
+            leader_issues.append(display)
+            fix_needed.append(display)
+        elif code in {"night_count_shortfall", "night_quota_capped"}:
+            night_imbalance.append(display)
+        elif code in {"off_count_shortfall", "off_count_excess"}:
+            off_imbalance.append(display)
+        elif code in {"staff_ratio_shortfall", "leave_priority_off"}:
+            unmet_preferences.append(display)
+        elif level == "info":
+            info.append(message)
+        else:
+            unmet_preferences.append(display)
+
+    return {
+        "placed_cells": int(stats.get("generated_cells") or 0),
+        "leave_kept": int(stats.get("leave_locked") or 0),
+        "manual_kept": int(stats.get("manual_locked") or 0),
+        "understaffed": understaffed,
+        "unfilled_days": unfilled_days,
+        "unmet_preferences": unmet_preferences,
+        "night_imbalance": night_imbalance,
+        "off_imbalance": off_imbalance,
+        "leader_issues": leader_issues,
+        "fix_needed": fix_needed,
+        "info": info,
+        "suggestions": unique_suggestions(warnings),
+    }
 
 
 def _base_work_key(key: str) -> str:
@@ -103,6 +150,9 @@ def _legacy_min_staff_totals(settings: dict) -> dict[str, int]:
     mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
     if mode == "time_slot":
         reqs: dict[str, int] = defaultdict(int)
+        # 夜勤は人数固定の別枠（フロア別 min_staff）から取る
+        for floor_values in normalize_min_staff_by_floor(settings.get("min_staff_by_floor"), settings).values():
+            reqs["night"] = max(reqs["night"], int(floor_values.get("night", 0)))
         for rule in settings.get("time_slot_staffing_rules") or []:
             if not isinstance(rule, dict):
                 continue
@@ -112,11 +162,9 @@ def _legacy_min_staff_totals(settings: dict) -> dict[str, int]:
                 continue
             start = str(rule.get("start_time", ""))
             end = str(rule.get("end_time", ""))
-            if not start or not end:
+            if not start or not end or end < start:
                 continue
-            if end < start or start >= "16:00" or end <= "09:00":
-                reqs["night"] = max(reqs["night"], count)
-            elif start >= "12:00":
+            if start >= "12:00":
                 reqs["late"] = max(reqs["late"], count)
             elif start <= "08:00":
                 reqs["early"] = max(reqs["early"], count)
@@ -182,9 +230,15 @@ class _Generator:
         self.min_staff = _legacy_min_staff_totals(settings)
         self.staffing_mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
         self.time_slot_rules = get_time_slot_rules(settings) if self.staffing_mode == "time_slot" else []
-        self.assignable_work_types = (
-            get_assignable_work_types(settings) if self.staffing_mode == "time_slot" else []
-        )
+        # 時間帯配置は日中区分のみ（夜勤は別枠の _phase_night_assignments）
+        if self.staffing_mode == "time_slot":
+            self.assignable_work_types = [
+                item
+                for item in get_assignable_work_types(settings)
+                if item.get("base_key") != "night"
+            ]
+        else:
+            self.assignable_work_types = []
         self.staff_list = [s for s in list_staff() if not s.get("exclude_from_staffing")]
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
 
@@ -197,6 +251,7 @@ class _Generator:
         self.week_nights: dict[tuple[int, int], int] = defaultdict(int)
         self.understaffed_shortfalls: list[tuple[str, str, str, int, int]] = []
         self.time_slot_shortfalls: list[tuple[str, str, str, str, str, int, int]] = []
+        self.student_labor_blocks: list[dict] = []
         self._rng = random.Random()
 
     def _cell_key(self, staff_id: int, shift_date: str) -> tuple[int, str]:
@@ -271,15 +326,32 @@ class _Generator:
         self.locks.pop((staff_id, rest_date), None)
         self._set_symbol(staff_id, rest_date, self.off_symbol, lock="rest")
 
+    def _morning_off_target_date(self, night_date: str) -> str | None:
+        morning = morning_off_symbol(self.settings)
+        if not morning:
+            return None
+        idx = self.date_index.get(night_date)
+        if idx is None or idx + 1 >= len(self.period_dates):
+            return None
+        return self.period_dates[idx + 1]
+
+    def _morning_off_blocked_by_leave(self, staff_id: int, night_date: str) -> bool:
+        """明け日が希望休・確保済み公休なら夜勤を入れない（公休日数を守る）。"""
+        next_date = self._morning_off_target_date(night_date)
+        if next_date is None:
+            return False
+        lock = self.locks.get((staff_id, next_date))
+        return lock in ("manual", "leave")
+
     def _sync_morning_off_after_night(self, staff_id: int, night_date: str) -> None:
         morning = morning_off_symbol(self.settings)
         if not morning:
             return
-        idx = self.date_index.get(night_date)
-        if idx is None or idx + 1 >= len(self.period_dates):
+        next_date = self._morning_off_target_date(night_date)
+        if next_date is None:
             return
-        next_date = self.period_dates[idx + 1]
-        if self.locks.get((staff_id, next_date)) == "manual":
+        # 手動・公休ロックは明けで上書きしない（指定公休日数を維持）
+        if self.locks.get((staff_id, next_date)) in ("manual", "leave"):
             return
         existing = self._get_symbol(staff_id, next_date)
         if existing and is_morning_off_symbol(existing, self.settings):
@@ -334,9 +406,108 @@ class _Generator:
             return False
         return self._consecutive_work_days_before(staff_id, shift_date) + 1 > max_days
 
-    def _is_leader_or_above(self, staff: dict) -> bool:
-        position = (staff.get("position") or "").strip()
-        return bool(position) and position in LEADER_OR_ABOVE_POSITIONS
+    def _can_be_night_leader(self, staff: dict) -> bool:
+        """夜勤リーダー可は職員フラグのみ（役職とは独立）。リーダー可は夜勤にも入れる。"""
+        return staff_can_be_night_leader(staff)
+
+    def _night_leader_groups(self) -> list[dict]:
+        from data.placement_rules import normalize_night_leader_groups
+
+        if not self.settings.get("require_leader_on_night"):
+            return []
+        return normalize_night_leader_groups(self.settings.get("night_leader_groups"))
+
+    def _staff_covers_night_leader_group(self, staff: dict, group: dict) -> bool:
+        floors = set(self._staff_floors(staff))
+        return bool(floors & set(group.get("floors") or []))
+
+    def _count_night_leaders_for_group(self, shift_date: str, group: dict) -> int:
+        count = 0
+        for (staff_id, shift_day), symbol in self.grid.items():
+            if shift_day != shift_date:
+                continue
+            if _symbol_work_key(symbol, self.settings) != "night":
+                continue
+            staff = self.staff_by_id.get(staff_id)
+            if not staff or not self._can_be_night_leader(staff):
+                continue
+            if self._staff_covers_night_leader_group(staff, group):
+                count += 1
+        return count
+
+    def _night_staff_covers_floors(self, shift_date: str, floors: list[str]) -> bool:
+        floor_set = set(floors or [])
+        if not floor_set:
+            return self._count_work_on_day(shift_date, "night") > 0
+        for (staff_id, shift_day), symbol in self.grid.items():
+            if shift_day != shift_date:
+                continue
+            if _symbol_work_key(symbol, self.settings) != "night":
+                continue
+            staff = self.staff_by_id.get(staff_id)
+            if staff and set(self._staff_floors(staff)) & floor_set:
+                return True
+        return False
+
+    def _night_leader_group_shortfalls(self, shift_date: str) -> list[dict]:
+        groups = self._night_leader_groups()
+        if not groups:
+            # 空グループ＝施設全体でリーダー1人
+            night_count = self._count_work_on_day(shift_date, "night")
+            if night_count <= 0:
+                return []
+            if self._has_leader_on_night(shift_date):
+                return []
+            return [{"label": "施設全体", "floors": list(self.floors), "min_leaders": 1, "actual": 0}]
+        shortfalls: list[dict] = []
+        for group in groups:
+            floors = list(group.get("floors") or [])
+            if not self._night_staff_covers_floors(shift_date, floors):
+                continue
+            actual = self._count_night_leaders_for_group(shift_date, group)
+            need = int(group.get("min_leaders", 1))
+            if actual < need:
+                shortfalls.append({**group, "actual": actual})
+        return shortfalls
+
+    def _night_leader_score_bonus(
+        self,
+        staff: dict,
+        shift_date: str,
+        *,
+        target_floor: str | None = None,
+    ) -> float:
+        if not self.settings.get("require_leader_on_night") or not self._can_be_night_leader(staff):
+            return 0.0
+        groups = self._night_leader_groups()
+        if not groups:
+            if self._count_work_on_day(shift_date, "night") <= 0 and not target_floor:
+                return 0.0
+            if self._has_leader_on_night(shift_date):
+                return 0.0
+            return 1000.0
+
+        bonus = 0.0
+        for group in groups:
+            floors = list(group.get("floors") or [])
+            if not self._staff_covers_night_leader_group(staff, group):
+                continue
+            relevant = self._night_staff_covers_floors(shift_date, floors) or (
+                bool(target_floor) and target_floor in floors
+            )
+            if not relevant:
+                # 当日そのグループにまだ夜勤がなく、今埋めているフロアも対象外ならスキップ
+                # ただしグループ内のいずれかに夜勤必要人数がある日は、最初の配置からリーダーを優先
+                relevant = any(self._min_staff_for(floor, "night") > 0 for floor in floors)
+                if target_floor and target_floor not in floors:
+                    relevant = False
+            if not relevant:
+                continue
+            actual = self._count_night_leaders_for_group(shift_date, group)
+            need = int(group.get("min_leaders", 1))
+            if actual < need:
+                bonus += 1000.0 * (need - actual)
+        return bonus
 
     def _has_leader_on_night(self, shift_date: str) -> bool:
         for (staff_id, shift_day), symbol in self.grid.items():
@@ -345,7 +516,7 @@ class _Generator:
             if _symbol_work_key(symbol, self.settings) != "night":
                 continue
             staff = self.staff_by_id.get(staff_id)
-            if staff and self._is_leader_or_above(staff):
+            if staff and self._can_be_night_leader(staff):
                 return True
         return False
 
@@ -445,10 +616,14 @@ class _Generator:
             return False
         if work_key in DAY_WORK_KEYS and self._day_incompatible_on_day(sid, shift_date):
             return False
+        if not self._passes_student_labor(staff, work_key, shift_date):
+            return False
         if work_key == "night":
-            if not staff.get("can_work_night"):
+            if not staff_can_work_night(staff):
                 return False
             if self._night_incompatible_on_day(sid, shift_date):
+                return False
+            if self._morning_off_blocked_by_leave(sid, shift_date):
                 return False
             max_week = int(self.settings.get("max_night_per_week", 7))
             week = self.period_days[self.date_index[shift_date]]["week_number"]
@@ -465,7 +640,59 @@ class _Generator:
             return False
         return True
 
+    def _passes_student_labor(self, staff: dict, work_key: str, shift_date: str) -> bool:
+        from services.student_labor import (
+            LEAVE_OR_OFF_KEYS,
+            can_assign_shift,
+            is_student_labor_restricted,
+            normalize_student_labor_profile,
+        )
+
+        profile = normalize_student_labor_profile(
+            staff.get("student_labor") or {},
+            job_type=staff.get("job_type"),
+        )
+        if not is_student_labor_restricted(profile):
+            return True
+        if work_key in LEAVE_OR_OFF_KEYS:
+            return True
+
+        symbols = get_shift_symbols(self.settings)
+        symbol = symbols.get(work_key)
+        if not symbol:
+            return False
+
+        sid = staff["id"]
+        existing: list[tuple[date, str]] = []
+        for day_str, cell_symbol in (
+            (d, self._get_symbol(sid, d)) for d in self.period_dates
+        ):
+            if cell_symbol:
+                existing.append((date.fromisoformat(day_str), cell_symbol))
+
+        ok, reason, _detail = can_assign_shift(
+            staff=staff,
+            work_date=date.fromisoformat(shift_date),
+            symbol=symbol,
+            existing_assignments=existing,
+            settings=self.settings,
+        )
+        if not ok:
+            self.student_labor_blocks.append(
+                {
+                    "staff_id": sid,
+                    "name": staff.get("name"),
+                    "date": shift_date,
+                    "work_key": work_key,
+                    "reason": reason,
+                }
+            )
+        return ok
+
     def _staff_floors(self, staff: dict) -> list[str]:
+        floors = staff.get("placement_floors") or []
+        if floors:
+            return floors
         floors = staff.get("departments") or []
         if floors:
             return floors
@@ -497,25 +724,11 @@ class _Generator:
 
     def _night_capable_staff(self) -> list[dict]:
         if self.settings.get("consider_night_eligibility", True):
-            return [s for s in self.staff_list if s.get("can_work_night")]
+            return [s for s in self.staff_list if staff_can_work_night(s)]
         return list(self.staff_list)
 
     def _period_night_demand(self) -> int:
-        """期間中に必要な夜勤割当のおおよその総数。"""
-        if self.staffing_mode == "time_slot":
-            per_day = 0
-            for rule in self.time_slot_rules:
-                start = str(rule.get("start_time", ""))
-                end = str(rule.get("end_time", ""))
-                if not start or not end:
-                    continue
-                try:
-                    count = int(rule.get("min_staff", 0))
-                except (TypeError, ValueError):
-                    continue
-                if end < start or start >= "16:00" or end <= "09:00":
-                    per_day += count
-            return per_day * len(self.period_dates)
+        """期間中に必要な夜勤割当のおおよその総数（人数固定の別枠）。"""
         total = 0
         for floor in self.floors:
             per_day = self._min_staff_for(floor, "night")
@@ -614,6 +827,10 @@ class _Generator:
                     continue
                 key = floor or "__all__"
                 by_scope[key] = max(by_scope[key], min_staff)
+            for floor in self.floors:
+                night_need = self._min_staff_for(floor, "night")
+                if night_need > 0:
+                    by_scope[floor] = max(by_scope.get(floor, 0), night_need)
             for scope, peak in by_scope.items():
                 available = (
                     self._staff_count_on_floor(scope)
@@ -669,8 +886,12 @@ class _Generator:
                     )
                 )
 
-    def _period_off_target(self) -> int:
+    def _period_off_target(self, staff_id: int | None = None) -> int:
         from data.calendar_period import resolve_configured_period_off_days
+
+        staff = self.staff_by_id.get(staff_id) if staff_id is not None else None
+        if staff is not None and staff.get("off_days_per_period") is not None:
+            return self._scaled_off_days(int(staff["off_days_per_period"]))
 
         _, target_off, _ = resolve_configured_period_off_days(
             self.settings, self.year, self.month, self.start_day
@@ -694,7 +915,7 @@ class _Generator:
         )
 
     def _off_slots_remaining(self, staff_id: int) -> int:
-        return self._period_off_target() - self._count_off_toward_target(staff_id)
+        return self._period_off_target(staff_id) - self._count_off_toward_target(staff_id)
 
     def _slot_a(self, staff_id: int) -> int:
         """A = 表示区間 − 手動マス数"""
@@ -702,7 +923,7 @@ class _Generator:
 
     def _slot_b(self, staff_id: int) -> int:
         """B = A − 設定休み"""
-        return max(0, self._slot_a(staff_id) - self._period_off_target())
+        return max(0, self._slot_a(staff_id) - self._period_off_target(staff_id))
 
     def _manual_cell_count(self, staff_id: int) -> int:
         return sum(
@@ -721,7 +942,8 @@ class _Generator:
         return max(0, self._slot_b(staff["id"]) - night_target - (night_target * 2))
 
     def _configured_night_target(self, staff: dict) -> int:
-        if not staff.get("can_work_night") and self.settings.get("consider_night_eligibility", True):
+        """夜勤目標は固定回数のみ（勤務割合からは算出しない）。"""
+        if not staff_can_work_night(staff) and self.settings.get("consider_night_eligibility", True):
             return 0
         pool = self._distribution_pool(staff)
         if pool <= 0:
@@ -731,11 +953,7 @@ class _Generator:
             if len(self.period_dates) < self.full_period_days:
                 target = self._scaled_off_days(target)
             return max(0, min(target, pool))
-        basis = staff.get("staffing_basis") or {}
-        night_ratio = sum(v for k, v in basis.items() if _base_work_key(k) == "night")
-        if night_ratio <= 0:
-            return 0
-        return max(0, round(pool * night_ratio / 100))
+        return 0
 
     def _night_target(self, staff: dict) -> int:
         configured = self._configured_night_target(staff)
@@ -750,7 +968,11 @@ class _Generator:
         if work_key == "night":
             return float(self._night_target(staff))
         basis = staff.get("staffing_basis") or {}
-        target_pct = sum(v for k, v in basis.items() if _base_work_key(k) == work_key)
+        target_pct = sum(
+            v
+            for k, v in basis.items()
+            if _base_work_key(k) == work_key and _base_work_key(k) != "night"
+        )
         if target_pct <= 0:
             return 0.0
         day_capacity = float(self._day_capacity_for_staff(staff))
@@ -818,8 +1040,7 @@ class _Generator:
                 target = self._night_target(staff)
                 score += max(0, target - self.night_counts[staff["id"]]) * 5
             if work_key == "night" and self.settings.get("require_leader_on_night"):
-                if not self._has_leader_on_night(shift_date) and self._is_leader_or_above(staff):
-                    score += 1000
+                score += self._night_leader_score_bonus(staff, shift_date, target_floor=floor)
             score += self._ratio_deficit(staff, work_key) * 8
             score -= self._workload_balance_penalty(staff["id"])
             candidates.append((score, staff))
@@ -887,8 +1108,7 @@ class _Generator:
                 target = self._night_target(staff)
                 score += max(0, target - self.night_counts[staff["id"]]) * 5
             if base_key == "night" and self.settings.get("require_leader_on_night"):
-                if not self._has_leader_on_night(shift_date) and self._is_leader_or_above(staff):
-                    score += 1000
+                score += self._night_leader_score_bonus(staff, shift_date, target_floor=floor)
             score += self._ratio_deficit(staff, base_key) * 8
             score -= self._workload_balance_penalty(staff["id"])
             candidates.append((score, staff))
@@ -971,7 +1191,7 @@ class _Generator:
                     slot_tasks.append(
                         (calendar_date, cal, rule, label, (seg_start, seg_end), assign_offset)
                     )
-        # 夜勤帯の前日割当（offset -1）を先に処理し、翌日の日勤配置との競合を防ぐ
+        # 夜勤帯の前日割当は別枠のため、時間帯タスクは日中のみ
         slot_tasks.sort(key=lambda item: (item[5], item[0]))
 
         for calendar_date, cal, rule, label, segment, assign_offset in slot_tasks:
@@ -1081,6 +1301,25 @@ class _Generator:
                 )
             )
 
+    def _emit_student_labor_warnings(self) -> None:
+        if not self.student_labor_blocks:
+            return
+        names = sorted(
+            {
+                str(item.get("name") or item.get("staff_id"))
+                for item in self.student_labor_blocks
+            }
+        )
+        sample = "、".join(names[:6])
+        suffix = f" ほか {len(names) - 6} 名" if len(names) > 6 else ""
+        self.warnings.append(
+            _warning(
+                "warn",
+                "student_labor_limit",
+                f"留学生の労働時間制限により必要人数を満たせません（対象: {sample}{suffix}）。上限を超える勤務は自動配置していません。",
+            )
+        )
+
     def _staff_needs_night_on_day(self, staff: dict, shift_date: str) -> bool:
         for floor in self._staff_floors(staff):
             min_night = self._min_staff_for(floor, "night")
@@ -1100,7 +1339,7 @@ class _Generator:
         if not symbol:
             return
 
-        night_staff = [s for s in self.staff_list if s.get("can_work_night")]
+        night_staff = [s for s in self.staff_list if staff_can_work_night(s)]
         self._rng.shuffle(night_staff)
         for staff in night_staff:
             target = self._night_target(staff)
@@ -1190,6 +1429,9 @@ class _Generator:
             for work_key in WORK_KEYS:
                 if work_key not in self.work_keys:
                     continue
+                # 夜勤の割合検証は行わない（固定回数のみ）
+                if work_key == "night" and not staff.get("fix_night_shift_count"):
+                    continue
                 expected = self._expected_work_count(staff, work_key)
                 if expected < 1:
                     continue
@@ -1205,8 +1447,6 @@ class _Generator:
                         reason = f"（夜勤上限により最大{assignable}回まで。固定{configured}回）"
                     else:
                         reason = "（必要人数・休み・夜勤明けルールのため）"
-                elif work_key == "night":
-                    reason = "（必要人数・夜勤上限のため）"
                 else:
                     reason = "（必要人数・休み・夜勤明けルールのため）"
                 self.warnings.append(
@@ -1226,7 +1466,7 @@ class _Generator:
             self._sync_morning_off_after_night(staff_id, shift_date)
 
     def _phase_exact_off(self) -> int:
-        """設定休み日数ちょうどになるよう公休を均等配置。"""
+        """設定休み日数ちょうどになるよう公休を均等配置（先に確保して勤務で上書きしない）。"""
         count = 0
         for staff in self.staff_list:
             sid = staff["id"]
@@ -1248,22 +1488,119 @@ class _Generator:
                 count += 1
         return count
 
+    def _clear_auto_symbol(self, staff_id: int, shift_date: str) -> None:
+        """自動配置の記号を削除（手動ロックは触らない）。"""
+        key = self._cell_key(staff_id, shift_date)
+        if self.locks.get(key) == "manual":
+            return
+        previous = self.grid.get(key)
+        if previous:
+            self._adjust_counts_for_symbol(staff_id, shift_date, previous, -1)
+            if _symbol_work_key(previous, self.settings) == "night":
+                self._clear_auto_night_chain(staff_id, shift_date)
+            del self.grid[key]
+        self.locks.pop(key, None)
+
+    def _movable_leave_off_dates(self, staff_id: int) -> list[str]:
+        """自動確保の公休（移動可能）の日付一覧。"""
+        dates: list[str] = []
+        for shift_date in self.period_dates:
+            if self.locks.get((staff_id, shift_date)) != "leave":
+                continue
+            if not self._counts_toward_off_target(staff_id, shift_date):
+                continue
+            dates.append(shift_date)
+        return dates
+
+    def _try_assign_day_work(self, staff: dict, shift_date: str, work_order: list[str]) -> bool:
+        ranked = sorted(
+            work_order,
+            key=lambda key: (
+                self._ratio_deficit(staff, key),
+                -self._workload_balance_penalty(staff["id"]),
+            ),
+            reverse=True,
+        )
+        for work_key in ranked:
+            if not self._can_work(staff, work_key, shift_date):
+                continue
+            symbol = self._preferred_symbol_for_staff(staff, work_key)
+            if not symbol:
+                continue
+            self._set_symbol(staff["id"], shift_date, symbol)
+            return True
+        return False
+
+    def _try_fill_empty_by_relocating_off(
+        self,
+        staff: dict,
+        empty_date: str,
+        work_order: list[str],
+    ) -> bool:
+        """連勤上限などで勤務を入れられない空きに、別日の公休を移して空白を解消する。"""
+        sid = staff["id"]
+        donors = [d for d in self._movable_leave_off_dates(sid) if d != empty_date]
+        if not donors:
+            return False
+
+        empty_idx = self.date_index[empty_date]
+
+        def donor_score(donor: str) -> tuple:
+            # 空き日に近い公休を優先（連勤の切れ目として自然）
+            return (abs(self.date_index[donor] - empty_idx), -self.date_index[donor])
+
+        for donor in sorted(donors, key=donor_score):
+            donor_symbol = self._get_symbol(sid, donor)
+            donor_lock = self.locks.get((sid, donor))
+            # 1) 空きへ公休を移す
+            self._clear_auto_symbol(sid, donor)
+            self._set_symbol(sid, empty_date, self.off_symbol, lock="leave")
+            # 2) 元の公休日を勤務で埋める
+            if self._try_assign_day_work(staff, donor, work_order):
+                return True
+            # 失敗したら元に戻す
+            self._clear_auto_symbol(sid, empty_date)
+            self._clear_auto_symbol(sid, donor)
+            if donor_symbol:
+                self._set_symbol(sid, donor, donor_symbol, lock=donor_lock)
+        return False
+
     def _phase_pad_empty(self) -> int:
-        """勤務・公休の割当後も記号がないセルを公休で埋める（休み日数カウント対象外）。"""
+        """公休確保後の空きセルを昼間勤務で埋める（公休の追加はしない）。連勤上限で入れられない場合は公休を別日へ移して空白を解消する。"""
         count = 0
+        work_order = [k for k in ("early", "day", "late") if k in self.work_keys]
+        if not work_order:
+            return 0
+        unfilled: list[str] = []
         for staff in self.staff_list:
             sid = staff["id"]
             for shift_date in self.period_dates:
                 if self._is_locked(sid, shift_date) or self._get_symbol(sid, shift_date):
                     continue
-                self._set_symbol(sid, shift_date, self.off_symbol, lock="padding")
-                count += 1
+                if self._try_assign_day_work(staff, shift_date, work_order):
+                    count += 1
+                    continue
+                # 勤務制約（主に連勤上限）で入れられない → 公休をここに移し、元の公休枠を勤務へ
+                if self._try_fill_empty_by_relocating_off(staff, shift_date, work_order):
+                    count += 1
+                    continue
+                unfilled.append(f"{staff['name']}@{shift_date}")
+        if unfilled:
+            sample = "、".join(unfilled[:8])
+            suffix = f" ほか {len(unfilled) - 8} 件" if len(unfilled) > 8 else ""
+            self.warnings.append(
+                _warning(
+                    "warn",
+                    "empty_cells_unfilled",
+                    f"勤務制約のため埋められなかった空きがあります（{len(unfilled)} 件: {sample}{suffix}）。",
+                )
+            )
         return count
 
     def _validate_off_exact(self) -> None:
         for staff in self.staff_list:
             sid = staff["id"]
-            target = self._period_off_target()
+            target = self._period_off_target(sid)
             actual = self._count_off_toward_target(sid)
             if actual == target:
                 continue
@@ -1288,40 +1625,45 @@ class _Generator:
         if not self.settings.get("require_leader_on_night") or "night" not in self.work_keys:
             return
         for shift_date in self.period_dates:
-            night_count = self._count_work_on_day(shift_date, "night")
-            if night_count <= 0:
-                continue
-            if self._has_leader_on_night(shift_date):
-                continue
-            self.warnings.append(
-                _warning(
-                    "warn",
-                    "leader_on_night_missing",
-                    f"{shift_date} の夜勤にリーダー以上が配置できませんでした。",
+            shortfalls = self._night_leader_group_shortfalls(shift_date)
+            for group in shortfalls:
+                label = str(group.get("label") or "・".join(group.get("floors") or [])).strip()
+                need = int(group.get("min_leaders", 1))
+                actual = int(group.get("actual", 0))
+                self.warnings.append(
+                    _warning(
+                        "warn",
+                        "leader_on_night_missing",
+                        f"{shift_date} の夜勤リーダー（{label}）が不足しています（必要 {need} 人 / 実際 {actual} 人）。",
+                    )
                 )
-            )
 
     def run(self, existing: dict[tuple[int, str], dict]) -> dict:
         manual = self._phase_manual(existing)
         leave = self._phase_leave()
         self._validate_staff_capacity()
+        # 公休を先に指定日数ぶん確保し、残りを勤務配置で埋める
+        off_placed = self._phase_exact_off()
+        leave += off_placed
         if self.staffing_mode == "time_slot":
-            # 時間帯モードは必要人数の充足を優先。夜勤回数の事前充填は日勤帯を圧迫し偏りの原因になるため行わない。
-            self._phase_time_slot_staffing()
+            # 夜勤は人数固定の別枠。時間帯ルールは日中帯のみ充足する。
+            self._phase_night_assignments()
             self._phase_morning_off_after_night()
+            self._phase_time_slot_staffing()
             self._phase_capacity_day_assign()
         else:
             self._phase_night_assignments()
             self._phase_morning_off_after_night()
             self._phase_capacity_day_assign()
             self._phase_coverage_and_basis()
-        off_placed = self._phase_exact_off()
-        leave += off_placed
+        # 勤務配置後に不足があれば空きへ公休を補充し、それでも残る空きは勤務で埋める
+        leave += self._phase_exact_off()
         self._phase_pad_empty()
         self._validate_off_exact()
         self._validate_staff_ratio_results()
         self._validate_leader_on_night()
         self._emit_understaffed_warnings()
+        self._emit_student_labor_warnings()
 
         if not self.staff_list:
             self.warnings.append(_warning("error", "no_staff", "人員に含める職員が0人です。"))
@@ -1361,6 +1703,8 @@ class _Generator:
             return "manual"
         if lock == "leave":
             return "leave"
+        if lock == "rest":
+            return "rest"
         return "auto"
 
 
@@ -1398,6 +1742,20 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
                     f"表示期間に自動生成できる日がありません。",
                 )
             ],
+            "result_summary": build_generate_result_summary(
+                [
+                    _warning(
+                        "error",
+                        "empty_scope",
+                        "表示期間に自動生成できる日がありません。",
+                    )
+                ],
+                {
+                    "generated_cells": 0,
+                    "leave_locked": 0,
+                    "manual_locked": 0,
+                },
+            ),
             "priority_order": PRIORITY_ORDER,
             "scope_day_count": 0,
             "ok": False,
@@ -1433,6 +1791,7 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
             )
 
     error_count = sum(1 for item in result["warnings"] if item["level"] == "error")
+    summary = build_generate_result_summary(result["warnings"], result["stats"])
 
     return {
         "year": year,
@@ -1442,6 +1801,7 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
         "ok": applied and error_count == 0,
         "stats": result["stats"],
         "warnings": result["warnings"],
+        "result_summary": summary,
         "priority_order": PRIORITY_ORDER,
         "scope_day_count": len(scope_days),
         "save_error": save_error,

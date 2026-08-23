@@ -1,6 +1,14 @@
 const STORAGE_KEY = "shift-display-prefs";
 const serverDefaults = window.APP_SETTINGS ?? {};
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function defaultPrefs() {
   return {
     showJob: serverDefaults.default_show_job_column ?? true,
@@ -97,9 +105,10 @@ function getPrefs() {
 
 function applyDisplayPrefs(prefs = getPrefs()) {
   if (shiftCalendar) {
-    shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+    const foreignSheet = getCurrentSheetView() === "foreign-students";
+    shiftCalendar.classList.toggle("hide-col-job", foreignSheet || !prefs.showJob);
     shiftCalendar.classList.toggle("hide-col-dept", !prefs.showDept);
-    shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
+    shiftCalendar.classList.toggle("hide-summary", foreignSheet || !prefs.showSummary);
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
     shiftCalendar.classList.toggle("mono-cells", !prefs.colorCells);
   }
@@ -157,11 +166,12 @@ function syncZoomSelect() {
 function applyTableZoom(zoom = tableZoom) {
   tableZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
   if (tableWrap) {
-    // Zoom the table, not the scrollport — zooming .table-wrap clips the sheet on phones
+    // Zoom the table, not the scrollport — zooming .table-wrap clips the bottom on iOS
     const table = tableWrap.querySelector(".shift-table");
     tableWrap.style.zoom = "";
     tableWrap.style.transform = "";
     tableWrap.style.transformOrigin = "";
+    tableWrap.style.marginBottom = "";
     if (table) {
       if (SUPPORTS_CSS_ZOOM) {
         table.style.zoom = String(tableZoom);
@@ -172,8 +182,8 @@ function applyTableZoom(zoom = tableZoom) {
         table.style.zoom = "";
         table.style.transform = `scale(${tableZoom})`;
         table.style.transformOrigin = "top left";
-        table.style.marginBottom =
-          tableZoom > 1 ? `${Math.ceil(table.offsetHeight * (tableZoom - 1))}px` : "";
+        // transform does not expand layout; pad so the scroller can reach the bottom
+        table.style.marginBottom = tableZoom > 1 ? `${Math.ceil(table.offsetHeight * (tableZoom - 1))}px` : "";
       }
     }
   }
@@ -203,7 +213,7 @@ function syncSortSegments(mode = getCurrentSortMode()) {
 
 function updateSortSegmentIndicator(mode = getCurrentSortMode()) {
   const segment =
-    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
+    document.querySelector("#home-filters-body .home-segment") ??
     document.querySelector(".home-segment");
   const indicator = segment?.querySelector(".home-segment-indicator");
   const active =
@@ -379,10 +389,470 @@ function invertFilterGroupChecked(group) {
     });
 }
 
+const FOREIGN_STUDENT_JOB = "留学生";
+const SHEET_VIEW_ORDER = ["all", "foreign-students"];
+const DEFAULT_SHEET_VIEW_COLORS = {
+  all: "#3B82F6",
+  "foreign-students": "#217346",
+};
+const SHEET_VIEW_META = {
+  all: { title: "全体シフト表.xlsx", foreign: false },
+  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
+};
+const SHEET_FLIP_MS = 480;
+
+let currentSheetView = "all";
+let savedJobFilterBeforeSheet = null;
+let sheetFlipBusy = false;
+let sheetFlipTimer = null;
+let sheetViewColors = { ...DEFAULT_SHEET_VIEW_COLORS };
+
+function getCurrentSheetView() {
+  return currentSheetView || "all";
+}
+
+function prefersReducedSheetMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
+
+function normalizeSheetHex(value, fallback = "#3B82F6") {
+  const raw = String(value ?? "").trim();
+  if (!/^#?[0-9A-Fa-f]{6}$/.test(raw)) return fallback;
+  return (raw.startsWith("#") ? raw : `#${raw}`).toUpperCase();
+}
+
+function hexToRgb(hex) {
+  const normalized = normalizeSheetHex(hex);
+  return {
+    r: Number.parseInt(normalized.slice(1, 3), 16),
+    g: Number.parseInt(normalized.slice(3, 5), 16),
+    b: Number.parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function rgbToHex(r, g, b) {
+  const to = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
+}
+
+function mixHex(hex, target, ratio) {
+  const a = hexToRgb(hex);
+  const b = hexToRgb(target);
+  const t = Math.max(0, Math.min(1, ratio));
+  return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+}
+
+function loadSheetViewColors() {
+  const fromSettings = serverDefaults.sheet_view_colors;
+  sheetViewColors = {
+    ...DEFAULT_SHEET_VIEW_COLORS,
+    ...(fromSettings && typeof fromSettings === "object" ? fromSettings : {}),
+  };
+  for (const key of SHEET_VIEW_ORDER) {
+    sheetViewColors[key] = normalizeSheetHex(
+      sheetViewColors[key],
+      DEFAULT_SHEET_VIEW_COLORS[key]
+    );
+  }
+  return sheetViewColors;
+}
+
+function getSheetColor(view = getCurrentSheetView()) {
+  return normalizeSheetHex(
+    sheetViewColors[view],
+    DEFAULT_SHEET_VIEW_COLORS[view] || DEFAULT_SHEET_VIEW_COLORS.all
+  );
+}
+
+function applySheetTheme(view = getCurrentSheetView()) {
+  const workspace = document.querySelector(".shift-workspace");
+  if (!workspace) return;
+  const accent = getSheetColor(view);
+  const soft = mixHex(accent, "#FFFFFF", 0.86);
+  const softStrong = mixHex(accent, "#FFFFFF", 0.72);
+  const header = mixHex(accent, "#000000", 0.08);
+  const headerStrong = mixHex(accent, "#000000", 0.22);
+  workspace.style.setProperty("--sheet-accent", accent);
+  workspace.style.setProperty("--sheet-accent-soft", soft);
+  workspace.style.setProperty("--sheet-accent-soft-strong", softStrong);
+  workspace.style.setProperty("--sheet-header-bg", header);
+  workspace.style.setProperty("--sheet-header-bg-strong", headerStrong);
+  workspace.classList.add("is-sheet-themed");
+  syncSheetTabColors();
+}
+
+function syncSheetTabColors() {
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const key = el.dataset.sheetView || "all";
+    const accent = getSheetColor(key);
+    const soft = mixHex(accent, "#FFFFFF", 0.84);
+    const softMid = mixHex(accent, "#EEF2F7", 0.55);
+    const softTop = mixHex(accent, "#FFFFFF", 0.76);
+    const bar = mixHex(accent, "#FFFFFF", 0.28);
+    const border = mixHex(accent, "#AEB8C6", 0.45);
+    el.style.setProperty("--sheet-tab-color", accent);
+    el.style.setProperty("--sheet-tab-soft", soft);
+    el.style.setProperty("--sheet-tab-soft-mid", softMid);
+    el.style.setProperty("--sheet-tab-soft-top", softTop);
+    el.style.setProperty("--sheet-tab-bar", bar);
+    el.style.setProperty("--sheet-tab-border", border);
+    // 文字色は常に固定の濃い色（アクセントカラーに依存しない）
+    el.style.setProperty("--sheet-tab-ink", "#1e293b");
+  });
+}
+
+function syncJobFilterPanelForSheet(view = getCurrentSheetView()) {
+  const panel = document.getElementById("home-filter-panel-job");
+  const note = document.getElementById("home-filter-job-lock-note");
+  const locked = view === "foreign-students";
+  panel?.classList.toggle("is-sheet-locked", locked);
+  note?.classList.toggle("hidden", !locked);
+  panel?.querySelectorAll(".home-filter-action").forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.disabled = locked;
+  });
+  panel?.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+    if (!(box instanceof HTMLInputElement)) return;
+    box.disabled = locked;
+  });
+}
+
+function updateSheetEmptyState() {
+  const empty = document.getElementById("sheet-empty-state");
+  const legend = document.getElementById("sheet-legend");
+  const tbody = shiftCalendar?.querySelector("tbody");
+  if (!empty || !tbody) return;
+
+  const isForeign = getCurrentSheetView() === "foreign-students";
+  const visibleCount = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden).length;
+  const showEmpty = isForeign && visibleCount === 0;
+  empty.classList.toggle("hidden", !showEmpty);
+  shiftCalendar?.classList.toggle("hidden", showEmpty);
+  legend?.classList.toggle("hidden", showEmpty);
+}
+
+function applySheetViewContent(next, prev) {
+  currentSheetView = next;
+
+  const workspace = document.querySelector(".shift-workspace");
+  workspace?.setAttribute("data-sheet-view", next);
+  workspace?.classList.toggle("is-sheet-foreign", Boolean(SHEET_VIEW_META[next]?.foreign));
+  applySheetTheme(next);
+
+  // 留学生シートは職種列・施設集計を隠して表を見やすくする
+  if (shiftCalendar) {
+    if (SHEET_VIEW_META[next]?.foreign) {
+      shiftCalendar.classList.add("hide-col-job", "hide-summary");
+    } else {
+      const prefs = getPrefs();
+      shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+      shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
+    }
+  }
+
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const active = el.dataset.sheetView === next;
+    el.classList.toggle("is-active", active);
+    el.setAttribute("aria-selected", active ? "true" : "false");
+  });
+
+  updateSheetTabCounts();
+  syncJobFilterPanelForSheet(next);
+  syncStudentLaborPanelVisibility(next);
+
+  if (next === "foreign-students" && prev !== "foreign-students") {
+    savedJobFilterBeforeSheet = getSelectedFilterValues("job");
+    const jobBoxes = document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]');
+    jobBoxes.forEach((box) => {
+      box.checked = box.value === FOREIGN_STUDENT_JOB;
+    });
+  } else if (next === "all" && prev === "foreign-students") {
+    const jobBoxes = [...document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]')];
+    if (Array.isArray(savedJobFilterBeforeSheet)) {
+      jobBoxes.forEach((box) => {
+        box.checked = savedJobFilterBeforeSheet.includes(box.value);
+      });
+    } else {
+      jobBoxes.forEach((box) => {
+        box.checked = true;
+      });
+    }
+    savedJobFilterBeforeSheet = null;
+  }
+
+  applyRowFilters();
+  savePrefs({
+    ...loadPrefs(),
+    ...getPrefs(),
+    tableZoom,
+    sheetView: next,
+  });
+}
+
+function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
+  const panel = document.getElementById("student-labor-panel");
+  if (!panel) return;
+  const show = view === "foreign-students";
+  panel.classList.toggle("hidden", !show);
+  if (show) {
+    loadStudentLaborSummary();
+  }
+}
+
+function studentLaborStatusIcon(status) {
+  switch (status) {
+    case "ok":
+      return "○";
+    case "approach":
+      return "△";
+    case "reached":
+      return "●";
+    case "over":
+      return "×";
+    case "need_confirm":
+    case "blocked":
+      return "！";
+    default:
+      return "・";
+  }
+}
+
+function formatStudentLaborDateRange(startIso, endIso) {
+  if (!startIso || !endIso) return "";
+  const fmt = (iso) => {
+    const [y, m, d] = String(iso).split("-");
+    return `${Number(y)}年${Number(m)}月${Number(d)}日`;
+  };
+  return `${fmt(startIso)}～${fmt(endIso)}`;
+}
+
+async function loadStudentLaborSummary() {
+  const list = document.getElementById("student-labor-week-list");
+  const monthBody = document.getElementById("student-labor-month-tbody");
+  const rangeEl = document.getElementById("student-labor-week-range");
+  const monthLabel = document.getElementById("student-labor-month-label");
+  if (!list) return;
+
+  const year = getCalendarYear();
+  const month = getCalendarMonth();
+  if (!year || !month) return;
+
+  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">読み込み中…</td></tr>`;
+
+  try {
+    const [weekRes, monthRes] = await Promise.all([
+      fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`),
+      fetch(`/api/shifts/student-labor-month?year=${year}&month=${month}`),
+    ]);
+    if (!weekRes.ok) {
+      list.innerHTML = `<p class="student-labor-empty">読み込みに失敗しました</p>`;
+      return;
+    }
+    const weekData = await weekRes.json();
+    if (rangeEl) {
+      rangeEl.textContent = formatStudentLaborDateRange(weekData.week_start, weekData.week_end);
+    }
+    renderStudentLaborWeekRows(list, weekData.rows || []);
+
+    if (monthBody) {
+      if (monthRes.ok) {
+        const monthData = await monthRes.json();
+        if (monthLabel) {
+          monthLabel.textContent = `${monthData.year}年${monthData.month}月`;
+        }
+        renderStudentLaborMonthRows(monthBody, monthData.rows || []);
+      } else {
+        monthBody.innerHTML = `<tr><td colspan="5">月別集計の読み込みに失敗しました</td></tr>`;
+      }
+    }
+  } catch {
+    list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
+    if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">通信エラー</td></tr>`;
+  }
+}
+
+function studentLaborUsagePercent(row) {
+  const limit = Number(row.limit_week_minutes) || 0;
+  const total = Number(row.total_week_minutes) || 0;
+  if (limit <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((total / limit) * 100)));
+}
+
+function renderStudentLaborWeekRows(list, rows) {
+  if (!rows.length) {
+    list.innerHTML = `<p class="student-labor-empty">対象の留学生がいません</p>`;
+    return;
+  }
+  list.innerHTML = rows
+    .map((row) => {
+      const status = row.status || "ok";
+      const icon = studentLaborStatusIcon(status);
+      const reason = row.reason_label
+        ? `<p class="student-labor-reason">${escapeHtml(row.reason_label)}</p>`
+        : "";
+      const pct = studentLaborUsagePercent(row);
+      const remaining = row.remaining_hours_label || "—";
+      return `<article class="student-labor-card status-${escapeHtml(status)}" data-staff-id="${row.staff_id ?? ""}">
+        <div class="student-labor-card-top">
+          <div class="student-labor-card-identity">
+            <strong class="student-labor-name">${escapeHtml(row.name || "")}</strong>
+            <span class="student-labor-period">${escapeHtml(row.period_label || "")}</span>
+          </div>
+          <span class="student-labor-status-badge" title="${escapeHtml(row.status_label || "")}">
+            <span class="student-labor-status-icon" aria-hidden="true">${icon}</span>
+            ${escapeHtml(row.status_label || "")}
+          </span>
+        </div>
+        <div class="student-labor-meter" aria-hidden="true">
+          <span class="student-labor-meter-fill" style="width:${pct}%"></span>
+        </div>
+        <dl class="student-labor-metrics">
+          <div>
+            <dt>自施設</dt>
+            <dd>${escapeHtml(row.facility_week_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>他勤務先</dt>
+            <dd>${escapeHtml(row.other_job_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>合計</dt>
+            <dd class="is-emphasis">${escapeHtml(row.total_hours_label || "0時間")}</dd>
+          </div>
+          <div>
+            <dt>上限</dt>
+            <dd>${escapeHtml(row.limit_hours_label || "—")}</dd>
+          </div>
+          <div>
+            <dt>残り</dt>
+            <dd class="is-remaining">${escapeHtml(remaining)}</dd>
+          </div>
+        </dl>
+        ${reason}
+      </article>`;
+    })
+    .join("");
+}
+
+function renderStudentLaborMonthRows(tbody, rows) {
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5">対象の留学生がいません</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows
+    .map(
+      (row) => `<tr>
+        <td class="student-labor-name">${escapeHtml(row.name || "")}</td>
+        <td>${escapeHtml(row.normal_hours_label || "")}</td>
+        <td>${escapeHtml(row.vacation_hours_label || "")}</td>
+        <td>${escapeHtml(row.total_with_other_hours_label || "")}</td>
+        <td>${escapeHtml(String(row.warning_count ?? 0))}件</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function clearSheetFlipClasses(viewport) {
+  viewport?.classList.remove(
+    "is-flipping",
+    "is-flipping-forward",
+    "is-flipping-back",
+    "is-flip-mid"
+  );
+}
+
+function setSheetView(view, opts = {}) {
+  const next = SHEET_VIEW_META[view] ? view : "all";
+  const prev = currentSheetView;
+  const animate = opts.animate !== false;
+  if (next === prev && !opts.force) {
+    updateSheetTabCounts();
+    return;
+  }
+  if (sheetFlipBusy) return;
+
+  const viewport = document.getElementById("sheet-flip-viewport");
+  const canAnimate =
+    animate &&
+    Boolean(viewport) &&
+    prev !== next &&
+    !prefersReducedSheetMotion();
+
+  if (!canAnimate) {
+    applySheetViewContent(next, prev);
+    return;
+  }
+
+  const prevIndex = SHEET_VIEW_ORDER.indexOf(prev);
+  const nextIndex = SHEET_VIEW_ORDER.indexOf(next);
+  const forward = nextIndex >= prevIndex;
+  sheetFlipBusy = true;
+  clearSheetFlipClasses(viewport);
+  viewport.classList.add("is-flipping", forward ? "is-flipping-forward" : "is-flipping-back");
+
+  if (sheetFlipTimer) {
+    window.clearTimeout(sheetFlipTimer);
+  }
+  sheetFlipTimer = window.setTimeout(() => {
+    viewport.classList.add("is-flip-mid");
+    applySheetViewContent(next, prev);
+  }, Math.round(SHEET_FLIP_MS * 0.48));
+
+  const finish = () => {
+    viewport.removeEventListener("animationend", onEnd);
+    if (sheetFlipTimer) {
+      window.clearTimeout(sheetFlipTimer);
+      sheetFlipTimer = null;
+    }
+    clearSheetFlipClasses(viewport);
+    sheetFlipBusy = false;
+  };
+  const onEnd = (event) => {
+    if (event.target !== document.getElementById("sheet-flip-page")) return;
+    finish();
+  };
+  viewport.addEventListener("animationend", onEnd);
+  window.setTimeout(finish, SHEET_FLIP_MS + 80);
+}
+
+function updateSheetTabCounts() {
+  const tbody = shiftCalendar?.querySelector("tbody");
+  if (!tbody) return;
+  const rows = [...tbody.querySelectorAll("tr")];
+  const allCount = rows.length;
+  const foreignCount = rows.filter((row) => (row.dataset.job ?? "") === FOREIGN_STUDENT_JOB).length;
+
+  document.querySelectorAll('.sheet-tab[data-sheet-view="all"] .sheet-tab-count').forEach((el) => {
+    el.textContent = String(allCount);
+  });
+  document.querySelectorAll('.sheet-tab[data-sheet-view="foreign-students"] .sheet-tab-count').forEach((el) => {
+    el.textContent = String(foreignCount);
+  });
+}
+
+function initSheetViews() {
+  const saved = loadPrefs();
+  loadSheetViewColors();
+  syncSheetTabColors();
+
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setSheetView(el.dataset.sheetView || "all");
+    });
+  });
+
+  const initial = SHEET_VIEW_META[saved.sheetView] ? saved.sheetView : "all";
+  setSheetView(initial, { animate: false, force: true });
+}
+
 function applyRowFilters() {
   const selectedDepts = getSelectedFilterValues("dept");
   const selectedJobs = getSelectedFilterValues("job");
   const selectedPositions = getSelectedFilterValues("position");
+  const sheetView = getCurrentSheetView();
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
 
@@ -390,7 +860,11 @@ function applyRowFilters() {
     const floors = (row.dataset.floors ?? row.dataset.dept ?? "").split(",").filter(Boolean);
     const matchDept =
       selectedDepts.length === 0 || floors.some((floor) => selectedDepts.includes(floor));
-    const matchJob = selectedJobs.length === 0 || selectedJobs.includes(row.dataset.job ?? "");
+    const job = row.dataset.job ?? "";
+    const matchJob =
+      sheetView === "foreign-students"
+        ? job === FOREIGN_STUDENT_JOB
+        : selectedJobs.length === 0 || selectedJobs.includes(job);
     const rowPosition = row.dataset.position ?? "";
     const matchPosition =
       selectedPositions.length === 0 || selectedPositions.includes(rowPosition);
@@ -398,6 +872,7 @@ function applyRowFilters() {
   });
   refreshSummaryCounts();
   updateFiltersSummary();
+  updateSheetEmptyState();
   saveFilterPrefs();
 }
 
@@ -434,7 +909,7 @@ function updateFiltersSummary() {
     ? "絞り込みパネルを閉じます"
     : isFiltered
       ? `絞り込み中（非表示 ${hiddenCount} 項目）`
-      : "フロア・職種・役職で表示を絞り込みます";
+      : "並び順・表示・フロア・職種・役職を設定します";
 
   if (badge) {
     if (isFiltered) {
@@ -458,6 +933,9 @@ function setFiltersPanelCollapsed(collapsed) {
     body.hidden = collapsed;
   }
   updateFiltersSummary();
+  if (!collapsed) {
+    scheduleSortSegmentIndicatorUpdate();
+  }
   savePrefs({
     ...loadPrefs(),
     ...getPrefs(),
@@ -517,9 +995,10 @@ function initCalendarControls() {
   btnNextYear?.addEventListener("click", () => navigateYear(1));
 
   const homeToolbarTools = document.querySelector(".home-toolbar-inline-tools");
-  homeToolbarTools?.addEventListener("click", (event) => {
+  const filtersBody = document.getElementById("home-filters-body");
+  filtersBody?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-sort-mode]");
-    if (!button || !homeToolbarTools.contains(button)) return;
+    if (!button || !filtersBody.contains(button)) return;
     const sortSelect = getCalendarSortSelect();
     if (!sortSelect) return;
     sortSelect.value = button.dataset.sortMode ?? "dept";
@@ -533,7 +1012,7 @@ function initCalendarControls() {
     applyTableZoom(selected / 100);
     savePrefs({ ...loadPrefs(), ...getPrefs(), tableZoom });
   });
-  homeToolbarTools?.addEventListener("change", (event) => {
+  filtersBody?.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
     if (!["home-color-cells", "home-show-job", "home-show-dept", "home-show-summary"].includes(input.id)) {
@@ -565,10 +1044,12 @@ function initCalendarControls() {
   initRowFilters();
   initSortState();
   initFiltersPanelCollapse();
+  initSheetViews();
+  initPullToReload();
   scheduleSortSegmentIndicatorUpdate();
   window.addEventListener("resize", scheduleSortSegmentIndicatorUpdate);
   const sortSegment =
-    document.querySelector(".home-toolbar-inline-tools .home-segment") ??
+    document.querySelector("#home-filters-body .home-segment") ??
     document.querySelector(".home-segment");
   if (sortSegment && typeof ResizeObserver !== "undefined") {
     const segmentObserver = new ResizeObserver(scheduleSortSegmentIndicatorUpdate);
@@ -603,11 +1084,25 @@ function initDisplayFromSettings() {
 
 function initTableZoom() {
   const saved = loadPrefs();
+  const compact = window.matchMedia("(max-width: 1024px)").matches;
   const phone = window.matchMedia("(max-width: 768px)").matches;
   let baseZoom = saved.tableZoom ?? defaultPrefs().tableZoom;
-  if (saved.tableZoom == null && phone) {
-    baseZoom = 1;
+
+  // Prefer readable size on touch devices (was 80%/90% and felt too small)
+  if (compact) {
+    const target = phone ? 1.1 : 1.0;
+    if (saved.tableZoom == null) {
+      baseZoom = target;
+      savePrefs({ ...saved, tableZoom: target, sheetReadableV1: true });
+    } else if (!saved.sheetReadableV1 && Number(saved.tableZoom) < target) {
+      // One-time bump for users stuck on the old compact default
+      baseZoom = target;
+      savePrefs({ ...saved, tableZoom: target, sheetReadableV1: true });
+    } else if (!saved.sheetReadableV1) {
+      savePrefs({ ...saved, sheetReadableV1: true });
+    }
   }
+
   applyTableZoom(baseZoom);
   zoomControls?.addEventListener("wheel", handleZoomWheel, { passive: false });
   shiftCalendar?.addEventListener(
@@ -629,6 +1124,12 @@ function syncPreviewFromCalendar() {
 
   const table = sourceTable.cloneNode(true);
   table.classList.add("shift-table-compact");
+  table.querySelectorAll("tbody tr").forEach((row) => {
+    const sourceRow = sourceTable.querySelector(`tbody tr[data-staff-id="${row.dataset.staffId}"]`);
+    if (sourceRow?.hidden) {
+      row.remove();
+    }
+  });
   table.querySelectorAll(".shift-td-editable").forEach((cell) => {
     cell.classList.remove("shift-td-editable", "is-editing");
     cell.removeAttribute("title");
@@ -827,43 +1328,25 @@ const POINTER_MOVE_CANCEL_PX = 12;
 
 let flickPad = null;
 let flickBackdrop = null;
-let sheetScrollLock = null;
-
-function lockSheetScroll() {
-  document.body.classList.add("is-flicking");
-  const scroller = tableWrap || shiftCalendar?.querySelector(".table-wrap");
-  if (!scroller) return;
-  if (sheetScrollLock) {
-    scroller.removeEventListener("scroll", sheetScrollLock.freeze);
-  }
-  const top = scroller.scrollTop;
-  const left = scroller.scrollLeft;
-  const freeze = () => {
-    scroller.scrollTop = top;
-    scroller.scrollLeft = left;
-  };
-  scroller.addEventListener("scroll", freeze);
-  sheetScrollLock = { el: scroller, freeze };
-}
-
-function unlockSheetScroll() {
-  document.body.classList.remove("is-flicking");
-  if (!sheetScrollLock) return;
-  sheetScrollLock.el.removeEventListener("scroll", sheetScrollLock.freeze);
-  sheetScrollLock = null;
-}
 
 function getFlickOptions() {
-  const work = shiftOptions.filter((option) => option.key !== "morning_off");
-  const clearOption = { key: "clear", symbol: "", label: "削除", class: "shift-clear" };
-  // Always keep 削除 on the wheel (8 directions max)
-  return [clearOption, ...work.slice(0, FLICK_MAX_OPTIONS - 1)];
-}
+  const assigned = Array.isArray(serverDefaults.cell_flick_directions)
+    ? serverDefaults.cell_flick_directions
+    : [];
+  const hasCustom = assigned.some((symbol) => String(symbol || "").trim());
+  if (!hasCustom) {
+    const defaults = shiftOptions.slice(0, FLICK_MAX_OPTIONS);
+    while (defaults.length < FLICK_MAX_OPTIONS) defaults.push(null);
+    return defaults;
+  }
 
-function flickOptionGlyph(option) {
-  if (!option) return "·";
-  if (option.key === "clear" || option.symbol === "") return "削";
-  return option.symbol || "·";
+  const bySymbol = new Map(shiftOptions.map((item) => [item.symbol, item]));
+  const options = [];
+  for (let i = 0; i < FLICK_MAX_OPTIONS; i += 1) {
+    const key = String(assigned[i] || "").trim();
+    options.push(key ? bySymbol.get(key) || null : null);
+  }
+  return options;
 }
 
 function getFlickDirectionIndex(dx, dy) {
@@ -900,7 +1383,6 @@ function hideFlickPad() {
   flickPad?.classList.add("hidden");
   flickPad?.replaceChildren();
   flickBackdrop?.classList.add("hidden");
-  unlockSheetScroll();
 }
 
 function positionFlickPad(pad, td) {
@@ -928,8 +1410,8 @@ function updateFlickHighlight(directionIndex) {
   const center = flickPad.querySelector(".shift-flick-center-symbol");
   const options = getFlickOptions();
   if (center) {
-    if (directionIndex >= 0 && directionIndex < options.length) {
-      center.textContent = flickOptionGlyph(options[directionIndex]);
+    if (directionIndex >= 0 && directionIndex < options.length && options[directionIndex]) {
+      center.textContent = options[directionIndex].symbol;
       center.className = `shift-flick-center-symbol ${options[directionIndex].class}`;
     } else {
       const currentSymbol = activeEditCell?.dataset.symbol ?? "";
@@ -970,6 +1452,7 @@ function openFlickPad(td) {
   pad.appendChild(center);
 
   options.forEach((option, index) => {
+    if (!option) return;
     const angle = (-90 + index * 45) * (Math.PI / 180);
     const left = centerX + radius * Math.cos(angle) - 28;
     const top = centerY + radius * Math.sin(angle) - 28;
@@ -982,7 +1465,7 @@ function openFlickPad(td) {
 
     const symbolSpan = document.createElement("span");
     symbolSpan.className = "shift-flick-dir-symbol";
-    symbolSpan.textContent = flickOptionGlyph(option);
+    symbolSpan.textContent = option.symbol;
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-flick-dir-label";
@@ -994,7 +1477,6 @@ function openFlickPad(td) {
 
   flickBackdrop?.classList.remove("hidden");
   pad.classList.remove("hidden");
-  lockSheetScroll();
   window.requestAnimationFrame(() => positionFlickPad(pad, td));
 }
 
@@ -1035,8 +1517,9 @@ function applyCellSymbol(td, symbol, options = {}) {
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
   span.dataset.symbol = symbol || "";
   span.setAttribute("aria-label", symbol || "未入力");
-  // Keep text out of the DOM so iOS wheel / long-press cannot Select All
+  // Keep text out of the DOM so iOS long-press cannot select cell symbols
   span.textContent = "";
+  // Transparent hit layer sits above the glyph so iOS callout has no text target
   td.replaceChildren(hit, span);
 }
 
@@ -1260,7 +1743,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   const previousSource = td.dataset.source;
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
-  applyCellSymbol(td, symbol, { source: symbol ? "manual" : "" });
+  applyCellSymbol(td, symbol, { source: "manual" });
 
   const response = await fetch("/api/shifts/cell", {
     method: "PUT",
@@ -1310,6 +1793,9 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
+  if (getCurrentSheetView() === "foreign-students") {
+    loadStudentLaborSummary();
+  }
 }
 
 async function unlockManualCell(td) {
@@ -1387,101 +1873,133 @@ function initShiftSelectionGuard() {
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (isIos) document.body.classList.add("is-ios");
 
+  let fingerDown = false;
+  let clearTimer = null;
+  let holdTimer = null;
+  let touchOrigin = null;
+
   function selectionInsideCalendar() {
     const sel = window.getSelection?.();
     if (!sel || !sel.rangeCount) return false;
     const node = sel.anchorNode;
     if (!node) return false;
     const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    return Boolean(el && (shiftCalendar.contains(el) || el === shiftCalendar));
+    return Boolean(el && shiftCalendar.contains(el));
   }
 
   function scrubSelection() {
-    if (selectionInsideCalendar()) clearDomSelection();
+    if (fingerDown || selectionInsideCalendar()) clearDomSelection();
   }
 
-  function sheetScroller() {
-    return shiftCalendar.querySelector(".table-wrap") || shiftCalendar;
-  }
-
-  function wheelDelta(event, axis) {
-    const raw = axis === "x" ? event.deltaX : event.deltaY;
-    if (event.deltaMode === 1) return raw * 16;
-    if (event.deltaMode === 2) {
-      const scroller = sheetScroller();
-      return raw * (axis === "x" ? scroller.clientWidth : scroller.clientHeight);
-    }
-    return raw;
+  function blockZoomWheel(event) {
+    // Trackpad pinch-zoom sends wheel + ctrl/meta on iPad / Magic Keyboard
+    if (event.ctrlKey || event.metaKey) event.preventDefault();
   }
 
   document.addEventListener("selectionchange", scrubSelection);
 
-  // iOS + mouse/trackpad: native wheel over text starts Select All.
-  // Take over scrolling so Safari never begins a selection.
-  function onSheetWheel(event) {
-    clearDomSelection();
-    event.preventDefault();
-    if (event.ctrlKey || event.metaKey) return;
-    if (cellPointer?.flickActive || (flickPad && !flickPad.classList.contains("hidden"))) return;
-    const scroller = sheetScroller();
-    scroller.scrollLeft += wheelDelta(event, "x");
-    scroller.scrollTop += wheelDelta(event, "y");
-  }
-
-  shiftCalendar.addEventListener("wheel", onSheetWheel, { passive: false, capture: true });
-
+  // iOS gesture pinch zoom (Safari-specific events)
   ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
     document.addEventListener(
       type,
       (event) => {
         if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
         event.preventDefault();
-        clearDomSelection();
       },
       { passive: false, capture: true }
     );
   });
 
+  // Wheel / trackpad pinch-zoom: keep normal scroll, block zoom
+  shiftCalendar.addEventListener("wheel", blockZoomWheel, { passive: false });
+  document.addEventListener(
+    "wheel",
+    (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (!shiftCalendar.contains(event.target) && event.target !== shiftCalendar) return;
+      event.preventDefault();
+    },
+    { passive: false, capture: true }
+  );
+
+  shiftCalendar.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.target.closest("input, textarea, select")) return;
+      if (!event.target.closest(".shift-table, .sheet-tabs, .student-labor-panel")) return;
+
+      if (event.touches.length > 1) {
+        event.preventDefault();
+        clearDomSelection();
+        return;
+      }
+
+      fingerDown = true;
+      clearDomSelection();
+      if (clearTimer) window.clearInterval(clearTimer);
+      if (holdTimer) window.clearTimeout(holdTimer);
+      // Keep clearing while the finger is down (iOS inserts a selection mid-hold)
+      clearTimer = window.setInterval(scrubSelection, 40);
+
+      const touch = event.touches[0];
+      touchOrigin = touch ? { x: touch.clientX, y: touch.clientY } : null;
+      // Mid-hold scrub: iOS often injects "Select All" just before the callout
+      holdTimer = window.setTimeout(() => {
+        scrubSelection();
+        clearDomSelection();
+      }, 280);
+    },
+    { passive: false }
+  );
+
+  shiftCalendar.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+        if (holdTimer) {
+          window.clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        return;
+      }
+      if (!touchOrigin || !event.touches[0]) return;
+      const dx = event.touches[0].clientX - touchOrigin.x;
+      const dy = event.touches[0].clientY - touchOrigin.y;
+      if (Math.hypot(dx, dy) > 8 && holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    },
+    { passive: false }
+  );
+
+  const endTouch = () => {
+    fingerDown = false;
+    touchOrigin = null;
+    if (clearTimer) {
+      window.clearInterval(clearTimer);
+      clearTimer = null;
+    }
+    if (holdTimer) {
+      window.clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    clearDomSelection();
+    window.setTimeout(clearDomSelection, 0);
+    window.setTimeout(clearDomSelection, 80);
+    window.setTimeout(clearDomSelection, 200);
+  };
+
+  shiftCalendar.addEventListener("touchend", endTouch, { passive: true });
+  shiftCalendar.addEventListener("touchcancel", endTouch, { passive: true });
+
+  // Extra belt: never start a text selection from the grid
   shiftCalendar.addEventListener(
     "selectstart",
     (event) => {
       if (event.target.closest("input, textarea, select")) return;
       event.preventDefault();
-    },
-    { capture: true }
-  );
-
-  shiftCalendar.addEventListener(
-    "dragstart",
-    (event) => {
-      event.preventDefault();
-    },
-    { capture: true }
-  );
-
-  // Block the selection caret before a wheel tick can extend it
-  shiftCalendar.addEventListener(
-    "mousedown",
-    (event) => {
-      if (event.target.closest("input, textarea, select, button, a")) return;
-      event.preventDefault();
-      clearDomSelection();
-    },
-    { capture: true }
-  );
-
-  shiftCalendar.addEventListener(
-    "mousemove",
-    () => {
-      if (window.getSelection?.()?.rangeCount) scrubSelection();
-    },
-    { capture: true }
-  );
-
-  shiftCalendar.addEventListener(
-    "auxclick",
-    (event) => {
-      if (event.button === 1) event.preventDefault();
     },
     { capture: true }
   );
@@ -1511,8 +2029,10 @@ function initShiftCellEditor() {
       flickActive: false,
       directionIndex: -1,
       cancelled: false,
+      capturing: false,
     };
 
+    // Do not capture yet — capturing here blocks native table scrolling on touch
     const sel = window.getSelection?.();
     if (sel && sel.rangeCount) sel.removeAllRanges();
 
@@ -1522,6 +2042,7 @@ function initShiftCellEditor() {
         closeCellEditor();
         cellPointer.flickActive = true;
         cellPointer.directionIndex = -1;
+        cellPointer.capturing = true;
         td.setPointerCapture?.(event.pointerId);
         openFlickPad(td);
         window.requestAnimationFrame(() => {
@@ -1546,6 +2067,10 @@ function initShiftCellEditor() {
         clearTimeout(cellPointer.longPressTimer);
         cellPointer.longPressTimer = null;
         cellPointer.cancelled = true;
+        if (cellPointer.capturing) {
+          cellPointer.td.releasePointerCapture?.(event.pointerId);
+          cellPointer.capturing = false;
+        }
       }
       return;
     }
@@ -1571,14 +2096,16 @@ function initShiftCellEditor() {
       clearTimeout(longPressTimer);
     }
 
-    if (flickActive) {
+    if (cellPointer.capturing) {
       cellPointer.td.releasePointerCapture?.(event.pointerId);
+      cellPointer.capturing = false;
     }
 
     if (flickActive) {
       const options = getFlickOptions();
-      if (directionIndex >= 0 && directionIndex < options.length) {
-        saveCellSymbol(td, options[directionIndex].symbol);
+      const selected = directionIndex >= 0 ? options[directionIndex] : null;
+      if (selected?.symbol) {
+        saveCellSymbol(td, selected.symbol);
       } else {
         closeFlickPad();
       }
@@ -1612,8 +2139,14 @@ function initShiftCellEditor() {
     if (event.target.closest("input, textarea, select")) return;
     if (!shiftCalendar.contains(event.target)) return;
     event.preventDefault();
-    clearDomSelection();
   });
+
+  shiftCalendar?.addEventListener("selectstart", (event) => {
+    if (event.target.closest("input, textarea, select")) return;
+    event.preventDefault();
+  });
+
+  initShiftSelectionGuard();
 
   shiftCalendar?.addEventListener("dblclick", (event) => {
     const td = event.target.closest(".shift-td-editable");
@@ -1662,17 +2195,6 @@ function initShiftCellEditor() {
       positionFlickPad(flickPad, activeEditCell);
     }
   });
-
-  document.addEventListener(
-    "touchmove",
-    (event) => {
-      if (!cellPointer?.flickActive && !(flickPad && !flickPad.classList.contains("hidden"))) return;
-      event.preventDefault();
-    },
-    { passive: false }
-  );
-
-  initShiftSelectionGuard();
 }
 
 initShiftCellEditor();
@@ -1682,11 +2204,19 @@ const autoGenerateModal = document.getElementById("auto-generate-modal");
 const autoGenerateModalTitle = document.getElementById("auto-generate-modal-title");
 const autoGenerateModalSubtitle = document.getElementById("auto-generate-modal-subtitle");
 const autoGenerateSummary = document.getElementById("auto-generate-summary");
+const autoGenerateResultSummary = document.getElementById("auto-generate-result-summary");
 const autoGenerateMessagesWrap = document.getElementById("auto-generate-messages-wrap");
 const autoGenerateMessages = document.getElementById("auto-generate-messages");
 const autoGenerateCloseBtn = document.getElementById("auto-generate-close-btn");
+const autoGenerateConfirmModal = document.getElementById("auto-generate-confirm-modal");
+const autoGenerateConfirmSubtitle = document.getElementById("auto-generate-confirm-subtitle");
+const autoGenerateConfirmSummary = document.getElementById("auto-generate-confirm-summary");
+const autoGenerateConfirmWarningsWrap = document.getElementById("auto-generate-confirm-warnings-wrap");
+const autoGenerateConfirmWarnings = document.getElementById("auto-generate-confirm-warnings");
+const autoGenerateConfirmRun = document.getElementById("auto-generate-confirm-run");
 
 let autoGenerateShouldReload = false;
+let pendingPreflight = null;
 
 const AUTO_GENERATE_LEVEL_LABELS = {
   error: "エラー",
@@ -1762,14 +2292,83 @@ function renderAutoGenerateMessages(messages) {
     const label = document.createElement("span");
     label.className = "auto-generate-message-label";
     label.textContent = `[${AUTO_GENERATE_LEVEL_LABELS[level] ?? "情報"}]`;
+    const body = document.createElement("div");
+    body.className = "auto-generate-message-body";
     const text = document.createElement("span");
     text.textContent = item.message || item.code || "詳細不明";
-    li.append(label, text);
+    body.appendChild(text);
+    if (item.suggestion) {
+      const tip = document.createElement("p");
+      tip.className = "auto-generate-suggestion";
+      tip.textContent = `改善の提案: ${item.suggestion}`;
+      body.appendChild(tip);
+      if (item.href) {
+        const link = document.createElement("a");
+        link.className = "auto-generate-suggestion-link";
+        link.href = item.href;
+        link.textContent = item.action_label || "設定を開く";
+        body.appendChild(link);
+      }
+    }
+    li.append(label, body);
     autoGenerateMessages.appendChild(li);
   });
 }
 
-function showAutoGenerateResult({ success, title, subtitle, summary, messages = [], reload = false }) {
+function renderSuggestionsBlock(suggestions) {
+  if (!autoGenerateResultSummary) return;
+  if (!Array.isArray(suggestions) || !suggestions.length) return "";
+  const items = suggestions
+    .map((item) => {
+      const link =
+        item.href
+          ? `<a class="auto-generate-suggestion-link" href="${item.href}">${item.action_label || "開く"}</a>`
+          : "";
+      return `<li><strong>${item.suggestion || ""}</strong>${link ? ` ${link}` : ""}${
+        item.message ? `<span class="auto-generate-suggestion-context">${item.message}</span>` : ""
+      }</li>`;
+    })
+    .join("");
+  return `<section class="auto-generate-result-section auto-generate-suggestions-section"><h4>改善の提案</h4><ul>${items}</ul></section>`;
+}
+
+function renderResultSummaryBlock(summary) {
+  if (!autoGenerateResultSummary) return;
+  if (!summary) {
+    autoGenerateResultSummary.classList.add("hidden");
+    autoGenerateResultSummary.replaceChildren();
+    return;
+  }
+  const sections = [
+    ["正常に配置できた勤務", [`生成セル ${summary.placed_cells ?? 0} 件`, `希望休の維持 ${summary.leave_kept ?? 0} 件`, `手動入力の維持 ${summary.manual_kept ?? 0} 件`]],
+    ["人数不足の日", summary.understaffed],
+    ["配置できなかった箇所", summary.unfilled_days],
+    ["夜勤リーダーの不足", summary.leader_issues],
+    ["希望条件を満たせなかった箇所", summary.unmet_preferences],
+    ["夜勤回数の偏り", summary.night_imbalance],
+    ["公休数の偏り", summary.off_imbalance],
+    ["修正が必要な箇所", summary.fix_needed],
+  ];
+  const html = sections
+    .filter(([, items]) => Array.isArray(items) && items.length)
+    .map(([title, items]) => {
+      const list = items
+        .map((text) => `<li>${String(text)}</li>`)
+        .join("");
+      return `<section class="auto-generate-result-section"><h4>${title}</h4><ul>${list}</ul></section>`;
+    })
+    .join("");
+  const suggestionsHtml = renderSuggestionsBlock(summary.suggestions);
+  if (!html && !suggestionsHtml) {
+    autoGenerateResultSummary.innerHTML = '<p class="field-hint">特記事項はありません。</p>';
+    autoGenerateResultSummary.classList.remove("hidden");
+    return;
+  }
+  autoGenerateResultSummary.innerHTML = `${suggestionsHtml}${html}`;
+  autoGenerateResultSummary.classList.remove("hidden");
+}
+
+function showAutoGenerateResult({ success, title, subtitle, summary, messages = [], resultSummary = null, reload = false }) {
   autoGenerateShouldReload = reload;
   if (!autoGenerateModal) {
     window.alert([summary, ...messages.map((item) => item.message)].filter(Boolean).join("\n"));
@@ -1779,6 +2378,7 @@ function showAutoGenerateResult({ success, title, subtitle, summary, messages = 
   if (autoGenerateModalTitle) autoGenerateModalTitle.textContent = title;
   if (autoGenerateModalSubtitle) autoGenerateModalSubtitle.textContent = subtitle || "";
   if (autoGenerateSummary) autoGenerateSummary.textContent = summary || "";
+  renderResultSummaryBlock(resultSummary);
   renderAutoGenerateMessages(messages);
   autoGenerateModal.classList.remove("hidden");
   autoGenerateModal.setAttribute("aria-hidden", "false");
@@ -1792,31 +2392,166 @@ function closeAutoGenerateModal() {
   autoGenerateShouldReload = false;
 }
 
-autoGenerateCloseBtn?.addEventListener("click", closeAutoGenerateModal);
-document.querySelectorAll("[data-close-auto-generate-modal]").forEach((element) => {
-  element.addEventListener("click", closeAutoGenerateModal);
-});
+function closeAutoGenerateConfirmModal() {
+  if (!autoGenerateConfirmModal) return;
+  autoGenerateConfirmModal.classList.add("hidden");
+  autoGenerateConfirmModal.setAttribute("aria-hidden", "true");
+  pendingPreflight = null;
+  if (autoGenerateConfirmRun) autoGenerateConfirmRun.disabled = false;
+}
 
-async function runAutoGenerate() {
+function showAutoGenerateConfirm(preflight) {
+  pendingPreflight = preflight;
+  if (!autoGenerateConfirmModal) {
+    const ok = window.confirm(
+      `${preflight.scope_label}\n職員 ${preflight.staff_count} 人 / 夜勤可能 ${preflight.night_capable_count} 人\n生成を実行しますか？`
+    );
+    if (ok) executeAutoGenerate();
+    return;
+  }
+  if (autoGenerateConfirmSubtitle) {
+    autoGenerateConfirmSubtitle.textContent = preflight.scope_label || "";
+  }
+  if (autoGenerateConfirmSummary) {
+    const floors = preflight.night_mins_by_floor || {};
+    const floorCounts = preflight.night_floor_counts || {};
+    const needLines = Object.entries(floors)
+      .filter(([, n]) => Number(n) > 0)
+      .map(([floor, n]) => `${floor}夜勤 ${n}人/日`)
+      .join("、");
+    const advanced = (preflight.advanced_settings_used || []).join("、") || "標準のみ";
+    autoGenerateConfirmSummary.innerHTML = `
+      <ul class="auto-generate-confirm-list">
+        <li><span>対象年月</span><strong>${preflight.year}年${preflight.month}月</strong></li>
+        <li><span>対象フロア</span><strong>${(preflight.departments || []).join("、") || "—"}</strong></li>
+        <li><span>職員数</span><strong>${preflight.staff_count} 人</strong></li>
+        <li><span>希望休</span><strong>${preflight.leave_count} 件</strong></li>
+        <li><span>夜勤可能者</span><strong>${preflight.night_capable_count} 人${
+          preflight.night_guidance?.recommended_capable_total != null
+            ? `（目安 ${preflight.night_guidance.recommended_capable_total} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>夜勤リーダー可能者</span><strong>${preflight.night_leader_count} 人${
+          preflight.night_guidance?.recommended_leaders != null
+            ? `（目安 ${preflight.night_guidance.recommended_leaders} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>1F夜勤対応</span><strong>${floorCounts["1F"] ?? 0} 人${
+          preflight.night_guidance?.recommended_by_floor?.["1F"] != null
+            ? `（目安 ${preflight.night_guidance.recommended_by_floor["1F"]} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>2F夜勤対応</span><strong>${floorCounts["2F"] ?? 0} 人${
+          preflight.night_guidance?.recommended_by_floor?.["2F"] != null
+            ? `（目安 ${preflight.night_guidance.recommended_by_floor["2F"]} 人以上）`
+            : ""
+        }</strong></li>
+        <li><span>休みの数</span><strong>${preflight.off_days_per_period ?? "土日相当"} 日</strong></li>
+        <li><span>必要人数（夜勤）</span><strong>${needLines || "—"}</strong></li>
+        <li><span>使用する詳細設定</span><strong>${advanced}</strong></li>
+      </ul>
+      ${
+        preflight.night_guidance?.night_summary
+          ? `<p class="auto-gen-guidance-body" style="margin-top:0.75rem">${escapeHtml(preflight.night_guidance.night_summary)}</p>`
+          : ""
+      }
+      ${
+        preflight.night_guidance?.leader_summary
+          ? `<p class="auto-gen-guidance-body">${escapeHtml(preflight.night_guidance.leader_summary)}</p>`
+          : ""
+      }`;
+  }
+  if (autoGenerateConfirmWarnings && autoGenerateConfirmWarningsWrap) {
+    const warnings = Array.isArray(preflight.warnings) ? preflight.warnings : [];
+    autoGenerateConfirmWarnings.replaceChildren();
+    if (!warnings.length) {
+      autoGenerateConfirmWarningsWrap.classList.add("hidden");
+    } else {
+      autoGenerateConfirmWarningsWrap.classList.remove("hidden");
+      warnings.forEach((item) => {
+        const level = item.level === "error" || item.level === "warn" ? item.level : "info";
+        const li = document.createElement("li");
+        li.className = `auto-generate-message auto-generate-message--${level}`;
+        const label = document.createElement("span");
+        label.className = "auto-generate-message-label";
+        label.textContent = item.blocking ? "[要対応]" : `[${AUTO_GENERATE_LEVEL_LABELS[level] ?? "情報"}]`;
+        const body = document.createElement("div");
+        body.className = "auto-generate-message-body";
+        const text = document.createElement("span");
+        text.textContent = item.message || "";
+        body.appendChild(text);
+        if (item.suggestion) {
+          const tip = document.createElement("p");
+          tip.className = "auto-generate-suggestion";
+          tip.textContent = `改善の提案: ${item.suggestion}`;
+          body.appendChild(tip);
+          if (item.href) {
+            const link = document.createElement("a");
+            link.className = "auto-generate-suggestion-link";
+            link.href = item.href;
+            link.textContent = item.action_label || "設定を開く";
+            body.appendChild(link);
+          }
+        }
+        li.append(label, body);
+        autoGenerateConfirmWarnings.appendChild(li);
+      });
+    }
+  }
+  if (autoGenerateConfirmRun) {
+    autoGenerateConfirmRun.disabled = preflight.can_generate === false;
+    autoGenerateConfirmRun.textContent =
+      preflight.can_generate === false ? "問題を解消してから生成できます" : "この内容で生成する";
+  }
+  autoGenerateConfirmModal.classList.remove("hidden");
+  autoGenerateConfirmModal.setAttribute("aria-hidden", "false");
+}
+
+async function openAutoGenerateConfirm() {
   const year = window.CALENDAR_YEAR;
   const month = window.CALENDAR_MONTH;
   if (!year || !month) return;
 
-  const preview = window.confirm(
-    `表示中のカレンダー区間（${window.PERIOD_LABEL || `${year}年${month}月`}）のシフトを自動生成します。\n\n` +
-      "優先順位:\n" +
-      "1. 手動選択分（手動入力済みセル）\n" +
-      "2. 希望休\n" +
-      "3. 担当フロア\n" +
-      "4. 夜勤必要人員\n" +
-      "5. 夜勤回数\n" +
-      "6. 必要人員数・勤務割合\n" +
-      "7. 日勤各割合\n\n" +
-      "画面上に表示されている日付すべてが対象です（翌月にまたがる日も含みます）。\n" +
-      "手動で入力済みのセル（赤枠）は上書きしません。実行しますか？"
-  );
-  if (!preview) return;
+  autoGenerateButton.disabled = true;
+  autoGenerateButton.textContent = "確認中…";
+  try {
+    const response = await fetch(`/api/shifts/generate/preflight?year=${year}&month=${month}`);
+    const rawText = await response.text();
+    let data = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      data = { detail: rawText || "確認情報の取得に失敗しました。" };
+    }
+    if (!response.ok) {
+      showAutoGenerateResult({
+        success: false,
+        title: "確認に失敗しました",
+        subtitle: `HTTP ${response.status}`,
+        summary: formatApiErrorDetail(data.detail),
+      });
+      return;
+    }
+    showAutoGenerateConfirm(data);
+  } catch (error) {
+    showAutoGenerateResult({
+      success: false,
+      title: "確認に失敗しました",
+      subtitle: "通信エラー",
+      summary: error instanceof Error ? error.message : "確認情報の取得中にエラーが発生しました。",
+    });
+  } finally {
+    autoGenerateButton.disabled = false;
+    autoGenerateButton.textContent = "シフト自動生成";
+  }
+}
 
+async function executeAutoGenerate() {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+
+  closeAutoGenerateConfirmModal();
   autoGenerateButton.disabled = true;
   autoGenerateButton.textContent = "生成中…";
   try {
@@ -1840,6 +2575,7 @@ async function runAutoGenerate() {
         subtitle: `HTTP ${response.status}`,
         summary: formatApiErrorDetail(data.detail),
         messages: Array.isArray(data.warnings) ? data.warnings : [],
+        resultSummary: data.result_summary || null,
       });
       return;
     }
@@ -1869,6 +2605,7 @@ async function runAutoGenerate() {
           .filter(Boolean)
           .join("\n"),
         messages,
+        resultSummary: data.result_summary || null,
       });
       return;
     }
@@ -1877,9 +2614,9 @@ async function runAutoGenerate() {
       success,
       title: success
         ? warnCount > 0
-          ? "自動生成が完了しました（警告あり）"
+          ? "自動生成が完了しました（要確認あり）"
           : "自動生成が完了しました"
-        : "自動生成は保存しました（エラーあり）",
+        : "自動生成は保存しました（要修正あり）",
       subtitle: scopeRange ? `${scopeLabel}（${scopeRange}）` : scopeLabel,
       summary: [
         data.message ? String(data.message) : "",
@@ -1893,6 +2630,7 @@ async function runAutoGenerate() {
         .filter(Boolean)
         .join("\n"),
       messages,
+      resultSummary: data.result_summary || null,
       reload: true,
     });
   } catch (error) {
@@ -1908,7 +2646,18 @@ async function runAutoGenerate() {
   }
 }
 
-autoGenerateButton?.addEventListener("click", runAutoGenerate);
+autoGenerateCloseBtn?.addEventListener("click", closeAutoGenerateModal);
+document.querySelectorAll("[data-close-auto-generate-modal]").forEach((element) => {
+  element.addEventListener("click", closeAutoGenerateModal);
+});
+document.querySelectorAll("[data-close-auto-generate-confirm]").forEach((element) => {
+  element.addEventListener("click", closeAutoGenerateConfirmModal);
+});
+autoGenerateConfirmRun?.addEventListener("click", () => {
+  if (pendingPreflight && pendingPreflight.can_generate === false) return;
+  executeAutoGenerate();
+});
+autoGenerateButton?.addEventListener("click", openAutoGenerateConfirm);
 
 const clearShiftsButton = document.getElementById("btn-clear-shifts");
 
@@ -1952,6 +2701,151 @@ async function runClearShifts() {
 }
 
 clearShiftsButton?.addEventListener("click", runClearShifts);
+
+function initPullToReload() {
+  const THRESHOLD = 72;
+  const MAX_PULL = 120;
+  // Page-level host (not the sheet). Pull from topbar/toolbar chrome.
+  const host = document.querySelector(".main") || document.body;
+  if (!host || host.dataset.pullReloadBound === "1") return;
+  host.dataset.pullReloadBound = "1";
+
+  function pageScrollTop() {
+    const content = document.querySelector(".content");
+    return Math.max(
+      window.scrollY || 0,
+      document.documentElement.scrollTop || 0,
+      document.body.scrollTop || 0,
+      content?.scrollTop || 0
+    );
+  }
+
+  function isSheetSurface(target) {
+    if (!(target instanceof Element)) return false;
+    // Sheet / table gestures must keep native scrolling — never hijack those
+    return Boolean(
+      target.closest(
+        ".table-wrap, .calendar-scroll, .sheet-main-scroll, .student-labor-panel, .sheet-flip-viewport, .sheet-empty-state"
+      )
+    );
+  }
+
+  let indicator = document.getElementById("pull-reload-indicator");
+  if (!indicator) {
+    indicator = document.createElement("div");
+    indicator.id = "pull-reload-indicator";
+    indicator.className = "pull-reload-indicator";
+    indicator.setAttribute("aria-live", "polite");
+    indicator.innerHTML = `<span class="pull-reload-spinner" aria-hidden="true"></span><span class="pull-reload-text">引き下げて再読み込み</span>`;
+    host.prepend(indicator);
+  }
+
+  let startY = 0;
+  let pulling = false;
+  let armed = false;
+  let reloading = false;
+  let tracking = false;
+
+  function setIndicator(distance) {
+    const progress = Math.min(1, distance / THRESHOLD);
+    indicator.style.setProperty("--pull", String(progress));
+    indicator.classList.toggle("is-visible", distance > 8);
+    indicator.classList.toggle("is-ready", distance >= THRESHOLD);
+    const text = indicator.querySelector(".pull-reload-text");
+    if (text) {
+      text.textContent = distance >= THRESHOLD ? "離すと再読み込み" : "引き下げて再読み込み";
+    }
+  }
+
+  function resetIndicator() {
+    indicator.classList.remove("is-visible", "is-ready", "is-reloading");
+    indicator.style.setProperty("--pull", "0");
+    const text = indicator.querySelector(".pull-reload-text");
+    if (text) text.textContent = "引き下げて再読み込み";
+  }
+
+  function canPull() {
+    if (reloading) return false;
+    if (document.body.classList.contains("sidebar-open")) return false;
+    if (document.querySelector(".shift-picker:not(.hidden), .cell-editor:not(.hidden), .modal:not(.hidden)")) {
+      return false;
+    }
+    return pageScrollTop() <= 1;
+  }
+
+  host.classList.add("pull-reload-host");
+
+  host.addEventListener(
+    "touchstart",
+    (event) => {
+      if (reloading || event.touches.length !== 1) return;
+      if (event.target.closest("input, textarea, select, button, a, label")) return;
+      if (isSheetSurface(event.target)) {
+        tracking = false;
+        pulling = false;
+        return;
+      }
+      if (!canPull()) {
+        tracking = false;
+        pulling = false;
+        return;
+      }
+      startY = event.touches[0].clientY;
+      tracking = true;
+      pulling = false;
+      armed = false;
+    },
+    { passive: true }
+  );
+
+  host.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!tracking || reloading) return;
+      if (!canPull()) {
+        tracking = false;
+        pulling = false;
+        resetIndicator();
+        return;
+      }
+      const dy = event.touches[0].clientY - startY;
+      if (dy <= 0) {
+        pulling = false;
+        armed = false;
+        resetIndicator();
+        return;
+      }
+      pulling = true;
+      const distance = Math.min(MAX_PULL, dy * 0.55);
+      armed = distance >= THRESHOLD;
+      setIndicator(distance);
+      if (dy > 12) event.preventDefault();
+    },
+    { passive: false }
+  );
+
+  const endTouch = () => {
+    if (!tracking && !pulling) return;
+    tracking = false;
+    if (pulling && armed && !reloading) {
+      pulling = false;
+      reloading = true;
+      indicator.classList.add("is-visible", "is-ready", "is-reloading");
+      const text = indicator.querySelector(".pull-reload-text");
+      if (text) text.textContent = "再読み込み中…";
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 180);
+      return;
+    }
+    pulling = false;
+    armed = false;
+    resetIndicator();
+  };
+
+  host.addEventListener("touchend", endTouch);
+  host.addEventListener("touchcancel", endTouch);
+}
 
 shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");

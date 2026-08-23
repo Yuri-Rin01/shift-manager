@@ -83,22 +83,22 @@
   transition: transform 0.15s ease;
 }
 
-body.sidebar-rail .sidebar-login-panel .login-panel-meta,
-body.sidebar-rail .sidebar-login-panel .login-panel-toggle {
+body.sidebar-collapsed .sidebar-login-panel .login-panel-meta,
+body.sidebar-collapsed .sidebar-login-panel .login-panel-toggle {
   display: none;
 }
 
-body.sidebar-rail .sidebar-login-panel .login-panel-summary {
+body.sidebar-collapsed .sidebar-login-panel .login-panel-summary {
   grid-template-columns: 1fr;
   justify-items: center;
   gap: 0;
 }
 
-body.sidebar-rail .sidebar-login-panel .login-panel-body {
+body.sidebar-collapsed .sidebar-login-panel .login-panel-body {
   position: fixed;
-  left: calc(var(--sidebar-width-rail) + 8px);
+  left: calc(var(--sidebar-rail-width) + 8px);
   bottom: 12px;
-  width: min(240px, calc(100vw - var(--sidebar-width-rail) - 20px));
+  width: min(240px, calc(100vw - var(--sidebar-rail-width) - 20px));
   z-index: 230;
 }
 
