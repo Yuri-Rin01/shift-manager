@@ -38,6 +38,30 @@ if (panelSelect) {
   });
 }
 
+const SETTINGS_SUBNAV_KEY = "shift-manager.settings-subnav";
+
+function initSettingsSubnav() {
+  const block = document.getElementById("settings-subnav");
+  const toggle = block?.querySelector(".settings-subnav-toggle");
+  const list = document.getElementById("settings-subnav-list");
+  if (!block || !toggle || !list) return;
+
+  function setCollapsed(collapsed) {
+    block.classList.toggle("is-collapsed", collapsed);
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    list.hidden = collapsed;
+    localStorage.setItem(SETTINGS_SUBNAV_KEY, collapsed ? "1" : "0");
+  }
+
+  setCollapsed(localStorage.getItem(SETTINGS_SUBNAV_KEY) !== "0");
+
+  toggle.addEventListener("click", () => {
+    setCollapsed(!block.classList.contains("is-collapsed"));
+  });
+}
+
+initSettingsSubnav();
+
 const SHIFT_SYMBOL_PREFIX = "shift_symbol__";
 const VISIBLE_WORK_TYPE_PREFIX = "visible_work_type__";
 const FIXED_VISIBLE_WORK_TYPES = new Set(["morning_off"]);

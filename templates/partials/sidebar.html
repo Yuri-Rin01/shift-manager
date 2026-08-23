@@ -2,13 +2,39 @@
   <div class="sidebar-header">
     <h1>シフト作成システム</h1>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="メインメニュー">
     {% for item in sidebar_menu %}
       {% if item.children %}
-        <div class="nav-group-title">{{ item.label }}</div>
-        {% for child in item.children %}
-          <a href="{{ child.href }}" class="nav-item nav-child{% if item.key == 'settings' %} nav-settings-child{% endif %}{% if child.active %} active{% endif %}">{{ child.label }}</a>
-        {% endfor %}
+        {% set active_child = item.children | selectattr('active') | list | first %}
+        {% set on_settings = item.key == 'settings' and item.active %}
+        {% set start_collapsed = (not item.active) or on_settings %}
+        <div
+          class="nav-group{% if start_collapsed %} is-collapsed{% endif %}"
+          data-nav-group="{{ item.key }}"
+        >
+          <button
+            type="button"
+            class="nav-group-toggle"
+            aria-expanded="{{ 'false' if start_collapsed else 'true' }}"
+            aria-controls="nav-group-{{ item.key }}"
+          >
+            <span class="nav-group-toggle-main">
+              <span class="nav-group-label">{{ item.label }}</span>
+              {% if active_child %}
+                <span class="nav-group-summary">{{ active_child.label }}</span>
+              {% endif %}
+            </span>
+            <span class="nav-group-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="nav-group-body" id="nav-group-{{ item.key }}"{% if start_collapsed %} hidden{% endif %}>
+            {% for child in item.children %}
+              <a
+                href="{{ child.href }}"
+                class="nav-item nav-child{% if item.key == 'settings' %} nav-settings-child{% endif %}{% if child.active %} active{% endif %}"
+              >{{ child.label }}</a>
+            {% endfor %}
+          </div>
+        </div>
       {% else %}
         <a href="{{ item.href }}" class="nav-item{% if item.active %} active{% endif %}">{{ item.label }}</a>
       {% endif %}
@@ -19,5 +45,6 @@
   </div>
 </aside>
 <link rel="stylesheet" href="/static/css/login-panel.css?v=1">
-<script src="/static/js/app-shell.js?v=1"></script>
+<script src="/static/js/app-shell.js?v=2"></script>
+<script src="/static/js/sidebar-nav.js?v=1"></script>
 <script src="/static/js/login-panel.js?v=1"></script>

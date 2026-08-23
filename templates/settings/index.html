@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=34">
+  <link rel="stylesheet" href="/static/css/style.css?v=54">
 </head>
 <body>
   <div class="app">
@@ -26,9 +26,20 @@
         <div id="settings-alert" class="alert hidden" role="alert"></div>
 
         <div class="settings-layout">
-          <aside class="settings-subnav" aria-label="設定区分">
-            <div class="settings-subnav-head">各種設定</div>
-            <ul class="settings-subnav-list">
+          <aside class="settings-subnav is-collapsed" id="settings-subnav" aria-label="設定区分">
+            <button
+              type="button"
+              class="settings-subnav-toggle"
+              aria-expanded="false"
+              aria-controls="settings-subnav-list"
+            >
+              <span class="settings-subnav-toggle-main">
+                <span class="settings-subnav-head">各種設定</span>
+                <span class="settings-subnav-current">{{ settings_panel_meta.label }}</span>
+              </span>
+              <span class="settings-subnav-chevron" aria-hidden="true"></span>
+            </button>
+            <ul class="settings-subnav-list" id="settings-subnav-list" hidden>
               {% for panel in settings_panels %}
                 <li>
                   <a
@@ -596,6 +607,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=8"></script>
+  <script src="/static/js/settings.js?v=9"></script>
 </body>
 </html>
