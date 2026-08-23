@@ -15,9 +15,9 @@
     {% endfor %}
   </nav>
   <div class="sidebar-footer">
-    <div class="facility">{{ facility_name }}</div>
-    <div>{{ facility_label }} / {{ admin_name }}</div>
-    <button class="btn-logout" type="button" disabled title="管理者ログイン実装後に有効化予定">ログアウト（ログイン実装予定）</button>
+    {% include "partials/login_panel.html" %}
   </div>
 </aside>
+<link rel="stylesheet" href="/static/css/login-panel.css?v=1">
 <script src="/static/js/app-shell.js?v=1"></script>
+<script src="/static/js/login-panel.js?v=1"></script>

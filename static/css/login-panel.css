@@ -1,0 +1,263 @@
+/* Sidebar login panel — shared with portable/login-panel/demo.html */
+.sidebar-login-panel {
+  --login-panel-bg: rgba(0, 0, 0, 0.18);
+  --login-panel-border: rgba(255, 255, 255, 0.12);
+  --login-panel-muted: rgba(255, 255, 255, 0.72);
+  --login-panel-input-bg: rgba(255, 255, 255, 0.08);
+  --login-panel-input-border: rgba(255, 255, 255, 0.18);
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar-login-panel.is-open .login-panel-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.login-panel-summary {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.login-panel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(145deg, #4a6490, #3a5278);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.login-panel-meta {
+  min-width: 0;
+}
+
+.login-panel-facility {
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.login-panel-user {
+  font-size: 10px;
+  color: var(--login-panel-muted);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.login-panel-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--login-panel-border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.login-panel-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.login-panel-toggle-icon {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+.login-panel-body {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--login-panel-border);
+  border-radius: 8px;
+  background: var(--login-panel-bg);
+}
+
+.login-panel-body[hidden] {
+  display: none !important;
+}
+
+.login-panel-badge {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(234, 179, 8, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+.login-panel-badge.is-success {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.login-panel-form {
+  display: grid;
+  gap: 8px;
+}
+
+.login-panel-field {
+  display: grid;
+  gap: 3px;
+}
+
+.login-panel-field span {
+  font-size: 10px;
+  color: var(--login-panel-muted);
+}
+
+.login-panel-field input {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--login-panel-input-border);
+  border-radius: 6px;
+  background: var(--login-panel-input-bg);
+  color: #fff;
+  font-size: 11px;
+}
+
+.login-panel-field input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.login-panel-field input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.login-panel-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.login-panel-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.login-panel-btn-primary {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.login-panel-btn-primary:hover:not(:disabled) {
+  background: #fff;
+}
+
+.login-panel-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.login-panel-btn-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--login-panel-border);
+  color: #fff;
+}
+
+.login-panel-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.login-panel-btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.login-panel-session-view[hidden],
+.login-panel-logged-in[hidden] {
+  display: none !important;
+}
+
+.login-panel-error {
+  margin: 0;
+  font-size: 10px;
+  color: #fecaca;
+}
+
+/* Standalone demo page */
+.login-panel-demo-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px;
+  background: #eef2f7;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1e293b;
+}
+
+.login-panel-demo-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.login-panel-demo-sidebar {
+  background: #2b4160;
+  color: #fff;
+  border-radius: 8px;
+  padding: 16px 0;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-panel-demo-sidebar h1 {
+  margin: 0;
+  padding: 0 14px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-panel-demo-sidebar .sidebar-footer {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-panel-demo-main {
+  background: #fff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.login-panel-demo-main h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.login-panel-demo-main p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}

@@ -3,7 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -67,7 +67,7 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
 def _base_context(**extra) -> dict:
-    return {**get_facility_context(), **extra}
+    return {**get_facility_context(), **get_account_plan_context(), **extra}
 
 
 def _page_context(active_key: str, **extra) -> dict:
@@ -171,6 +171,11 @@ async def staff_page(request: Request):
     return templates.TemplateResponse(request, "staff/index.html", context)
 
 
+@app.get("/portable/login-panel/demo.html", response_class=HTMLResponse)
+async def login_panel_demo():
+    return FileResponse(BASE_DIR / "portable" / "login-panel" / "demo.html")
+
+
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request, panel: str | None = None):
     current_panel = resolve_settings_panel(panel)
@@ -189,7 +194,6 @@ async def settings_page(request: Request, panel: str | None = None):
         settings_panels=SETTINGS_PANELS,
         settings_panel=current_panel["id"],
         settings_panel_meta=current_panel,
-        **get_account_plan_context(),
     )
     return templates.TemplateResponse(request, "settings/index.html", context)
 
