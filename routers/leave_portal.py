@@ -3,16 +3,15 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
+from app_paths import resource_root
 from data.facility import get_facility_context
 from data.leave_request_config import get_portal_request_options
 from db.settings_repository import get_settings
 from schemas.leave_request import LeavePortalCalendarResponse, LeaveRequestCreate, LeaveRequestResponse
 from services import leave_portal_service as portal_service
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates = Jinja2Templates(directory=str(resource_root() / "templates"))
 
 router = APIRouter(tags=["休み希望ポータル"])
 

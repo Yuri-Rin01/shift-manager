@@ -1,0 +1,86 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/windows-exe-1d12
+      - main
+    paths:
+      - "desktop_launcher.py"
+      - "shift_manager.spec"
+      - "app_paths.py"
+      - "main.py"
+      - "requirements.txt"
+      - "requirements-build.txt"
+      - "packaging/**"
+      - ".github/workflows/build-windows-exe.yml"
+      - "static/**"
+      - "templates/**"
+      - "db/**"
+      - "routers/**"
+      - "services/**"
+      - "data/**"
+      - "schemas/**"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+
+      - name: Build EXE
+        run: |
+          pyinstaller --noconfirm shift_manager.spec
+          Copy-Item packaging\README_EXE.txt dist\使い方.txt -Force
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShiftManager-windows
+          path: |
+            dist/ShiftManager.exe
+            dist/使い方.txt
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-exe-${{ github.run_number }}
+          name: "Windows EXE (面接提出用) #${{ github.run_number }}"
+          draft: false
+          prerelease: true
+          files: |
+            dist/ShiftManager.exe
+            dist/使い方.txt
+          body: |
+            ## シフト作成システム（Windows EXE）
+
+            面接・デモ提出用の単体実行ファイルです。
+
+            ### 使い方
+            1. `ShiftManager.exe` をダウンロード
+            2. ダブルクリックで起動（ブラウザが開きます）
+            3. 終了はコンソール窓を閉じる
+
+            データは EXE と同じフォルダの `shift.db` に保存されます。
+
+            初回起動で SmartScreen 警告が出る場合は「詳細情報」→「実行」を選んでください。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

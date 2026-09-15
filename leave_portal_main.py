@@ -7,15 +7,15 @@
 """
 
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app_paths import resource_root
 from db.database import init_db
 from routers.leave_portal import router as leave_portal_router
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = resource_root()
 
 
 @asynccontextmanager
@@ -30,4 +30,4 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(leave_portal_router)
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
