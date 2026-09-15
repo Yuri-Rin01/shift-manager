@@ -40,6 +40,7 @@ PRIORITY_ORDER = [
     "手動選択分",
     "希望休",
     "担当フロア",
+    "夜勤相性（NGの組み合わせを避ける）",
     "夜勤必要人員（勤務割合）",
     "夜勤回数",
     "公休の確保・均等配置（夜勤明け翌日の公休を含む）",
@@ -159,6 +160,17 @@ class _Generator:
         )
         self.staff_list = [s for s in list_staff() if not s.get("exclude_from_staffing")]
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
+        # 保存された選択は片方向でも、同じ夜勤のNGペアとして両方向に適用する。
+        # 日勤相性は夜勤にも適用する既存の設定ルールを、古いデータにも反映する。
+        self.night_incompatible_by_staff: dict[int, set[int]] = defaultdict(set)
+        for staff in self.staff_list:
+            sid = staff["id"]
+            selected = set(staff.get("night_incompatible_ids") or []) | set(staff.get("day_incompatible_ids") or [])
+            for other_id in selected:
+                if other_id == sid or other_id not in self.staff_by_id:
+                    continue
+                self.night_incompatible_by_staff[sid].add(other_id)
+                self.night_incompatible_by_staff[other_id].add(sid)
 
         self.grid: dict[tuple[int, str], str] = {}
         self.locks: dict[tuple[int, str], str] = {}
@@ -385,9 +397,7 @@ class _Generator:
             for (other_id, d), symbol in self.grid.items()
             if d == shift_date and _symbol_work_key(symbol, self.settings) == "night"
         }
-        staff = self.staff_by_id[staff_id]
-        bad = set(staff.get("night_incompatible_ids") or [])
-        return bool(assigned & bad)
+        return bool(assigned & self.night_incompatible_by_staff[staff_id])
 
     def _day_incompatible_on_day(self, staff_id: int, shift_date: str) -> bool:
         assigned = {
@@ -1344,7 +1354,7 @@ class _Generator:
                 actual = self.night_counts[sid]
                 if actual != target:
                     code = "night_count_shortfall" if actual < target else "night_count_excess"
-                    reason = "希望休・配置条件・週の上限・夜勤明けルールを確認してください。" if actual < target else "手動入力分が固定回数を超えています。"
+                    reason = "希望休・夜勤相性・配置条件・週の上限・夜勤明けルールを確認してください。" if actual < target else "手動入力分が固定回数を超えています。"
                     self.warnings.append(_warning("warn", code,
                         f"{staff['name']} の夜勤は固定 {target} 回に対し {actual} 回です。{reason}"))
             for idx, day in enumerate(self.period_dates):
@@ -1358,6 +1368,30 @@ class _Generator:
                     if key not in allowed:
                         self.warnings.append(_warning("warn", "night_chain_conflict",
                             f"{staff['name']} の {day} の夜勤後（{following}）に明け・公休を確保できません。手動入力・希望休を確認してください。"))
+
+    def _validate_night_compatibility(self) -> None:
+        """手動入力で残ったNGペアも、日付と双方の名前を付けて報告する。"""
+        conflicts: dict[tuple[int, int], list[str]] = defaultdict(list)
+        for day in self.period_dates:
+            assigned = {
+                sid for sid in self.staff_by_id
+                if _symbol_work_key(self._get_symbol(sid, day) or "", self.settings) == "night"
+            }
+            for sid in assigned:
+                for other_id in assigned & self.night_incompatible_by_staff[sid]:
+                    if sid < other_id:
+                        conflicts[(sid, other_id)].append(day)
+        for (left_id, right_id), days in sorted(conflicts.items()):
+            names = f"{self.staff_by_id[left_id]['name']} と {self.staff_by_id[right_id]['name']}"
+            dates = "、".join(days[:8])
+            suffix = f" ほか {len(days) - 8} 日" if len(days) > 8 else ""
+            self.warnings.append(
+                _warning(
+                    "warn",
+                    "night_incompatibility_conflict",
+                    f"夜勤相性でNGの {names} が同じ夜勤になっています（{len(days)} 日: {dates}{suffix}）。手動入力・相性設定を確認してください。",
+                )
+            )
 
     def _collect_staffing_shortfalls(self) -> None:
         """候補人数で必要数を切り下げず、最終的な配置を必要数と比較する。"""
@@ -1421,6 +1455,7 @@ class _Generator:
         self._phase_pad_empty()
         self._validate_off_exact()
         self._validate_night_results()
+        self._validate_night_compatibility()
         self._validate_staff_ratio_results()
         self._validate_leader_on_night()
         self._collect_staffing_shortfalls()
