@@ -1285,6 +1285,7 @@ function ensureShiftPicker() {
 
 function hideShiftPicker() {
   shiftPicker?.classList.add("hidden");
+  shiftPicker?.classList.remove("is-bulk");
   shiftPicker?.replaceChildren();
 }
 
@@ -1853,6 +1854,7 @@ function openCellEditor(td) {
   td.classList.add("is-editing");
 
   const picker = ensureShiftPicker();
+  picker.classList.remove("is-bulk");
   const currentSymbol = td.dataset.symbol ?? "";
 
   picker.replaceChildren();
@@ -1915,13 +1917,22 @@ function openBulkCellEditor(cells, anchorTd) {
   const picker = ensureShiftPicker();
   const symbols = new Set(targets.map((td) => td.dataset.symbol ?? ""));
   const currentSymbol = symbols.size === 1 ? [...symbols][0] : null;
+  const hasManual = targets.some((td) => td.dataset.source === "manual");
 
   picker.replaceChildren();
+  picker.classList.add("is-bulk");
 
   const heading = document.createElement("div");
   heading.className = "shift-picker-bulk-heading";
   heading.textContent = `${targets.length}件を一括入力`;
   picker.appendChild(heading);
+
+  const body = document.createElement("div");
+  body.className = "shift-picker-bulk-body";
+
+  const optionsCol = document.createElement("div");
+  optionsCol.className = "shift-picker-bulk-options";
+  optionsCol.setAttribute("role", "listbox");
 
   shiftOptions.forEach((option) => {
     const button = document.createElement("button");
@@ -1946,8 +1957,36 @@ function openBulkCellEditor(cells, anchorTd) {
       event.stopPropagation();
       saveBulkCellSymbols(targets, option.symbol);
     });
-    picker.appendChild(button);
+    optionsCol.appendChild(button);
   });
+
+  const actionsCol = document.createElement("div");
+  actionsCol.className = "shift-picker-bulk-actions";
+
+  const unlockBtn = document.createElement("button");
+  unlockBtn.type = "button";
+  unlockBtn.className = "shift-picker-action shift-picker-action-unlock";
+  unlockBtn.textContent = "固定解除";
+  unlockBtn.title = "選択セルの手動固定を解除";
+  unlockBtn.disabled = !hasManual;
+  unlockBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    unlockBulkCells(targets);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "shift-picker-action shift-picker-action-delete";
+  deleteBtn.textContent = "削除";
+  deleteBtn.title = "選択セルのシフトを削除";
+  deleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    saveBulkCellSymbols(targets, "");
+  });
+
+  actionsCol.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsCol);
+  picker.appendChild(body);
 
   picker.classList.remove("hidden");
   picker.setAttribute("aria-label", "選択セルに一括入力");
@@ -1984,7 +2023,7 @@ async function saveBulkCellSymbols(cells, symbol) {
   clearRangeSelection();
 
   for (const { td } of previousSnapshots) {
-    applyCellSymbol(td, symbol, { source: "manual" });
+    applyCellSymbol(td, symbol, { source: symbol ? "manual" : "" });
   }
 
   const relatedBeforeMap = new Map();
@@ -2111,6 +2150,100 @@ async function saveCellSymbol(td, symbol, options = {}) {
     pushShiftHistory(beforeStates, afterStates);
   }
 
+  refreshSummaryCounts();
+  if (getCurrentSheetView() === "foreign-students") {
+    loadStudentLaborSummary();
+  }
+}
+
+async function unlockBulkCells(cells) {
+  const targets = [...new Set((cells || []).filter((td) => td && td.dataset.source === "manual"))];
+  if (!targets.length) {
+    hideShiftPicker();
+    if (activeEditCell) {
+      activeEditCell.classList.remove("is-editing");
+      activeEditCell = null;
+    }
+    clearRangeSelection();
+    return;
+  }
+
+  const beforeStates = [];
+  const previousSnapshots = [];
+  for (const td of targets) {
+    beforeStates.push(captureCellState(td));
+    previousSnapshots.push({
+      td,
+      symbol: td.dataset.symbol ?? "",
+      source: td.dataset.source ?? "",
+    });
+  }
+
+  hideShiftPicker();
+  if (activeEditCell) {
+    activeEditCell.classList.remove("is-editing");
+    activeEditCell = null;
+  }
+  clearRangeSelection();
+
+  for (const { td, symbol } of previousSnapshots) {
+    applyCellSymbol(td, symbol, { source: "auto" });
+  }
+
+  const relatedBeforeMap = new Map();
+  const relatedAfterStates = [];
+  let errorMessage = null;
+
+  for (const { td, symbol, source } of previousSnapshots) {
+    const response = await fetch("/api/shifts/cell/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staff_id: Number(td.dataset.staffId),
+        year: Number(td.dataset.year),
+        month: Number(td.dataset.month),
+        day: Number(td.dataset.day),
+      }),
+    });
+
+    if (!response.ok) {
+      applyCellSymbol(td, symbol, { source });
+      const error = await response.json().catch(() => ({}));
+      errorMessage = formatCellErrorDetail(error.detail);
+      break;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    for (const related of data.related ?? []) {
+      const relatedTd = findRelatedTd(related);
+      if (!relatedTd) continue;
+      const key = `${related.staff_id}-${related.shift_date}`;
+      if (!relatedBeforeMap.has(key)) {
+        relatedBeforeMap.set(key, captureCellState(relatedTd));
+      }
+      const relatedState = relatedToState(related);
+      if (relatedState) applyCellState(relatedState);
+      relatedAfterStates.push(captureCellState(relatedTd));
+    }
+  }
+
+  if (errorMessage) {
+    for (const snap of previousSnapshots) {
+      applyCellSymbol(snap.td, snap.symbol, { source: snap.source });
+    }
+    for (const state of relatedBeforeMap.values()) {
+      applyCellState(state);
+    }
+    window.alert(errorMessage);
+    refreshSummaryCounts();
+    return;
+  }
+
+  const afterStates = previousSnapshots.map(({ td }) => captureCellState(td));
+  pushShiftHistory(
+    [...beforeStates, ...relatedBeforeMap.values()],
+    [...afterStates, ...relatedAfterStates]
+  );
   refreshSummaryCounts();
   if (getCurrentSheetView() === "foreign-students") {
     loadStudentLaborSummary();
