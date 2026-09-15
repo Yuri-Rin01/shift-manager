@@ -161,12 +161,38 @@ body.sidebar-collapsed .sidebar-collapse-icon {
 
 /* ---- Desktop sidebar collapse (icon-rail) ---- */
 .sidebar {
-  transition: width 0.2s ease;
+  transition:
+    width 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.24s ease;
   overflow: hidden;
+}
+
+/* 左端のホバー検知帯（折りたたみ時） */
+.sidebar-hotzone {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 14px;
+  z-index: 190;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed:not(.is-compact) .sidebar-hotzone {
+  display: block;
+  pointer-events: auto;
 }
 
 body.sidebar-collapsed .sidebar {
   width: var(--sidebar-rail-width);
+}
+
+/* peek: メインは動かさず、サイドバーだけオーバーレイ展開 */
+body.sidebar-collapsed.sidebar-peek .sidebar {
+  width: var(--sidebar-width);
+  box-shadow: 10px 0 32px rgba(15, 23, 42, 0.24);
+  overflow: visible;
 }
 
 body.sidebar-collapsed .main {
@@ -182,11 +208,14 @@ body.sidebar-collapsed .settings-save-bar {
 
 body.sidebar-collapsed .sidebar-title {
   opacity: 0;
+  max-width: 0;
   pointer-events: none;
-  overflow: hidden;
-  white-space: nowrap;
-  width: 0;
-  height: 0;
+}
+
+body.sidebar-collapsed.sidebar-peek .sidebar-title {
+  opacity: 1;
+  max-width: 160px;
+  pointer-events: auto;
 }
 
 body.sidebar-collapsed .sidebar-footer {
@@ -198,9 +227,19 @@ body.sidebar-collapsed .sidebar-footer {
   overflow: visible;
 }
 
+body.sidebar-collapsed.sidebar-peek .sidebar-footer {
+  padding: 12px 14px;
+}
+
 body.sidebar-collapsed .sidebar-header {
   justify-content: center;
   padding: 12px 0;
+  transition: padding 0.22s ease, justify-content 0.22s ease;
+}
+
+body.sidebar-collapsed.sidebar-peek .sidebar-header {
+  justify-content: space-between;
+  padding: 16px 14px;
 }
 
 body.sidebar-collapsed .sidebar-close {
@@ -208,25 +247,51 @@ body.sidebar-collapsed .sidebar-close {
 }
 
 body.sidebar-collapsed .nav-item-label {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed.sidebar-peek .nav-item-label {
+  opacity: 1;
+  max-width: 140px;
+  pointer-events: auto;
 }
 
 body.sidebar-collapsed .nav-item {
   justify-content: center;
   padding: 11px 0;
   gap: 0;
+  transition: padding 0.22s ease, gap 0.22s ease, background 0.15s ease;
+}
+
+body.sidebar-collapsed.sidebar-peek .nav-item {
+  justify-content: flex-start;
+  padding: 10px 14px;
+  gap: 10px;
 }
 
 body.sidebar-collapsed .nav-item-icon {
   width: 24px;
   height: 24px;
+  transition: width 0.22s ease, height 0.22s ease;
+}
+
+body.sidebar-collapsed.sidebar-peek .nav-item-icon {
+  width: 20px;
+  height: 20px;
 }
 
 body.sidebar-collapsed .nav-item.active {
   box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.85);
 }
 
-/* Tooltip on hover when collapsed */
+body.sidebar-collapsed.sidebar-peek .nav-item.active {
+  box-shadow: none;
+}
+
+/* Tooltip on hover when collapsed (peek中はラベルが出るので非表示) */
 body.sidebar-collapsed .nav-item {
   position: relative;
 }
@@ -250,8 +315,12 @@ body.sidebar-collapsed .nav-item::after {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
-body.sidebar-collapsed .nav-item:hover::after {
+body.sidebar-collapsed:not(.sidebar-peek) .nav-item:hover::after {
   opacity: 1;
+}
+
+body.sidebar-collapsed.sidebar-peek .nav-item::after {
+  display: none;
 }
 
 .sidebar-header h1,
@@ -262,6 +331,10 @@ body.sidebar-collapsed .nav-item:hover::after {
   line-height: 1.4;
   flex: 1;
   min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.18s ease, max-width 0.22s ease;
 }
 
 .sidebar-nav {
@@ -300,9 +373,11 @@ body.sidebar-collapsed .nav-item:hover::after {
 
 .nav-item-label {
   min-width: 0;
+  max-width: 140px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: opacity 0.16s ease, max-width 0.22s ease, margin 0.22s ease;
 }
 
 .nav-item:hover {
@@ -347,6 +422,14 @@ body.sidebar-collapsed .nav-item:hover::after {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: margin-left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-filters-dock,
+.home-bottom-bar,
+.status-bar,
+.settings-save-bar {
+  transition: left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .topbar {

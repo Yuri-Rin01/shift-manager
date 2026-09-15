@@ -88,10 +88,21 @@ body.sidebar-collapsed .sidebar-login-panel .login-panel-toggle {
   display: none;
 }
 
+body.sidebar-collapsed.sidebar-peek .sidebar-login-panel .login-panel-meta,
+body.sidebar-collapsed.sidebar-peek .sidebar-login-panel .login-panel-toggle {
+  display: revert;
+}
+
 body.sidebar-collapsed .sidebar-login-panel .login-panel-summary {
   grid-template-columns: 1fr;
   justify-items: center;
   gap: 0;
+}
+
+body.sidebar-collapsed.sidebar-peek .sidebar-login-panel .login-panel-summary {
+  grid-template-columns: 36px 1fr auto;
+  justify-items: stretch;
+  gap: 8px;
 }
 
 body.sidebar-collapsed .sidebar-login-panel .login-panel-body {
@@ -100,6 +111,13 @@ body.sidebar-collapsed .sidebar-login-panel .login-panel-body {
   bottom: 12px;
   width: min(240px, calc(100vw - var(--sidebar-rail-width) - 20px));
   z-index: 230;
+}
+
+body.sidebar-collapsed.sidebar-peek .sidebar-login-panel .login-panel-body {
+  position: static;
+  left: auto;
+  bottom: auto;
+  width: auto;
 }
 
 .login-panel-body {
