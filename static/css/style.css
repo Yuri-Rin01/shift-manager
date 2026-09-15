@@ -6588,12 +6588,12 @@ input[type="checkbox"]:focus-visible {
 /* 留学生労働時間パネル（表の下） */
 .student-labor-panel {
   flex: 0 0 auto;
-  margin: 12px 0 0;
-  padding: 14px 14px 12px;
+  margin: 8px 0 0;
+  padding: 10px;
   overflow: visible;
   background: #f8fafc;
   border: 1px solid #d8dee8;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .student-labor-panel.hidden {
@@ -6620,7 +6620,7 @@ input[type="checkbox"]:focus-visible {
 
 .student-labor-title {
   margin: 2px 0 0;
-  font-size: 17px;
+  font-size: 13px;
   line-height: 1.25;
   font-weight: 700;
   color: #143528;
@@ -6916,45 +6916,49 @@ input[type="checkbox"]:focus-visible {
 /* 表下の％ゲージカード（留学生） */
 .student-labor-gauge-list {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .student-labor-gauge-card {
-  padding: 14px 14px 12px;
+  padding: 8px 10px 8px;
   background: #fff;
   border: 1px solid #d0ddd4;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
 }
 
 .student-labor-gauge-name {
-  margin: 0 0 12px;
-  font-size: 18px;
+  margin: 0 0 6px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #0f172a;
 }
 
+.student-labor-gauge-metrics {
+  display: grid;
+  gap: 6px;
+}
+
 .student-labor-gauge-row + .student-labor-gauge-row {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .student-labor-gauge-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 6px;
+  margin-bottom: 3px;
 }
 
 .student-labor-gauge-label {
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
-  color: #334155;
+  color: #64748b;
 }
 
 .student-labor-gauge-ratio {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #0f172a;
@@ -6962,7 +6966,7 @@ input[type="checkbox"]:focus-visible {
 }
 
 .student-labor-gauge {
-  height: 10px;
+  height: 6px;
   border-radius: 999px;
   background: #e2e8f0;
   overflow: hidden;
@@ -6992,13 +6996,60 @@ input[type="checkbox"]:focus-visible {
   color: #b91c1c;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .student-labor-panel {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 8px;
+  }
+
+  .student-labor-panel-head {
+    margin-bottom: 6px;
+    gap: 2px 8px;
+  }
+
+  .student-labor-kicker {
+    font-size: 9px;
+  }
+
+  .student-labor-title {
+    font-size: 12px;
+  }
+
+  .student-labor-panel-range {
+    font-size: 10px;
+  }
+
+  .student-labor-gauge-list {
+    gap: 5px;
+  }
+
+  .student-labor-gauge-card {
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+
   .student-labor-gauge-name {
-    font-size: 17px;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  /* 週・月を横並びにして縦を圧縮 */
+  .student-labor-gauge-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
   }
 
   .student-labor-gauge {
-    height: 12px;
+    height: 5px;
+  }
+
+  .student-labor-gauge-label {
+    font-size: 9px;
+  }
+
+  .student-labor-gauge-ratio {
+    font-size: 10px;
   }
 }
 

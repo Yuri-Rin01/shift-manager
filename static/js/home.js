@@ -715,20 +715,22 @@ function buildStudentLaborGaugeCard(weekRow, monthRow) {
 
   return `<article class="student-labor-gauge-card status-${escapeHtml(status)}" data-staff-id="${staffId}">
     <h4 class="student-labor-gauge-name">${escapeHtml(name)}</h4>
-    ${renderStudentLaborGaugeRow({
-      label: "週間労働時間",
-      used: weekUsed,
-      limit: weekLimit,
-      pct: weekPct,
-      tone: weekTone,
-    })}
-    ${renderStudentLaborGaugeRow({
-      label: "月間労働時間",
-      used: monthUsed,
-      limit: monthLimit,
-      pct: monthPct,
-      tone: monthTone,
-    })}
+    <div class="student-labor-gauge-metrics">
+      ${renderStudentLaborGaugeRow({
+        label: "週間労働時間",
+        used: weekUsed,
+        limit: weekLimit,
+        pct: weekPct,
+        tone: weekTone,
+      })}
+      ${renderStudentLaborGaugeRow({
+        label: "月間労働時間",
+        used: monthUsed,
+        limit: monthLimit,
+        pct: monthPct,
+        tone: monthTone,
+      })}
+    </div>
   </article>`;
 }
 
