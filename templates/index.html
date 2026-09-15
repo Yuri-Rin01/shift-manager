@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=102">
+  <link rel="stylesheet" href="/static/css/style.css?v=103">
 </head>
 <body>
   <div class="app">
@@ -79,6 +79,7 @@
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
                   <button class="btn btn-danger" type="button" id="btn-clear-shifts">全クリア</button>
                   <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
+                  <button class="btn btn-outline" type="button" id="btn-print-settings" aria-label="印刷" title="印刷">印刷</button>
                 </div>
               </div>
 
@@ -261,23 +262,6 @@
           </div>
         </section>
       </div>
-
-      <footer class="home-bottom-bar">
-        {% if app_settings.show_status_bar %}
-        <div class="home-bottom-bar-status">
-          {% for item in status_summary %}
-            <div class="status-item">
-              <span class="label">{{ item.label }}</span>
-              <span class="value {{ item.status }}">{{ item.value }}</span>
-            </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-        <button class="btn btn-primary home-bottom-print-btn" type="button" id="btn-print-settings" aria-label="印刷">
-          <span class="home-bottom-print-icon" aria-hidden="true">🖨</span>
-          <span class="home-bottom-print-text">印刷</span>
-        </button>
-      </footer>
     </div>
   </div>
 

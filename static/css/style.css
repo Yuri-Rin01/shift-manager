@@ -885,8 +885,12 @@ body.sidebar-collapsed.sidebar-peek .nav-item::after {
 .content-home {
   display: flex;
   flex-direction: column;
-  padding-bottom: 64px;
+  padding-bottom: 12px;
   overflow: hidden;
+}
+
+.home-bottom-bar {
+  display: none !important;
 }
 
 .home-bottom-bar {
