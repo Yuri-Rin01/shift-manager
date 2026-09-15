@@ -1960,8 +1960,8 @@ function openBulkCellEditor(cells, anchorTd) {
     optionsCol.appendChild(button);
   });
 
-  const actionsCol = document.createElement("div");
-  actionsCol.className = "shift-picker-bulk-actions";
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "shift-picker-bulk-actions";
 
   const unlockBtn = document.createElement("button");
   unlockBtn.type = "button";
@@ -1984,8 +1984,8 @@ function openBulkCellEditor(cells, anchorTd) {
     saveBulkCellSymbols(targets, "");
   });
 
-  actionsCol.append(unlockBtn, deleteBtn);
-  body.append(actionsCol, optionsCol);
+  actionsRow.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsRow);
   picker.appendChild(body);
 
   picker.classList.remove("hidden");
