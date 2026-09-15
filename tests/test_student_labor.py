@@ -161,6 +161,31 @@ def test_03_normal_week_over_28h_blocked():
     assert reason == "normal_weekly_over"
 
 
+def test_03b_off_allowed_when_week_already_over():
+    """週が既に超過していても休みへの変更は許可する（一括で休みに戻す操作）。"""
+    existing = [
+        (MON, SYM["h8"]),
+        (MON + timedelta(days=1), SYM["h8"]),
+        (MON + timedelta(days=2), SYM["h8"]),
+        (MON + timedelta(days=3), SYM["h8"]),  # 32h without Fri
+    ]
+    off_symbol = DEFAULT_SHIFT_SYMBOLS.get("off", "×")
+    ok, reason, detail = _assign(
+        _student(),
+        MON + timedelta(days=4),
+        off_symbol,
+        existing,
+    )
+    assert ok and reason is None
+    assert detail["facility_week_minutes"] == 32 * 60
+
+    # 超過週の勤務日そのものを休みに置き換える想定（既存から当日を除いたリスト）
+    existing_without_mon = existing[1:]
+    ok2, reason2, detail2 = _assign(_student(), MON, off_symbol, existing_without_mon)
+    assert ok2 and reason2 is None
+    assert detail2["facility_week_minutes"] == 24 * 60
+
+
 def test_04_other_job_4h_facility_24h_ok():
     existing = [
         (MON, SYM["h8"]),
