@@ -1285,6 +1285,7 @@ function ensureShiftPicker() {
 
 function hideShiftPicker() {
   shiftPicker?.classList.add("hidden");
+  shiftPicker?.classList.remove("is-bulk");
   shiftPicker?.replaceChildren();
 }
 
@@ -1305,11 +1306,88 @@ function positionShiftPicker(picker, td) {
 }
 
 function closeCellEditor() {
-  if (!activeEditCell) return;
-  activeEditCell.classList.remove("is-editing");
-  activeEditCell = null;
+  if (activeEditCell) {
+    activeEditCell.classList.remove("is-editing");
+    activeEditCell = null;
+  }
   hideShiftPicker();
   hideFlickPad();
+  clearRangeSelection();
+}
+
+let rangeSelectedCells = [];
+let rangeAnchorTd = null;
+
+function clearRangeSelection() {
+  for (const td of rangeSelectedCells) {
+    td.classList.remove("is-range-selected", "is-range-anchor");
+  }
+  rangeSelectedCells = [];
+  rangeAnchorTd = null;
+}
+
+function editableCellFromPoint(clientX, clientY) {
+  const prevPad = flickPad?.style.pointerEvents;
+  const prevBack = flickBackdrop?.style.pointerEvents;
+  const prevPicker = shiftPicker?.style.pointerEvents;
+  if (flickPad) flickPad.style.pointerEvents = "none";
+  if (flickBackdrop) flickBackdrop.style.pointerEvents = "none";
+  if (shiftPicker) shiftPicker.style.pointerEvents = "none";
+  const el = document.elementFromPoint(clientX, clientY);
+  if (flickPad) flickPad.style.pointerEvents = prevPad || "";
+  if (flickBackdrop) flickBackdrop.style.pointerEvents = prevBack || "";
+  if (shiftPicker) shiftPicker.style.pointerEvents = prevPicker || "";
+  const td = el?.closest?.(".shift-td-editable");
+  if (!td || !shiftCalendar?.contains(td)) return null;
+  return td;
+}
+
+function getEditableCellsInRect(startTd, endTd) {
+  if (!startTd) return [];
+  if (!endTd || endTd === startTd) return [startTd];
+  const table = startTd.closest("table.shift-table");
+  if (!table || !table.contains(endTd)) return [startTd];
+
+  const rows = [...table.querySelectorAll("tbody tr[data-staff-id]")];
+  const startRow = startTd.closest("tr");
+  const endRow = endTd.closest("tr");
+  const startRowIdx = rows.indexOf(startRow);
+  const endRowIdx = rows.indexOf(endRow);
+  if (startRowIdx < 0 || endRowIdx < 0) return [startTd];
+
+  const startCells = [...startRow.querySelectorAll(".shift-td-editable")];
+  const endCells = [...endRow.querySelectorAll(".shift-td-editable")];
+  const startDayIdx = startCells.indexOf(startTd);
+  const endDayIdx = endCells.indexOf(endTd);
+  if (startDayIdx < 0 || endDayIdx < 0) return [startTd];
+
+  const minRow = Math.min(startRowIdx, endRowIdx);
+  const maxRow = Math.max(startRowIdx, endRowIdx);
+  const minDay = Math.min(startDayIdx, endDayIdx);
+  const maxDay = Math.max(startDayIdx, endDayIdx);
+
+  const selected = [];
+  for (let r = minRow; r <= maxRow; r += 1) {
+    const cells = rows[r].querySelectorAll(".shift-td-editable");
+    for (let d = minDay; d <= maxDay; d += 1) {
+      if (cells[d]) selected.push(cells[d]);
+    }
+  }
+  return selected;
+}
+
+function updateRangeSelection(startTd, endTd) {
+  const next = getEditableCellsInRect(startTd, endTd);
+  const nextSet = new Set(next);
+  for (const td of rangeSelectedCells) {
+    if (!nextSet.has(td)) td.classList.remove("is-range-selected", "is-range-anchor");
+  }
+  for (const td of next) {
+    td.classList.add("is-range-selected");
+    td.classList.toggle("is-range-anchor", td === startTd);
+  }
+  rangeSelectedCells = next;
+  rangeAnchorTd = startTd;
 }
 
 function flickInputEnabled() {
@@ -1325,6 +1403,7 @@ function longPressMs() {
 const FLICK_MAX_OPTIONS = 8;
 const FLICK_MIN_DISTANCE = 28;
 const POINTER_MOVE_CANCEL_PX = 12;
+const RANGE_DRAG_START_PX = 4;
 
 let flickPad = null;
 let flickBackdrop = null;
@@ -1771,10 +1850,12 @@ function openCellEditor(td) {
     closeCellEditor();
   }
 
+  clearRangeSelection();
   activeEditCell = td;
   td.classList.add("is-editing");
 
   const picker = ensureShiftPicker();
+  picker.classList.remove("is-bulk");
   const currentSymbol = td.dataset.symbol ?? "";
 
   picker.replaceChildren();
@@ -1805,7 +1886,209 @@ function openCellEditor(td) {
   });
 
   picker.classList.remove("hidden");
+  picker.setAttribute("aria-label", "シフトを選択");
   window.requestAnimationFrame(() => positionShiftPicker(picker, td));
+}
+
+function openBulkCellEditor(cells, anchorTd) {
+  const targets = [...new Set((cells || []).filter(Boolean))];
+  if (!targets.length) return;
+
+  closeFlickPad();
+  if (activeEditCell) {
+    activeEditCell.classList.remove("is-editing");
+    activeEditCell = null;
+  }
+  hideShiftPicker();
+
+  for (const td of rangeSelectedCells) {
+    if (!targets.includes(td)) td.classList.remove("is-range-selected", "is-range-anchor");
+  }
+  rangeSelectedCells = targets;
+  rangeAnchorTd = anchorTd && targets.includes(anchorTd) ? anchorTd : targets[0];
+  for (const td of targets) {
+    td.classList.add("is-range-selected");
+    td.classList.toggle("is-range-anchor", td === rangeAnchorTd);
+  }
+
+  const pivot = rangeAnchorTd;
+  activeEditCell = pivot;
+  pivot.classList.add("is-editing");
+
+  const picker = ensureShiftPicker();
+  const symbols = new Set(targets.map((td) => td.dataset.symbol ?? ""));
+  const currentSymbol = symbols.size === 1 ? [...symbols][0] : null;
+  const hasManual = targets.some((td) => td.dataset.source === "manual");
+
+  picker.replaceChildren();
+  picker.classList.add("is-bulk");
+
+  const heading = document.createElement("div");
+  heading.className = "shift-picker-bulk-heading";
+  heading.textContent = `${targets.length}件を一括入力`;
+  picker.appendChild(heading);
+
+  const body = document.createElement("div");
+  body.className = "shift-picker-bulk-body";
+
+  const optionsCol = document.createElement("div");
+  optionsCol.className = "shift-picker-bulk-options";
+  optionsCol.setAttribute("role", "listbox");
+
+  shiftOptions.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `shift-picker-option ${option.class}${option.symbol === currentSymbol ? " is-current" : ""}`;
+    button.dataset.symbol = option.symbol;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", option.symbol === currentSymbol ? "true" : "false");
+
+    const symbolSpan = document.createElement("span");
+    symbolSpan.className = `shift-picker-symbol${isLongShiftSymbol(option.symbol) ? " is-long-symbol" : ""}`;
+    symbolSpan.textContent = isLongShiftSymbol(option.symbol)
+      ? formatShiftSymbolForCell(option.symbol)
+      : option.symbol;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "shift-picker-label";
+    labelSpan.textContent = option.label;
+
+    button.append(symbolSpan, labelSpan);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      saveBulkCellSymbols(targets, option.symbol);
+    });
+    optionsCol.appendChild(button);
+  });
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "shift-picker-bulk-actions";
+
+  const unlockBtn = document.createElement("button");
+  unlockBtn.type = "button";
+  unlockBtn.className = "shift-picker-action shift-picker-action-unlock";
+  unlockBtn.textContent = "固定解除";
+  unlockBtn.title = "選択セルの手動固定を解除";
+  unlockBtn.disabled = !hasManual;
+  unlockBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    unlockBulkCells(targets);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "shift-picker-action shift-picker-action-delete";
+  deleteBtn.textContent = "削除";
+  deleteBtn.title = "選択セルのシフトを削除";
+  deleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    saveBulkCellSymbols(targets, "");
+  });
+
+  actionsRow.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsRow);
+  picker.appendChild(body);
+
+  picker.classList.remove("hidden");
+  picker.setAttribute("aria-label", "選択セルに一括入力");
+  window.requestAnimationFrame(() => positionShiftPicker(picker, pivot));
+}
+
+async function saveBulkCellSymbols(cells, symbol) {
+  const targets = [...new Set((cells || []).filter(Boolean))];
+  if (!targets.length) return;
+
+  const beforeStates = [];
+  const previousSnapshots = [];
+  for (const td of targets) {
+    const staffId = Number(td.dataset.staffId);
+    const year = Number(td.dataset.year);
+    const month = Number(td.dataset.month);
+    const day = Number(td.dataset.day);
+    if (!staffId || !year || !month || !day) continue;
+    beforeStates.push(captureCellState(td));
+    previousSnapshots.push({
+      td,
+      symbol: td.dataset.symbol ?? "",
+      source: td.dataset.source ?? "",
+    });
+  }
+  if (!previousSnapshots.length) return;
+
+  const selectedSet = new Set(previousSnapshots.map((item) => item.td));
+  hideShiftPicker();
+  if (activeEditCell) {
+    activeEditCell.classList.remove("is-editing");
+    activeEditCell = null;
+  }
+  clearRangeSelection();
+
+  for (const { td } of previousSnapshots) {
+    applyCellSymbol(td, symbol, { source: symbol ? "manual" : "" });
+  }
+
+  const relatedBeforeMap = new Map();
+  const relatedAfterStates = [];
+  let errorMessage = null;
+
+  for (const { td } of previousSnapshots) {
+    const response = await fetch("/api/shifts/cell", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staff_id: Number(td.dataset.staffId),
+        year: Number(td.dataset.year),
+        month: Number(td.dataset.month),
+        day: Number(td.dataset.day),
+        symbol,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      errorMessage = formatCellErrorDetail(error.detail);
+      break;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    for (const related of data.related ?? []) {
+      const relatedTd = findRelatedTd(related);
+      if (!relatedTd || selectedSet.has(relatedTd)) continue;
+      const key = `${related.staff_id}-${related.shift_date}`;
+      if (!relatedBeforeMap.has(key)) {
+        relatedBeforeMap.set(key, captureCellState(relatedTd));
+      }
+      if (related.symbol) {
+        applyCellSymbol(relatedTd, related.symbol, { source: related.source ?? "auto" });
+      } else {
+        applyCellSymbol(relatedTd, "", { source: "" });
+        delete relatedTd.dataset.source;
+      }
+      relatedAfterStates.push(captureCellState(relatedTd));
+    }
+  }
+
+  if (errorMessage) {
+    for (const snap of previousSnapshots) {
+      applyCellSymbol(snap.td, snap.symbol, { source: snap.source });
+    }
+    for (const state of relatedBeforeMap.values()) {
+      applyCellState(state);
+    }
+    window.alert(errorMessage);
+    refreshSummaryCounts();
+    return;
+  }
+
+  const afterStates = previousSnapshots.map(({ td }) => captureCellState(td));
+  pushShiftHistory(
+    [...beforeStates, ...relatedBeforeMap.values()],
+    [...afterStates, ...relatedAfterStates]
+  );
+  refreshSummaryCounts();
+  if (getCurrentSheetView() === "foreign-students") {
+    loadStudentLaborSummary();
+  }
 }
 
 async function saveCellSymbol(td, symbol, options = {}) {
@@ -1874,6 +2157,100 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 }
 
+async function unlockBulkCells(cells) {
+  const targets = [...new Set((cells || []).filter((td) => td && td.dataset.source === "manual"))];
+  if (!targets.length) {
+    hideShiftPicker();
+    if (activeEditCell) {
+      activeEditCell.classList.remove("is-editing");
+      activeEditCell = null;
+    }
+    clearRangeSelection();
+    return;
+  }
+
+  const beforeStates = [];
+  const previousSnapshots = [];
+  for (const td of targets) {
+    beforeStates.push(captureCellState(td));
+    previousSnapshots.push({
+      td,
+      symbol: td.dataset.symbol ?? "",
+      source: td.dataset.source ?? "",
+    });
+  }
+
+  hideShiftPicker();
+  if (activeEditCell) {
+    activeEditCell.classList.remove("is-editing");
+    activeEditCell = null;
+  }
+  clearRangeSelection();
+
+  for (const { td, symbol } of previousSnapshots) {
+    applyCellSymbol(td, symbol, { source: "auto" });
+  }
+
+  const relatedBeforeMap = new Map();
+  const relatedAfterStates = [];
+  let errorMessage = null;
+
+  for (const { td, symbol, source } of previousSnapshots) {
+    const response = await fetch("/api/shifts/cell/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staff_id: Number(td.dataset.staffId),
+        year: Number(td.dataset.year),
+        month: Number(td.dataset.month),
+        day: Number(td.dataset.day),
+      }),
+    });
+
+    if (!response.ok) {
+      applyCellSymbol(td, symbol, { source });
+      const error = await response.json().catch(() => ({}));
+      errorMessage = formatCellErrorDetail(error.detail);
+      break;
+    }
+
+    const data = await response.json().catch(() => ({}));
+    for (const related of data.related ?? []) {
+      const relatedTd = findRelatedTd(related);
+      if (!relatedTd) continue;
+      const key = `${related.staff_id}-${related.shift_date}`;
+      if (!relatedBeforeMap.has(key)) {
+        relatedBeforeMap.set(key, captureCellState(relatedTd));
+      }
+      const relatedState = relatedToState(related);
+      if (relatedState) applyCellState(relatedState);
+      relatedAfterStates.push(captureCellState(relatedTd));
+    }
+  }
+
+  if (errorMessage) {
+    for (const snap of previousSnapshots) {
+      applyCellSymbol(snap.td, snap.symbol, { source: snap.source });
+    }
+    for (const state of relatedBeforeMap.values()) {
+      applyCellState(state);
+    }
+    window.alert(errorMessage);
+    refreshSummaryCounts();
+    return;
+  }
+
+  const afterStates = previousSnapshots.map(({ td }) => captureCellState(td));
+  pushShiftHistory(
+    [...beforeStates, ...relatedBeforeMap.values()],
+    [...afterStates, ...relatedAfterStates]
+  );
+  refreshSummaryCounts();
+  if (getCurrentSheetView() === "foreign-students") {
+    loadStudentLaborSummary();
+  }
+}
+
 async function unlockManualCell(td) {
   const staffId = Number(td.dataset.staffId);
   const year = Number(td.dataset.year);
@@ -1931,6 +2308,9 @@ let cellPointer = null;
 function resetCellPointer() {
   if (cellPointer?.longPressTimer) {
     clearTimeout(cellPointer.longPressTimer);
+  }
+  if (cellPointer?.flickDelayTimer) {
+    clearTimeout(cellPointer.flickDelayTimer);
   }
   cellPointer = null;
 }
@@ -2085,41 +2465,61 @@ function initShiftCellEditor() {
   shiftCalendar?.addEventListener("pointerdown", (event) => {
     const td = event.target.closest(".shift-td-editable");
     if (!td || !shiftCalendar.contains(td)) return;
-    if (event.button !== 0) return;
+    const isRight = event.button === 2;
+    const isPrimary = event.button === 0;
+    if (!isRight && !isPrimary) return;
 
     if (cellClickTimer) {
       clearTimeout(cellClickTimer);
       cellClickTimer = null;
     }
     resetCellPointer();
+    if (shiftPicker && !shiftPicker.classList.contains("hidden")) {
+      hideShiftPicker();
+    }
+    if (activeEditCell) {
+      activeEditCell.classList.remove("is-editing");
+      activeEditCell = null;
+    }
+    hideFlickPad();
+    clearRangeSelection();
 
     const rect = td.getBoundingClientRect();
     cellPointer = {
       td,
       pointerId: event.pointerId,
+      button: event.button,
       startX: event.clientX,
       startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
       originX: rect.left + rect.width / 2,
       originY: rect.top + rect.height / 2,
       longPressTimer: null,
+      flickDelayTimer: null,
       flickActive: false,
+      holdReady: false,
+      rangeActive: false,
+      rangeStart: td,
+      rangeEnd: td,
       directionIndex: -1,
       cancelled: false,
       capturing: false,
     };
 
-    // Do not capture yet — capturing here blocks native table scrolling on touch
     const sel = window.getSelection?.();
     if (sel && sel.rangeCount) sel.removeAllRanges();
 
-    if (flickInputEnabled()) {
-      cellPointer.longPressTimer = window.setTimeout(() => {
-        if (!cellPointer || cellPointer.cancelled || cellPointer.td !== td) return;
-        closeCellEditor();
+    if (isRight) {
+      // Right-click: flick wheel
+      event.preventDefault();
+      closeCellEditor();
+      cellPointer.capturing = true;
+      td.setPointerCapture?.(event.pointerId);
+      if (flickInputEnabled()) {
         cellPointer.flickActive = true;
         cellPointer.directionIndex = -1;
-        cellPointer.capturing = true;
-        td.setPointerCapture?.(event.pointerId);
+        cellPointer.holdReady = true;
         openFlickPad(td);
         window.requestAnimationFrame(() => {
           if (!cellPointer?.flickActive || !flickPad) return;
@@ -2128,26 +2528,57 @@ function initShiftCellEditor() {
           cellPointer.originY = padRect.top + padRect.height / 2;
         });
         navigator.vibrate?.(12);
-      }, longPressMs());
+      } else {
+        cellPointer.rangeActive = true;
+        cellPointer.holdReady = true;
+        updateRangeSelection(td, td);
+      }
+      return;
     }
+
+    // Primary button: range select starts immediately on drag (no long-press wait)
   });
 
   shiftCalendar?.addEventListener("pointermove", (event) => {
     if (!cellPointer || event.pointerId !== cellPointer.pointerId) return;
 
+    cellPointer.lastX = event.clientX;
+    cellPointer.lastY = event.clientY;
     const dx = event.clientX - cellPointer.startX;
     const dy = event.clientY - cellPointer.startY;
 
-    if (!cellPointer.flickActive && cellPointer.longPressTimer) {
-      if (Math.hypot(dx, dy) > POINTER_MOVE_CANCEL_PX) {
-        clearTimeout(cellPointer.longPressTimer);
-        cellPointer.longPressTimer = null;
-        cellPointer.cancelled = true;
-        if (cellPointer.capturing) {
-          cellPointer.td.releasePointerCapture?.(event.pointerId);
-          cellPointer.capturing = false;
+    if (!cellPointer.flickActive && !cellPointer.rangeActive && cellPointer.button === 0) {
+      if (Math.hypot(dx, dy) > RANGE_DRAG_START_PX) {
+        if (cellPointer.longPressTimer) {
+          clearTimeout(cellPointer.longPressTimer);
+          cellPointer.longPressTimer = null;
         }
+        closeCellEditor();
+        cellPointer.holdReady = true;
+        cellPointer.rangeActive = true;
+        cellPointer.rangeStart = cellPointer.td;
+        cellPointer.capturing = true;
+        cellPointer.td.setPointerCapture?.(event.pointerId);
+        const over =
+          editableCellFromPoint(event.clientX, event.clientY) || cellPointer.td;
+        cellPointer.rangeEnd = over;
+        updateRangeSelection(cellPointer.td, over);
+        event.preventDefault();
+        return;
       }
+      return;
+    }
+
+    if (cellPointer.rangeActive) {
+      event.preventDefault();
+      if (!cellPointer.capturing) {
+        cellPointer.capturing = true;
+        cellPointer.td.setPointerCapture?.(event.pointerId);
+      }
+      const over =
+        editableCellFromPoint(event.clientX, event.clientY) || cellPointer.rangeEnd || cellPointer.td;
+      cellPointer.rangeEnd = over;
+      updateRangeSelection(cellPointer.rangeStart || cellPointer.td, over);
       return;
     }
 
@@ -2166,15 +2597,43 @@ function initShiftCellEditor() {
   const finishCellPointer = (event) => {
     if (!cellPointer || event.pointerId !== cellPointer.pointerId) return;
 
-    const { td, longPressTimer, flickActive, directionIndex, cancelled, startX, startY } = cellPointer;
+    const {
+      td,
+      longPressTimer,
+      flickActive,
+      rangeActive,
+      holdReady,
+      directionIndex,
+      cancelled,
+      startX,
+      startY,
+      rangeStart,
+      rangeEnd,
+      button,
+    } = cellPointer;
 
     if (longPressTimer) {
       clearTimeout(longPressTimer);
+    }
+    if (cellPointer.flickDelayTimer) {
+      clearTimeout(cellPointer.flickDelayTimer);
+      cellPointer.flickDelayTimer = null;
     }
 
     if (cellPointer.capturing) {
       cellPointer.td.releasePointerCapture?.(event.pointerId);
       cellPointer.capturing = false;
+    }
+
+    if (rangeActive) {
+      const cells = getEditableCellsInRect(rangeStart || td, rangeEnd || td);
+      resetCellPointer();
+      if (cells.length) {
+        openBulkCellEditor(cells, rangeEnd || rangeStart || td);
+      } else {
+        clearRangeSelection();
+      }
+      return;
     }
 
     if (flickActive) {
@@ -2189,7 +2648,15 @@ function initShiftCellEditor() {
       return;
     }
 
+    if (holdReady) {
+      // Edge case: armed but neither mode engaged
+      resetCellPointer();
+      openCellEditor(td);
+      return;
+    }
+
     if (
+      button === 0 &&
       !cancelled &&
       Math.hypot(event.clientX - startX, event.clientY - startY) <= POINTER_MOVE_CANCEL_PX
     ) {
@@ -2207,6 +2674,9 @@ function initShiftCellEditor() {
     if (!cellPointer || event.pointerId !== cellPointer.pointerId) return;
     if (cellPointer.flickActive) {
       closeFlickPad();
+    }
+    if (cellPointer.rangeActive) {
+      clearRangeSelection();
     }
     resetCellPointer();
   });
@@ -2241,14 +2711,15 @@ function initShiftCellEditor() {
   });
 
   document.addEventListener("click", (event) => {
-    if (!activeEditCell) return;
+    if (!activeEditCell && !rangeSelectedCells.length) return;
     const pickerOpen = shiftPicker && !shiftPicker.classList.contains("hidden");
     const flickOpen = flickPad && !flickPad.classList.contains("hidden");
-    if (!pickerOpen && !flickOpen) return;
+    if (!pickerOpen && !flickOpen && !rangeSelectedCells.length) return;
     if (
       shiftPicker?.contains(event.target) ||
       flickPad?.contains(event.target) ||
-      activeEditCell.contains(event.target)
+      activeEditCell?.contains(event.target) ||
+      event.target.closest?.(".shift-td-editable.is-range-selected")
     ) {
       return;
     }
@@ -2258,7 +2729,7 @@ function initShiftCellEditor() {
   tableWrap?.addEventListener(
     "scroll",
     () => {
-      if (activeEditCell) closeCellEditor();
+      if (activeEditCell || rangeSelectedCells.length) closeCellEditor();
     },
     { passive: true }
   );

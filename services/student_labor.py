@@ -28,6 +28,7 @@ LEAVE_OR_OFF_KEYS = frozenset(
         "off",
         "public",
         "paid_leave",
+        "half_leave",
         "morning_off",
         "am_off",
         "pm_off",
@@ -294,12 +295,36 @@ def can_assign_shift(
     if not is_student_labor_restricted(profile):
         return True, None, detail
 
+    key = symbol_to_key(symbol, settings)
+    # 休み・休暇・明けなどは労働時間を増やさない。週が既に超過していても
+    # 休みへの変更（一括入力含む）は許可する。
+    if not symbol or not key or key in LEAVE_OR_OFF_KEYS:
+        week_start, week_end = week_range_containing(work_date, limits["week_start"])
+        detail["week_start"] = week_start.isoformat()
+        detail["week_end"] = week_end.isoformat()
+        day_map = build_day_minutes_map(existing_assignments, settings)
+        week_minutes = sum(
+            mins for day, mins in day_map.items() if week_start <= day <= week_end
+        )
+        other = (
+            int(profile["other_job_weekly_minutes"] or 0)
+            if profile.get("has_other_job")
+            else 0
+        )
+        detail["facility_week_minutes"] = week_minutes
+        detail["other_job_weekly_minutes"] = other
+        detail["total_week_minutes"] = week_minutes + other
+        detail["remaining_minutes"] = detail["limit_week_minutes"] - detail["total_week_minutes"]
+        detail["status"] = status_for_remaining(
+            detail["remaining_minutes"], limits["approach_remaining_minutes"]
+        )
+        return True, None, detail
+
     ok, reason = evaluate_eligibility(profile, work_date)
     if not ok:
         detail["status"] = "blocked" if reason != "permission_unknown" else "need_confirm"
         return False, reason, detail
 
-    key = symbol_to_key(symbol, settings)
     option = work_type_lookup(settings).get(key or "")
     if key and key not in LEAVE_OR_OFF_KEYS:
         if not option or not option.get("start_time") or not option.get("end_time"):
