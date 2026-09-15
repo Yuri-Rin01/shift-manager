@@ -1,0 +1,17 @@
+{
+  "name": "shift-manager",
+  "install": "sudo apt-get update && sudo apt-get install -y python3.12-venv && python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip && pip install -r requirements-dev.txt && python -c 'from db.database import init_db; init_db()'",
+  "terminals": [
+    {
+      "name": "server",
+      "command": ". .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+      "description": "FastAPI シフト作成システム dev server on http://localhost:8000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 8000
+    }
+  ]
+}
