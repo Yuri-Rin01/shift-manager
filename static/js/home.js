@@ -1403,6 +1403,7 @@ function longPressMs() {
 const FLICK_MAX_OPTIONS = 8;
 const FLICK_MIN_DISTANCE = 28;
 const POINTER_MOVE_CANCEL_PX = 12;
+const RANGE_DRAG_START_PX = 4;
 
 let flickPad = null;
 let flickBackdrop = null;
@@ -2510,7 +2511,7 @@ function initShiftCellEditor() {
     if (sel && sel.rangeCount) sel.removeAllRanges();
 
     if (isRight) {
-      // Right-click: flick wheel (swapped with multi-select)
+      // Right-click: flick wheel
       event.preventDefault();
       closeCellEditor();
       cellPointer.capturing = true;
@@ -2535,21 +2536,7 @@ function initShiftCellEditor() {
       return;
     }
 
-    // Long-press: multi-select range (swapped with flick wheel)
-    cellPointer.longPressTimer = window.setTimeout(() => {
-      if (!cellPointer || cellPointer.cancelled || cellPointer.td !== td) return;
-      closeCellEditor();
-      cellPointer.holdReady = true;
-      cellPointer.rangeActive = true;
-      cellPointer.rangeStart = td;
-      cellPointer.capturing = true;
-      td.setPointerCapture?.(event.pointerId);
-
-      const over = editableCellFromPoint(cellPointer.lastX, cellPointer.lastY) || td;
-      cellPointer.rangeEnd = over;
-      updateRangeSelection(td, over);
-      navigator.vibrate?.(12);
-    }, longPressMs());
+    // Primary button: range select starts immediately on drag (no long-press wait)
   });
 
   shiftCalendar?.addEventListener("pointermove", (event) => {
@@ -2560,20 +2547,24 @@ function initShiftCellEditor() {
     const dx = event.clientX - cellPointer.startX;
     const dy = event.clientY - cellPointer.startY;
 
-    if (
-      !cellPointer.flickActive &&
-      !cellPointer.rangeActive &&
-      !cellPointer.holdReady &&
-      cellPointer.longPressTimer
-    ) {
-      if (Math.hypot(dx, dy) > POINTER_MOVE_CANCEL_PX) {
-        clearTimeout(cellPointer.longPressTimer);
-        cellPointer.longPressTimer = null;
-        cellPointer.cancelled = true;
-        if (cellPointer.capturing) {
-          cellPointer.td.releasePointerCapture?.(event.pointerId);
-          cellPointer.capturing = false;
+    if (!cellPointer.flickActive && !cellPointer.rangeActive && cellPointer.button === 0) {
+      if (Math.hypot(dx, dy) > RANGE_DRAG_START_PX) {
+        if (cellPointer.longPressTimer) {
+          clearTimeout(cellPointer.longPressTimer);
+          cellPointer.longPressTimer = null;
         }
+        closeCellEditor();
+        cellPointer.holdReady = true;
+        cellPointer.rangeActive = true;
+        cellPointer.rangeStart = cellPointer.td;
+        cellPointer.capturing = true;
+        cellPointer.td.setPointerCapture?.(event.pointerId);
+        const over =
+          editableCellFromPoint(event.clientX, event.clientY) || cellPointer.td;
+        cellPointer.rangeEnd = over;
+        updateRangeSelection(cellPointer.td, over);
+        event.preventDefault();
+        return;
       }
       return;
     }
@@ -2658,7 +2649,7 @@ function initShiftCellEditor() {
     }
 
     if (holdReady) {
-      // Long-pressed but released without flick/range motion → open dropdown
+      // Edge case: armed but neither mode engaged
       resetCellPointer();
       openCellEditor(td);
       return;
