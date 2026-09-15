@@ -1985,7 +1985,7 @@ function openBulkCellEditor(cells, anchorTd) {
   });
 
   actionsCol.append(unlockBtn, deleteBtn);
-  body.append(optionsCol, actionsCol);
+  body.append(actionsCol, optionsCol);
   picker.appendChild(body);
 
   picker.classList.remove("hidden");

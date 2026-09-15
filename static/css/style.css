@@ -2289,14 +2289,16 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   max-width: 220px;
   max-height: min(320px, 60vh);
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(203, 213, 225, 0.9);
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .shift-cell-picker.is-bulk {
@@ -2304,6 +2306,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   max-width: 300px;
   max-height: min(360px, 70vh);
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .shift-picker-bulk-body {
@@ -2322,7 +2325,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   gap: 6px;
   overflow-y: auto;
   max-height: min(300px, 58vh);
-  padding-right: 2px;
+  padding-left: 2px;
 }
 
 .shift-picker-bulk-actions {
@@ -2346,7 +2349,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   cursor: pointer;
   text-align: center;
   color: #0f172a;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.88);
   writing-mode: horizontal-tb;
 }
 
@@ -2360,24 +2363,24 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 }
 
 .shift-picker-action-unlock {
-  background: #fff7ed;
+  background: rgba(255, 247, 237, 0.9);
   border-color: #fdba74;
   color: #9a3412;
 }
 
 .shift-picker-action-unlock:hover:not(:disabled) {
-  background: #ffedd5;
+  background: rgba(255, 237, 213, 0.95);
   border-color: #fb923c;
 }
 
 .shift-picker-action-delete {
-  background: #fef2f2;
+  background: rgba(254, 242, 242, 0.9);
   border-color: #fca5a5;
   color: #b91c1c;
 }
 
 .shift-picker-action-delete:hover:not(:disabled) {
-  background: #fee2e2;
+  background: rgba(254, 226, 226, 0.95);
   border-color: #f87171;
 }
 
@@ -2398,7 +2401,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   cursor: pointer;
   text-align: left;
   color: #000;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .shift-picker-option:hover {
