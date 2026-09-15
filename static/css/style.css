@@ -2274,12 +2274,13 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 }
 
 .shift-picker-bulk-heading {
-  padding: 4px 6px 8px;
+  padding: 6px 8px 8px;
   font-size: 12px;
   font-weight: 700;
-  color: #334155;
-  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+  border-bottom: 1px solid #cbd5e1;
   margin-bottom: 4px;
+  letter-spacing: 0.02em;
 }
 
 .shift-cell-picker {
@@ -2289,16 +2290,17 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   max-width: 220px;
   max-height: min(320px, 60vh);
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid #94a3b8;
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.22);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #0f172a;
 }
 
 .shift-cell-picker.is-bulk {
@@ -2306,7 +2308,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   max-width: 240px;
   max-height: min(380px, 72vh);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(248, 250, 252, 0.95);
 }
 
 .shift-picker-bulk-body {
@@ -2332,54 +2334,55 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  padding-top: 2px;
-  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  padding-top: 8px;
+  border-top: 1px solid #94a3b8;
 }
 
 .shift-picker-action {
-  min-height: 36px;
+  min-height: 38px;
   max-height: none;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
   cursor: pointer;
   text-align: center;
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.88);
 }
 
 .shift-picker-action:hover:not(:disabled) {
-  border-color: var(--primary);
+  filter: brightness(0.97);
 }
 
 .shift-picker-action:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  filter: grayscale(0.35);
 }
 
 .shift-picker-action-unlock {
-  background: rgba(255, 247, 237, 0.9);
-  border-color: #fdba74;
-  color: #9a3412;
+  background: #1e3a5f;
+  border-color: #0f2744;
+  color: #f8fafc;
 }
 
 .shift-picker-action-unlock:hover:not(:disabled) {
-  background: rgba(255, 237, 213, 0.95);
-  border-color: #fb923c;
+  background: #274b78;
+  border-color: #1e3a5f;
+  color: #fff;
 }
 
 .shift-picker-action-delete {
-  background: rgba(254, 242, 242, 0.9);
-  border-color: #fca5a5;
-  color: #b91c1c;
+  background: #b91c1c;
+  border-color: #991b1b;
+  color: #fff;
 }
 
 .shift-picker-action-delete:hover:not(:disabled) {
-  background: rgba(254, 226, 226, 0.95);
-  border-color: #f87171;
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
 }
 
 .shift-cell-picker.hidden {
@@ -2392,63 +2395,74 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   gap: 10px;
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid #64748b;
   border-radius: 6px;
   font-size: 14px;
   line-height: 1.3;
   cursor: pointer;
   text-align: left;
-  color: #000;
-  background: rgba(255, 255, 255, 0.88);
+  color: #0f172a;
+  background: #fff;
+  font-weight: 600;
 }
 
 .shift-picker-option:hover {
-  border-color: var(--primary);
-  background: #f8fbff;
+  border-color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #1d4ed8;
+  background: #eff6ff;
 }
 
 .shift-picker-option.is-current {
-  border-color: var(--primary);
-  box-shadow: inset 0 0 0 1px var(--primary);
-  font-weight: 600;
+  border-color: #1d4ed8;
+  box-shadow: inset 0 0 0 2px #1d4ed8;
+  font-weight: 700;
 }
 
 .shift-picker-symbol {
   flex-shrink: 0;
   min-width: 2.2em;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
+  color: #0f172a;
 }
 
 .shift-picker-label {
   flex: 1;
+  color: #0f172a;
 }
 
-.shift-picker-option.shift-early { background: #dcfce7; }
-.shift-picker-option.shift-day { background: #ffffff; }
-.shift-picker-option.shift-late { background: #e0f2fe; }
-.shift-picker-option.shift-special { background: #f3e8ff; }
-.shift-picker-option.shift-night { background: #ddd6fe; }
-.shift-picker-option.shift-semi-early { background: #ecfdf5; }
-.shift-picker-option.shift-semi-day { background: #fafafa; }
-.shift-picker-option.shift-semi-late { background: #f0f9ff; }
-.shift-picker-option.shift-semi-night { background: #ede9fe; }
-.shift-picker-option.shift-morning-off { background: #fef3c7; }
-.shift-picker-option.shift-paid-leave { background: #fee2e2; }
-.shift-picker-option.shift-off { background: #f1f5f9; }
-.shift-picker-option.shift-public { background: #f8fafc; }
-.shift-picker-option.shift-training { background: #fef9c3; }
-.shift-picker-option.shift-half-leave { background: #fce7f3; }
+.shift-picker-option.shift-early { background: #bbf7d0; border-color: #16a34a; }
+.shift-picker-option.shift-day { background: #ffffff; border-color: #475569; }
+.shift-picker-option.shift-late { background: #bae6fd; border-color: #0284c7; }
+.shift-picker-option.shift-special { background: #e9d5ff; border-color: #7c3aed; }
+.shift-picker-option.shift-night { background: #4c1d95; border-color: #2e1065; color: #f8fafc; }
+.shift-picker-option.shift-semi-early { background: #a7f3d0; border-color: #059669; }
+.shift-picker-option.shift-semi-day { background: #f1f5f9; border-color: #64748b; }
+.shift-picker-option.shift-semi-late { background: #e0f2fe; border-color: #0369a1; }
+.shift-picker-option.shift-semi-night { background: #ddd6fe; border-color: #6d28d9; }
+.shift-picker-option.shift-morning-off { background: #fde68a; border-color: #d97706; }
+.shift-picker-option.shift-paid-leave { background: #fecaca; border-color: #dc2626; }
+.shift-picker-option.shift-off { background: #e2e8f0; border-color: #475569; }
+.shift-picker-option.shift-public { background: #f8fafc; border-color: #64748b; }
+.shift-picker-option.shift-training { background: #fef08a; border-color: #ca8a04; }
+.shift-picker-option.shift-half-leave { background: #fbcfe8; border-color: #db2777; }
 
-.shift-picker-option:hover.shift-early { background: #bbf7d0; }
-.shift-picker-option:hover.shift-late { background: #bae6fd; }
-.shift-picker-option:hover.shift-special { background: #e9d5ff; }
-.shift-picker-option:hover.shift-night { background: #c4b5fd; }
-.shift-picker-option:hover.shift-morning-off { background: #fde68a; }
-.shift-picker-option:hover.shift-paid-leave { background: #fecaca; }
-.shift-picker-option:hover.shift-training { background: #fef08a; }
-.shift-picker-option:hover.shift-half-leave { background: #fbcfe8; }
+.shift-picker-option.shift-night .shift-picker-symbol,
+.shift-picker-option.shift-night .shift-picker-label {
+  color: #f8fafc;
+}
+
+.shift-picker-option:hover.shift-early { background: #86efac; }
+.shift-picker-option:hover.shift-day { background: #f8fafc; }
+.shift-picker-option:hover.shift-late { background: #7dd3fc; }
+.shift-picker-option:hover.shift-special { background: #d8b4fe; }
+.shift-picker-option:hover.shift-night { background: #5b21b6; }
+.shift-picker-option:hover.shift-morning-off { background: #fcd34d; }
+.shift-picker-option:hover.shift-paid-leave { background: #fca5a5; }
+.shift-picker-option:hover.shift-off { background: #cbd5e1; }
+.shift-picker-option:hover.shift-training { background: #fde047; }
+.shift-picker-option:hover.shift-half-leave { background: #f9a8d4; }
 
 .shift-flick-backdrop {
   position: fixed;
