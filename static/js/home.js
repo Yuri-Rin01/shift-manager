@@ -601,24 +601,6 @@ function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
   }
 }
 
-function studentLaborStatusIcon(status) {
-  switch (status) {
-    case "ok":
-      return "○";
-    case "approach":
-      return "△";
-    case "reached":
-      return "●";
-    case "over":
-      return "×";
-    case "need_confirm":
-    case "blocked":
-      return "！";
-    default:
-      return "・";
-  }
-}
-
 function formatStudentLaborDateRange(startIso, endIso) {
   if (!startIso || !endIso) return "";
   const fmt = (iso) => {
@@ -629,10 +611,8 @@ function formatStudentLaborDateRange(startIso, endIso) {
 }
 
 async function loadStudentLaborSummary() {
-  const list = document.getElementById("student-labor-week-list");
-  const monthBody = document.getElementById("student-labor-month-tbody");
+  const list = document.getElementById("student-labor-gauge-list");
   const rangeEl = document.getElementById("student-labor-week-range");
-  const monthLabel = document.getElementById("student-labor-month-label");
   if (!list) return;
 
   const year = getCalendarYear();
@@ -640,7 +620,6 @@ async function loadStudentLaborSummary() {
   if (!year || !month) return;
 
   list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
-  if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">読み込み中…</td></tr>`;
 
   try {
     const [weekRes, monthRes] = await Promise.all([
@@ -655,104 +634,123 @@ async function loadStudentLaborSummary() {
     if (rangeEl) {
       rangeEl.textContent = formatStudentLaborDateRange(weekData.week_start, weekData.week_end);
     }
-    renderStudentLaborWeekRows(list, weekData.rows || []);
 
-    if (monthBody) {
-      if (monthRes.ok) {
-        const monthData = await monthRes.json();
-        if (monthLabel) {
-          monthLabel.textContent = `${monthData.year}年${monthData.month}月`;
-        }
-        renderStudentLaborMonthRows(monthBody, monthData.rows || []);
-      } else {
-        monthBody.innerHTML = `<tr><td colspan="5">月別集計の読み込みに失敗しました</td></tr>`;
-      }
+    let monthRows = [];
+    if (monthRes.ok) {
+      const monthData = await monthRes.json();
+      monthRows = monthData.rows || [];
     }
+    renderStudentLaborGaugeCards(list, weekData.rows || [], monthRows);
   } catch {
     list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
-    if (monthBody) monthBody.innerHTML = `<tr><td colspan="5">通信エラー</td></tr>`;
   }
 }
 
-function studentLaborUsagePercent(row) {
-  const limit = Number(row.limit_week_minutes) || 0;
-  const total = Number(row.total_week_minutes) || 0;
-  if (limit <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((total / limit) * 100)));
+function formatStudentLaborClock(minutes) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  const hours = Math.floor(value / 60);
+  const mins = String(value % 60).padStart(2, "0");
+  return `${hours}:${mins}`;
 }
 
-function renderStudentLaborWeekRows(list, rows) {
-  if (!rows.length) {
+function studentLaborUsagePercent(usedMinutes, limitMinutes) {
+  const limit = Number(limitMinutes) || 0;
+  const used = Number(usedMinutes) || 0;
+  if (limit <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((used / limit) * 100)));
+}
+
+function studentLaborGaugeTone(usedMinutes, limitMinutes) {
+  const limit = Number(limitMinutes) || 0;
+  const used = Number(usedMinutes) || 0;
+  if (limit <= 0) return "ok";
+  if (used > limit) return "over";
+  if (used >= limit) return "reached";
+  if (used / limit >= 0.85) return "approach";
+  return "ok";
+}
+
+function renderStudentLaborGaugeCards(list, weekRows, monthRows, year, month) {
+  if (!weekRows.length && !monthRows.length) {
     list.innerHTML = `<p class="student-labor-empty">対象の留学生がいません</p>`;
     return;
   }
-  list.innerHTML = rows
-    .map((row) => {
-      const status = row.status || "ok";
-      const icon = studentLaborStatusIcon(status);
-      const reason = row.reason_label
-        ? `<p class="student-labor-reason">${escapeHtml(row.reason_label)}</p>`
-        : "";
-      const pct = studentLaborUsagePercent(row);
-      const remaining = row.remaining_hours_label || "—";
-      return `<article class="student-labor-card status-${escapeHtml(status)}" data-staff-id="${row.staff_id ?? ""}">
-        <div class="student-labor-card-top">
-          <div class="student-labor-card-identity">
-            <strong class="student-labor-name">${escapeHtml(row.name || "")}</strong>
-            <span class="student-labor-period">${escapeHtml(row.period_label || "")}</span>
-          </div>
-          <span class="student-labor-status-badge" title="${escapeHtml(row.status_label || "")}">
-            <span class="student-labor-status-icon" aria-hidden="true">${icon}</span>
-            ${escapeHtml(row.status_label || "")}
-          </span>
-        </div>
-        <div class="student-labor-meter" aria-hidden="true">
-          <span class="student-labor-meter-fill" style="width:${pct}%"></span>
-        </div>
-        <dl class="student-labor-metrics">
-          <div>
-            <dt>自施設</dt>
-            <dd>${escapeHtml(row.facility_week_hours_label || "0時間")}</dd>
-          </div>
-          <div>
-            <dt>他勤務先</dt>
-            <dd>${escapeHtml(row.other_job_hours_label || "0時間")}</dd>
-          </div>
-          <div>
-            <dt>合計</dt>
-            <dd class="is-emphasis">${escapeHtml(row.total_hours_label || "0時間")}</dd>
-          </div>
-          <div>
-            <dt>上限</dt>
-            <dd>${escapeHtml(row.limit_hours_label || "—")}</dd>
-          </div>
-          <div>
-            <dt>残り</dt>
-            <dd class="is-remaining">${escapeHtml(remaining)}</dd>
-          </div>
-        </dl>
-        ${reason}
-      </article>`;
-    })
-    .join("");
+
+  const monthByStaff = new Map(
+    (monthRows || []).map((row) => [String(row.staff_id), row])
+  );
+  const seen = new Set();
+  const cards = [];
+
+  for (const week of weekRows) {
+    const id = String(week.staff_id ?? "");
+    seen.add(id);
+    cards.push(buildStudentLaborGaugeCard(week, monthByStaff.get(id) || {}));
+  }
+
+  for (const monthRow of monthRows) {
+    const id = String(monthRow.staff_id ?? "");
+    if (seen.has(id)) continue;
+    cards.push(buildStudentLaborGaugeCard({}, monthRow));
+  }
+
+  list.innerHTML = cards.join("");
 }
 
-function renderStudentLaborMonthRows(tbody, rows) {
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5">対象の留学生がいません</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = rows
-    .map(
-      (row) => `<tr>
-        <td class="student-labor-name">${escapeHtml(row.name || "")}</td>
-        <td>${escapeHtml(row.normal_hours_label || "")}</td>
-        <td>${escapeHtml(row.vacation_hours_label || "")}</td>
-        <td>${escapeHtml(row.total_with_other_hours_label || "")}</td>
-        <td>${escapeHtml(String(row.warning_count ?? 0))}件</td>
-      </tr>`
-    )
-    .join("");
+function buildStudentLaborGaugeCard(weekRow, monthRow) {
+  const name = weekRow.name || monthRow.name || "—";
+  const weekUsed = Number(weekRow.total_week_minutes) || 0;
+  const weekLimit = Number(weekRow.limit_week_minutes) || 28 * 60;
+  const monthUsed =
+    Number(monthRow.total_with_other_minutes) ||
+    Number(monthRow.normal_minutes || 0) + Number(monthRow.vacation_minutes || 0);
+  // モックどおり週上限×4を月の目安上限に使う（法令判定は週単位）
+  const monthLimit = weekLimit * 4;
+  const weekPct = studentLaborUsagePercent(weekUsed, weekLimit);
+  const monthPct = studentLaborUsagePercent(monthUsed, monthLimit);
+  const weekTone = studentLaborGaugeTone(weekUsed, weekLimit);
+  const monthTone = studentLaborGaugeTone(monthUsed, monthLimit);
+  const status = weekRow.status || monthTone;
+  const staffId = weekRow.staff_id ?? monthRow.staff_id ?? "";
+
+  return `<article class="student-labor-gauge-card status-${escapeHtml(status)}" data-staff-id="${staffId}">
+    <h4 class="student-labor-gauge-name">${escapeHtml(name)}</h4>
+    ${renderStudentLaborGaugeRow({
+      label: "週間労働時間",
+      used: weekUsed,
+      limit: weekLimit,
+      pct: weekPct,
+      tone: weekTone,
+    })}
+    ${renderStudentLaborGaugeRow({
+      label: "月間労働時間",
+      used: monthUsed,
+      limit: monthLimit,
+      pct: monthPct,
+      tone: monthTone,
+    })}
+  </article>`;
+}
+
+function renderStudentLaborGaugeRow({ label, used, limit, pct, tone }) {
+  const ratio = `${formatStudentLaborClock(used)}/${formatStudentLaborClock(limit)}`;
+  return `<div class="student-labor-gauge-row tone-${escapeHtml(tone)}">
+    <div class="student-labor-gauge-meta">
+      <span class="student-labor-gauge-label">${escapeHtml(label)}</span>
+      <span class="student-labor-gauge-ratio">${escapeHtml(ratio)}</span>
+    </div>
+    <div
+      class="student-labor-gauge"
+      role="progressbar"
+      aria-label="${escapeHtml(label)}"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="${pct}"
+      aria-valuetext="${escapeHtml(ratio)}"
+    >
+      <span class="student-labor-gauge-fill" style="width:${pct}%"></span>
+    </div>
+  </div>`;
 }
 
 function clearSheetFlipClasses(viewport) {

@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=97">
+  <link rel="stylesheet" href="/static/css/style.css?v=98">
 </head>
 <body>
   <div class="app">
@@ -209,50 +209,6 @@
                   <div class="sheet-flip-page" id="sheet-flip-page">
                     <div class="shift-calendar-shell">
                       <div class="sheet-main-scroll" id="sheet-main-scroll">
-                      <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
-                        <div class="student-labor-panel-head">
-                          <div class="student-labor-panel-titles">
-                            <p class="student-labor-kicker">留学生シート</p>
-                            <h3 class="student-labor-title">今週の労働時間</h3>
-                          </div>
-                          <span class="student-labor-panel-range" id="student-labor-week-range"></span>
-                        </div>
-                        <div class="student-labor-legend" aria-hidden="true">
-                          <span class="student-labor-legend-item status-ok"><span>○</span>正常</span>
-                          <span class="student-labor-legend-item status-approach"><span>△</span>上限接近</span>
-                          <span class="student-labor-legend-item status-reached"><span>●</span>上限到達</span>
-                          <span class="student-labor-legend-item status-over"><span>×</span>超過</span>
-                          <span class="student-labor-legend-item status-need_confirm"><span>！</span>確認必要</span>
-                        </div>
-                        <div id="student-labor-week-list" class="student-labor-week-list">
-                          <p class="student-labor-empty">読み込み中…</p>
-                        </div>
-                        <details class="student-labor-month-details">
-                          <summary>
-                            <span>月別集計（確認用）</span>
-                            <span class="student-labor-panel-range" id="student-labor-month-label"></span>
-                          </summary>
-                          <div class="student-labor-table-wrap">
-                            <table class="student-labor-table" id="student-labor-month-table">
-                              <thead>
-                                <tr>
-                                  <th>職員</th>
-                                  <th>通常期間</th>
-                                  <th>長期休業中</th>
-                                  <th>他勤務先含む合計</th>
-                                  <th>警告</th>
-                                </tr>
-                              </thead>
-                              <tbody id="student-labor-month-tbody">
-                                <tr>
-                                  <td colspan="5">読み込み中…</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                          <p class="student-labor-note">法令判定は日・週単位です。月合計は管理確認用です。</p>
-                        </details>
-                      </div>
                       <div
                         id="shift-calendar"
                         class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_dept_column %} hide-col-dept{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
@@ -265,6 +221,18 @@
                         <p class="sheet-empty-title">表示できる留学生がいません</p>
                         <p class="sheet-empty-body">職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。</p>
                         <a class="btn btn-primary btn-sm" href="/staff">職員管理を開く</a>
+                      </div>
+                      <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
+                        <div class="student-labor-panel-head">
+                          <div class="student-labor-panel-titles">
+                            <p class="student-labor-kicker">留学生シート</p>
+                            <h3 class="student-labor-title">労働時間サマリー</h3>
+                          </div>
+                          <span class="student-labor-panel-range" id="student-labor-week-range"></span>
+                        </div>
+                        <div id="student-labor-gauge-list" class="student-labor-gauge-list">
+                          <p class="student-labor-empty">読み込み中…</p>
+                        </div>
                       </div>
                       </div>
                       {% if app_settings.show_shift_legend %}
@@ -332,6 +300,6 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=60"></script>
+  <script src="/static/js/home.js?v=61"></script>
 </body>
 </html>

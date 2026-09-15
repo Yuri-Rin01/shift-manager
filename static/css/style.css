@@ -6585,16 +6585,15 @@ input[type="checkbox"]:focus-visible {
   }
 }
 
-/* 留学生労働時間パネル */
+/* 留学生労働時間パネル（表の下） */
 .student-labor-panel {
   flex: 0 0 auto;
-  margin: 0;
+  margin: 12px 0 0;
   padding: 14px 14px 12px;
   overflow: visible;
-  background:
-    linear-gradient(180deg, #f4faf6 0%, #eef6f1 48%, #f7fbf8 100%);
-  border: none;
-  border-bottom: 1px solid #c5dccb;
+  background: #f8fafc;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
 }
 
 .student-labor-panel.hidden {
@@ -6912,6 +6911,95 @@ input[type="checkbox"]:focus-visible {
 
 .shift-workspace.is-sheet-foreign .student-labor-panel {
   border-radius: 0;
+}
+
+/* 表下の％ゲージカード（留学生） */
+.student-labor-gauge-list {
+  display: grid;
+  gap: 10px;
+}
+
+.student-labor-gauge-card {
+  padding: 14px 14px 12px;
+  background: #fff;
+  border: 1px solid #d0ddd4;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.student-labor-gauge-name {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.student-labor-gauge-row + .student-labor-gauge-row {
+  margin-top: 14px;
+}
+
+.student-labor-gauge-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.student-labor-gauge-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.student-labor-gauge-ratio {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.student-labor-gauge {
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.student-labor-gauge-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+  transition: width 0.25s ease;
+}
+
+.student-labor-gauge-row.tone-approach .student-labor-gauge-fill {
+  background: #f59e0b;
+}
+
+.student-labor-gauge-row.tone-reached .student-labor-gauge-fill {
+  background: #ea580c;
+}
+
+.student-labor-gauge-row.tone-over .student-labor-gauge-fill {
+  background: #dc2626;
+}
+
+.student-labor-gauge-row.tone-over .student-labor-gauge-ratio {
+  color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+  .student-labor-gauge-name {
+    font-size: 17px;
+  }
+
+  .student-labor-gauge {
+    height: 12px;
+  }
 }
 
 /* Pull-to-reload (ページ上端を下へ引っ張って再読み込み) */
