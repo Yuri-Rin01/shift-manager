@@ -2510,50 +2510,15 @@ function initShiftCellEditor() {
     if (sel && sel.rangeCount) sel.removeAllRanges();
 
     if (isRight) {
+      // Right-click: flick wheel (swapped with multi-select)
       event.preventDefault();
       closeCellEditor();
-      cellPointer.rangeActive = true;
-      cellPointer.holdReady = true;
       cellPointer.capturing = true;
       td.setPointerCapture?.(event.pointerId);
-      updateRangeSelection(td, td);
-      return;
-    }
-
-    // Long-press arms range select; flick opens shortly after if still on same cell.
-    cellPointer.longPressTimer = window.setTimeout(() => {
-      if (!cellPointer || cellPointer.cancelled || cellPointer.td !== td) return;
-      closeCellEditor();
-      cellPointer.holdReady = true;
-      cellPointer.capturing = true;
-      td.setPointerCapture?.(event.pointerId);
-      td.classList.add("is-range-anchor");
-      rangeAnchorTd = td;
-      if (!rangeSelectedCells.includes(td)) {
-        rangeSelectedCells = [td];
-        td.classList.add("is-range-selected");
-      }
-
-      const over = editableCellFromPoint(cellPointer.lastX, cellPointer.lastY);
-      if (over && over !== td) {
-        cellPointer.rangeActive = true;
-        cellPointer.rangeStart = td;
-        cellPointer.rangeEnd = over;
-        updateRangeSelection(td, over);
-        navigator.vibrate?.(12);
-        return;
-      }
-
-      navigator.vibrate?.(12);
-
-      if (!flickInputEnabled()) return;
-      cellPointer.flickDelayTimer = window.setTimeout(() => {
-        if (!cellPointer || cellPointer.cancelled || cellPointer.rangeActive) return;
-        if (cellPointer.td !== td || cellPointer.flickActive) return;
+      if (flickInputEnabled()) {
         cellPointer.flickActive = true;
         cellPointer.directionIndex = -1;
-        td.classList.remove("is-range-anchor");
-        clearRangeSelection();
+        cellPointer.holdReady = true;
         openFlickPad(td);
         window.requestAnimationFrame(() => {
           if (!cellPointer?.flickActive || !flickPad) return;
@@ -2561,7 +2526,29 @@ function initShiftCellEditor() {
           cellPointer.originX = padRect.left + padRect.width / 2;
           cellPointer.originY = padRect.top + padRect.height / 2;
         });
-      }, 160);
+        navigator.vibrate?.(12);
+      } else {
+        cellPointer.rangeActive = true;
+        cellPointer.holdReady = true;
+        updateRangeSelection(td, td);
+      }
+      return;
+    }
+
+    // Long-press: multi-select range (swapped with flick wheel)
+    cellPointer.longPressTimer = window.setTimeout(() => {
+      if (!cellPointer || cellPointer.cancelled || cellPointer.td !== td) return;
+      closeCellEditor();
+      cellPointer.holdReady = true;
+      cellPointer.rangeActive = true;
+      cellPointer.rangeStart = td;
+      cellPointer.capturing = true;
+      td.setPointerCapture?.(event.pointerId);
+
+      const over = editableCellFromPoint(cellPointer.lastX, cellPointer.lastY) || td;
+      cellPointer.rangeEnd = over;
+      updateRangeSelection(td, over);
+      navigator.vibrate?.(12);
     }, longPressMs());
   });
 
@@ -2589,47 +2576,6 @@ function initShiftCellEditor() {
         }
       }
       return;
-    }
-
-    if (cellPointer.holdReady && !cellPointer.rangeActive && !cellPointer.flickActive) {
-      const over = editableCellFromPoint(event.clientX, event.clientY);
-      if (over && over !== cellPointer.td) {
-        if (cellPointer.flickDelayTimer) {
-          clearTimeout(cellPointer.flickDelayTimer);
-          cellPointer.flickDelayTimer = null;
-        }
-        cellPointer.rangeActive = true;
-        cellPointer.rangeStart = cellPointer.td;
-        cellPointer.rangeEnd = over;
-        updateRangeSelection(cellPointer.td, over);
-        event.preventDefault();
-        return;
-      }
-      if (Math.hypot(dx, dy) >= FLICK_MIN_DISTANCE) {
-        if (!flickInputEnabled()) return;
-        if (cellPointer.flickDelayTimer) {
-          clearTimeout(cellPointer.flickDelayTimer);
-          cellPointer.flickDelayTimer = null;
-        }
-        cellPointer.flickActive = true;
-        cellPointer.directionIndex = -1;
-        cellPointer.td.classList.remove("is-range-anchor");
-        clearRangeSelection();
-        openFlickPad(cellPointer.td);
-        window.requestAnimationFrame(() => {
-          if (!cellPointer?.flickActive || !flickPad) return;
-          const padRect = flickPad.getBoundingClientRect();
-          cellPointer.originX = padRect.left + padRect.width / 2;
-          cellPointer.originY = padRect.top + padRect.height / 2;
-          const fdx = cellPointer.lastX - cellPointer.originX;
-          const fdy = cellPointer.lastY - cellPointer.originY;
-          const dirIndex = getFlickDirectionIndex(fdx, fdy);
-          cellPointer.directionIndex = dirIndex;
-          updateFlickHighlight(dirIndex);
-        });
-        event.preventDefault();
-        return;
-      }
     }
 
     if (cellPointer.rangeActive) {
