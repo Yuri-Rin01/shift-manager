@@ -4,14 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=34">
+  <link rel="stylesheet" href="/static/css/style.css?v=35">
 </head>
-<body>
+<body class="settings-screen">
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
       <header class="topbar">
+        <details class="settings-app-menu">
+          <summary>メニュー</summary>
+          <nav aria-label="画面を移動">
+            {% for item in sidebar_menu %}
+              {% if item.children %}
+                {% for child in item.children %}<a href="{{ child.href }}">{{ child.label }}</a>{% endfor %}
+              {% else %}<a href="{{ item.href }}">{{ item.label }}</a>{% endif %}
+            {% endfor %}
+          </nav>
+        </details>
         <div class="page-title-bar">
           <h1 class="page-title">{{ settings_panel_meta.label }}</h1>
           <p class="page-subtitle">{{ settings_panel_meta.subtitle }}</p>
@@ -210,62 +220,7 @@
                 </label>
               </div>
 
-              <h3 class="settings-subtitle">勤務区分</h3>
-              <p class="field-hint">カレンダーに表示する区分と記号を設定します。下の「配置ルール」で登録した勤務区分も、該当グループまたは「登録済み勤務区分」に表示されます。</p>
-              <div class="work-type-settings">
-                {% for group in work_type_setting_groups %}
-                  <section class="work-type-group">
-                    <h4 class="work-type-group-title">{{ group.label }}</h4>
-                    <div class="work-type-group-table" role="table" aria-label="{{ group.label }}">
-                      <div class="work-type-row work-type-row-head" role="row">
-                        <span class="work-type-col-visible" role="columnheader">表示</span>
-                        <span class="work-type-col-label" role="columnheader">区分</span>
-                        <span class="work-type-col-hours" role="columnheader">勤務時間</span>
-                        <span class="work-type-col-symbol" role="columnheader">記号</span>
-                      </div>
-                      {% for item in group.rows %}
-                        <div class="work-type-row" role="row" data-work-type-key="{{ item.key }}">
-                          <label class="work-type-col-visible check-row settings-check{% if item.visibility_fixed %} work-type-visible-fixed{% endif %}" role="cell">
-                            <input
-                              type="checkbox"
-                              name="visible_work_type__{{ item.key }}"
-                              class="work-type-visible-input"
-                              {% if item.visible or item.visibility_fixed %}checked{% endif %}
-                              {% if item.visibility_fixed %}disabled{% endif %}
-                              aria-label="{{ item.label }}を表示"
-                            >
-                            {% if item.visibility_fixed %}
-                              <span class="work-type-fixed-note" title="夜勤明け固定ルールのため常に表示">固定</span>
-                            {% endif %}
-                          </label>
-                          <div class="work-type-col-label work-type-label-cell" role="cell">
-                            <span class="work-type-name">{{ item.label }}</span>
-                            <span class="work-type-key-muted">{{ item.key }}</span>
-                          </div>
-                          <span class="work-type-col-hours work-type-hours-cell" role="cell">{{ item.hours or "—" }}</span>
-                          {% if item.has_symbol %}
-                            <label class="work-type-col-symbol work-type-symbol-cell" role="cell">
-                              <span class="work-type-symbol-badge {{ item.css_class }}" aria-hidden="true">{{ item.symbol }}</span>
-                              <input
-                                type="text"
-                                name="shift_symbol__{{ item.key }}"
-                                class="shift-symbol-input work-type-symbol-input"
-                                maxlength="10"
-                                required
-                                value="{{ item.symbol }}"
-                                autocomplete="off"
-                                aria-label="{{ item.label }}の表示記号"
-                              >
-                            </label>
-                          {% else %}
-                            <span class="work-type-col-symbol work-type-staffing-only" role="cell">勤務区分のみ</span>
-                          {% endif %}
-                        </div>
-                      {% endfor %}
-                    </div>
-                  </section>
-                {% endfor %}
-              </div>
+              <a class="btn" href="/settings?panel=staffing">勤務・配置で記号や勤務時間を編集 →</a>
             </div>
           </section>
 
@@ -308,13 +263,13 @@
 
           <section class="card settings-section{% if settings_panel != 'staffing' %} is-hidden-panel{% endif %}" id="section-staffing" data-panel="staffing">
             <div class="card-header">
-              <h2>配置ルール</h2>
-              <p class="card-header-note">勤務区分・勤務時間、必要人数（2方式）など、シフト配置に必要な設定です。時間帯モードでは登録済みの勤務区分の時間帯と重なる区分から自動配置します。</p>
+              <h2>勤務・配置</h2>
+              <p class="card-header-note">勤務を登録し、必要人数を設定します。最後に「変更を保存」で反映されます。</p>
             </div>
             <div class="card-body">
-              <h3 class="settings-subtitle">勤務区分・勤務時間</h3>
-              <p class="field-hint">職員管理の勤務割合で選べる区分と、各区分の勤務時間を登録します。保存後に職員管理画面を再読み込みしてください。</p>
-              <div class="work-type-template-bar">
+              <h3 class="settings-subtitle">1. 勤務を登録</h3>
+              <p class="field-hint">名前・記号・開始と終了を同じカードで編集できます。夜勤は「種類」を夜勤にすると、明け・休みのルールが適用されます。</p>
+<details class="settings-advanced"><summary>テンプレートからまとめて設定</summary>              <div class="work-type-template-bar">
                 <label class="form-field work-type-template-field">
                   <span class="form-label">テンプレート</span>
                   <select id="work-type-template-select">
@@ -327,33 +282,78 @@
                 <button type="button" class="btn btn-sm" id="btn-apply-work-type-template">テンプレートを反映</button>
               </div>
               <p class="field-hint">テンプレートを選んで反映すると、下の一覧が置き換わります。個別に名称・勤務時間を編集できます。</p>
-              <div class="staffing-basis-table-wrap">
-                <table class="data-table staffing-basis-table" id="staffing-basis-table">
-                  <thead>
-                    <tr>
-                      <th>区分</th>
-                      <th class="col-work-type-key">内部キー</th>
-                      <th class="col-work-type-symbol">記号</th>
-                      <th class="col-work-hours">勤務時間</th>
-                      <th class="col-actions">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="staffing-basis-tbody"></tbody>
-                </table>
-              </div>
-              <button type="button" class="btn btn-sm" id="btn-add-staffing-basis">+ 勤務区分を追加</button>
+</details>
+              <div id="staffing-basis-tbody" class="work-editor-grid"></div>
+              <button type="button" class="btn btn-primary" id="btn-add-staffing-basis">＋ 勤務を追加</button>
+              <details class="settings-advanced"><summary>休み・有休・明けなどの記号</summary>
 
-              <h3 class="settings-subtitle">必要人数</h3>
+              <p class="field-hint">休み・有休・明けなどの記号と表示を設定します。</p>
+              <div class="work-type-settings">
+                {% for group in work_type_setting_groups %}
+                  <section class="work-type-group">
+                    <h4 class="work-type-group-title">{{ group.label }}</h4>
+                    <div class="work-type-group-table" role="table" aria-label="{{ group.label }}">
+                      <div class="work-type-row work-type-row-head" role="row">
+                        <span class="work-type-col-visible" role="columnheader">表示</span>
+                        <span class="work-type-col-label" role="columnheader">区分</span>
+                        <span class="work-type-col-hours" role="columnheader">勤務時間</span>
+                        <span class="work-type-col-symbol" role="columnheader">記号</span>
+                      </div>
+                      {% for item in group.rows %}
+                        <div class="work-type-row" role="row" data-work-type-key="{{ item.key }}">
+                          <label class="work-type-col-visible check-row settings-check{% if item.visibility_fixed %} work-type-visible-fixed{% endif %}" role="cell">
+                            <input
+                              type="checkbox"
+                              name="visible_work_type__{{ item.key }}"
+                              class="work-type-visible-input"
+                              {% if item.visible or item.visibility_fixed %}checked{% endif %}
+                              {% if item.visibility_fixed %}disabled{% endif %}
+                              aria-label="{{ item.label }}を表示"
+                            >
+                            {% if item.visibility_fixed %}
+                              <span class="work-type-fixed-note" title="夜勤明け固定ルールのため常に表示">固定</span>
+                            {% endif %}
+                          </label>
+                          <div class="work-type-col-label work-type-label-cell" role="cell">
+                            <span class="work-type-name">{{ item.label }}</span>
+
+                          </div>
+                          <span class="work-type-col-hours work-type-hours-cell" role="cell">{{ item.hours or "—" }}</span>
+                          {% if item.has_symbol %}
+                            <label class="work-type-col-symbol work-type-symbol-cell" role="cell">
+                              <span class="work-type-symbol-badge {{ item.css_class }}" aria-hidden="true">{{ item.symbol }}</span>
+                              <input
+                                type="text"
+                                name="shift_symbol__{{ item.key }}"
+                                class="shift-symbol-input work-type-symbol-input"
+                                maxlength="10"
+                                required
+                                value="{{ item.symbol }}"
+                                autocomplete="off"
+                                aria-label="{{ item.label }}の表示記号"
+                              >
+                            </label>
+                          {% else %}
+                            <span class="work-type-col-symbol work-type-staffing-only" role="cell">勤務区分のみ</span>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </section>
+                {% endfor %}
+              </div>              </details>
+
+              <h3 class="settings-subtitle">2. 必要人数を設定</h3>
               <p class="field-hint">下の2種類は<strong>別々に登録</strong>します。シフト配置で参照する方を選んでください（もう一方の設定も保存され、いつでも切り替え可能です）。</p>
               <fieldset class="staffing-requirement-mode staffing-requirement-tabs" id="staffing-requirement-mode">
                 <legend class="form-label">配置で適用する設定</legend>
-                <div class="staffing-requirement-tablist" role="tablist" aria-label="必要人数の適用方式">
+                <div class="staffing-requirement-tablist">
                   <label class="staffing-requirement-tab settings-radio">
-                    <input type="radio" name="staffing_requirement_mode" value="work_type" role="tab">
+                    <input type="radio" name="staffing_requirement_mode" value="work_type">
                     <span>勤務区分ごと</span>
                   </label>
                   <label class="staffing-requirement-tab settings-radio">
-                    <input type="radio" name="staffing_requirement_mode" value="time_slot" role="tab">
+                    <input type="radio" name="staffing_requirement_mode" value="time_slot">
                     <span>時間帯ごと</span>
                   </label>
                 </div>
@@ -363,7 +363,7 @@
               <div id="panel-work-type-min-staff" class="requirement-panel" data-requirement-mode="work_type">
                 <h4 class="requirement-panel-title">フロア別の必要人数（勤務区分ごと）</h4>
                 <p class="field-hint requirement-panel-desc">フロアごとに、早番・日勤など区分別の1日あたり必要人数を設定します。自動生成では担当フロアの職員だけがそのフロアの必要人数にカウントされます。</p>
-                <button type="button" class="btn btn-sm" id="btn-sync-work-type-min-staff">登録済みの勤務区分を反映</button>
+                <p class="field-hint">上で勤務を追加・編集すると、この一覧も自動で更新されます。</p>
                 <div class="staffing-basis-table-wrap">
                   <table class="data-table floor-min-staff-table" id="floor-min-staff-table">
                     <thead id="floor-min-staff-head">
@@ -587,8 +587,9 @@
 
   <div class="settings-save-bar" role="region" aria-label="設定の保存">
     <div class="settings-save-bar-inner">
+      <span id="settings-save-status" role="status" aria-live="polite">読み込み中…</span>
       <button type="button" class="btn" id="btn-reset-defaults">デフォルトに戻す</button>
-      <button type="submit" form="settings-form" class="btn btn-primary" id="btn-save-settings">設定を適用</button>
+      <button type="submit" form="settings-form" class="btn btn-primary" id="btn-save-settings">変更を保存</button>
     </div>
   </div>
 
@@ -596,6 +597,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=8"></script>
+  <script src="/static/js/settings.js?v=9"></script>
 </body>
 </html>

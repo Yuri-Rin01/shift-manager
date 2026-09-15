@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from data.staffing_basis import base_work_key as resolve_base_work_key
+
 import random
 from collections import defaultdict
 from datetime import date
@@ -76,19 +78,19 @@ def _warning(level: str, code: str, message: str) -> dict:
     return {"level": level, "code": code, "message": message}
 
 
-def _base_work_key(key: str) -> str:
-    return SEMI_TO_BASE.get(key, key)
+def _base_work_key(key: str, settings: dict | None = None) -> str:
+    return resolve_base_work_key(key, settings)
 
 
 def _symbol_work_key(symbol: str, settings: dict) -> str | None:
     key = symbol_to_key(symbol, settings)
     if not key:
         return None
-    return _base_work_key(key)
+    return _base_work_key(key, settings)
 
 
 def _enabled_work_keys(settings: dict) -> list[str]:
-    enabled = {item["key"] for item in get_configurable_shift_types(settings)}
+    enabled = {_base_work_key(item["key"], settings) for item in get_configurable_shift_types(settings)}
     return [key for key in WORK_KEYS if key in enabled]
 
 
@@ -299,7 +301,7 @@ class _Generator:
         key = symbol_to_key(symbol, self.settings)
         if not key or key in LEAVE_KEYS or key == "morning_off":
             return False
-        return _base_work_key(key) in WORK_KEYS
+        return _base_work_key(key, self.settings) in WORK_KEYS
 
     def _consecutive_work_days_before(self, staff_id: int, shift_date: str) -> int:
         idx = self.date_index.get(shift_date)
@@ -491,12 +493,13 @@ class _Generator:
         return floor in self._staff_floors(staff)
 
     def _min_staff_for(self, floor: str | None, work_key: str) -> int:
+        def total(values: dict) -> int:
+            return sum(int(count) for key, count in values.items()
+                       if _base_work_key(key, self.settings) == work_key)
         if floor:
-            return int(self.min_staff_by_floor.get(floor, {}).get(work_key, 0))
-        return max(
-            int(values.get(work_key, 0))
-            for values in self.min_staff_by_floor.values()
-        ) if self.min_staff_by_floor else int(self.min_staff.get(work_key, 0))
+            return total(self.min_staff_by_floor.get(floor, {}))
+        return max((total(values) for values in self.min_staff_by_floor.values()),
+                   default=total(self.min_staff))
 
     def _floor_score(self, staff: dict, shift_date: str, *, target_floor: str | None = None) -> int:
         floors = self._staff_floors(staff)
@@ -715,7 +718,7 @@ class _Generator:
         if pool <= 0:
             return 0
         basis = staff.get("staffing_basis") or {}
-        night_ratio = sum(v for k, v in basis.items() if _base_work_key(k) == "night")
+        night_ratio = sum(v for k, v in basis.items() if _base_work_key(k, self.settings) == "night")
         if night_ratio <= 0:
             return 0
         return max(0, round(pool * night_ratio / 100))
@@ -735,14 +738,14 @@ class _Generator:
         if work_key == "night":
             return float(self._night_target(staff))
         basis = staff.get("staffing_basis") or {}
-        target_pct = sum(v for k, v in basis.items() if _base_work_key(k) == work_key)
+        target_pct = sum(v for k, v in basis.items() if _base_work_key(k, self.settings) == work_key)
         if target_pct <= 0:
             return 0.0
         day_capacity = float(self._day_capacity_for_staff(staff))
         if day_capacity <= 0:
             return 0.0
         non_night_pct = sum(
-            v for k, v in basis.items() if _base_work_key(k) in DAY_WORK_KEYS
+            v for k, v in basis.items() if _base_work_key(k, self.settings) in DAY_WORK_KEYS
         )
         if non_night_pct <= 0:
             return 0.0
@@ -758,7 +761,7 @@ class _Generator:
         best_key: str | None = None
         best_ratio = -1
         for key, pct in basis.items():
-            if _base_work_key(key) != work_key or pct <= 0:
+            if _base_work_key(key, self.settings) != work_key or pct <= 0:
                 continue
             if pct > best_ratio:
                 best_ratio = pct
@@ -1063,7 +1066,7 @@ class _Generator:
             return
         if not self.understaffed_shortfalls:
             return
-        labels = {"early": "早番", "day": "日勤", "late": "遅出", "night": "夜勤"}
+        labels = {item["key"]: item["label"] for item in get_assignable_work_types(self.settings)}
         by_key: dict[str, list[tuple[str, int, int]]] = defaultdict(list)
         for shift_date, work_key, floor, required, actual in self.understaffed_shortfalls:
             key = f"{floor}|{work_key}"
@@ -1167,6 +1170,26 @@ class _Generator:
             previous_week = week
         _, (_, selected) = min(states.items(), key=lambda item: (-item[0][0], item[1][0]))
         return selected
+
+    def _phase_variant_staffing(self, *, night_only: bool) -> None:
+        """追加勤務・準勤務の必要人数をその勤務記号で確保する。"""
+        variants = [item for item in get_assignable_work_types(self.settings)
+                    if item["key"] not in WORK_KEYS
+                    and (item["base_key"] == "night") == night_only]
+        for work_type in variants:
+            for floor in self.floors:
+                required = self.min_staff_by_floor.get(floor, {}).get(work_type["key"], 0)
+                for day in self.period_dates:
+                    actual = sum(
+                        symbol_to_key(self._get_symbol(staff["id"], day) or "", self.settings) == work_type["key"]
+                        for staff in self.staff_list if self._staff_on_floor(staff, floor)
+                    )
+                    for _ in range(max(0, required - actual)):
+                        staff = self._pick_staff_for_work_type(day, work_type, floor=floor,
+                                                             prefer_night_quota=night_only)
+                        if staff is None:
+                            break
+                        self._set_symbol(staff["id"], day, work_type["symbol"])
 
     def _phase_coverage_and_basis(self) -> None:
         for floor in self.floors:
@@ -1405,6 +1428,16 @@ class _Generator:
                         actual = self._count_work_on_day(day, key, floor=floor)
                         if actual < required:
                             self.understaffed_shortfalls.append((day, key, floor, required, actual))
+            for work_type in get_assignable_work_types(self.settings):
+                if work_type["key"] in WORK_KEYS:
+                    continue
+                for day in self.period_dates:
+                    for floor in self.floors:
+                        required = self.min_staff_by_floor.get(floor, {}).get(work_type["key"], 0)
+                        actual = sum(symbol_to_key(self._get_symbol(staff["id"], day) or "", self.settings) == work_type["key"]
+                                     for staff in self.staff_list if self._staff_on_floor(staff, floor))
+                        if actual < required:
+                            self.understaffed_shortfalls.append((day, work_type["key"], floor, required, actual))
             return
         for day in self.period_dates:
             for rule in self.time_slot_rules:
@@ -1443,6 +1476,7 @@ class _Generator:
         if self.staffing_mode == "time_slot":
             self._phase_time_slot_staffing(night_only=True)
         else:
+            self._phase_variant_staffing(night_only=True)
             self._phase_night_assignments()
         self._phase_fixed_night_quotas()
         self._phase_morning_off_after_night()
@@ -1450,6 +1484,7 @@ class _Generator:
         if self.staffing_mode == "time_slot":
             self._phase_time_slot_staffing()
         else:
+            self._phase_variant_staffing(night_only=False)
             self._phase_coverage_and_basis()
         self._phase_capacity_day_assign()
         self._phase_pad_empty()
