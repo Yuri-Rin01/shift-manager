@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 
 from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, default_visible_work_types, normalize_visible_work_types
 from data.leave_request_config import (
@@ -130,8 +130,8 @@ class AppSettings(BaseModel):
 
     @field_validator("visible_work_types")
     @classmethod
-    def normalize_visible_work_types_field(cls, value: dict[str, bool]) -> dict[str, bool]:
-        return normalize_visible_work_types({"visible_work_types": value})
+    def normalize_visible_work_types_field(cls, value: dict[str, bool], info: ValidationInfo) -> dict[str, bool]:
+        return normalize_visible_work_types({**info.data, "visible_work_types": value})
 
     @field_validator("staffing_basis_options")
     @classmethod
@@ -140,13 +140,13 @@ class AppSettings(BaseModel):
 
     @field_validator("min_staff_by_work_type")
     @classmethod
-    def normalize_min_staff(cls, value: dict[str, int]) -> dict[str, int]:
-        return normalize_min_staff_by_work_type(value)
+    def normalize_min_staff(cls, value: dict[str, int], info: ValidationInfo) -> dict[str, int]:
+        return normalize_min_staff_by_work_type(value, info.data)
 
     @field_validator("min_staff_by_floor")
     @classmethod
-    def normalize_min_staff_by_floor_field(cls, value: dict[str, dict[str, int]]) -> dict[str, dict[str, int]]:
-        return normalize_min_staff_by_floor(value)
+    def normalize_min_staff_by_floor_field(cls, value: dict[str, dict[str, int]], info: ValidationInfo) -> dict[str, dict[str, int]]:
+        return normalize_min_staff_by_floor(value, info.data)
 
     @field_validator("staffing_requirement_mode")
     @classmethod

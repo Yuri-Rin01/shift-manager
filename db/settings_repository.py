@@ -2,6 +2,7 @@ import json
 
 from db.database import get_connection
 from data.settings_defaults import DEFAULT_SETTINGS
+from data.staffing_basis import validate_staffing_basis_options
 from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, validate_shift_symbols
 from data.placement_rules import (
     apply_overnight_rules_to_night_mins,
@@ -28,6 +29,9 @@ def _merge_settings(data: dict | None) -> dict:
     merged = {**DEFAULT_SETTINGS}
     if not data:
         return merged
+    from data.staffing_basis import normalize_staffing_basis_options
+    if data.get("staffing_basis_options"):
+        merged["staffing_basis_options"] = normalize_staffing_basis_options(data["staffing_basis_options"])
     for key, value in data.items():
         if key not in DEFAULT_SETTINGS:
             continue

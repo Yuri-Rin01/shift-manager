@@ -23,7 +23,7 @@ SETTINGS_PANELS: list[dict] = [
         "id": "display",
         "key": "settings-display",
         "label": "表示ルール",
-        "subtitle": "カレンダー・勤務区分・記号",
+        "subtitle": "カレンダーの見え方・操作",
         "section_id": "section-display",
     },
     {
@@ -36,8 +36,8 @@ SETTINGS_PANELS: list[dict] = [
     {
         "id": "staffing",
         "key": "settings-staffing",
-        "label": "配置ルール",
-        "subtitle": "必要人数・勤務制約",
+        "label": "勤務・配置",
+        "subtitle": "勤務の追加・記号・時間・必要人数",
         "section_id": "section-staffing",
     },
     {

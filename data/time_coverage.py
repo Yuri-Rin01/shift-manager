@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from data.staffing_basis import base_work_key as resolve_base_work_key
+
 from datetime import date, timedelta
 
 from data.placement_rules import normalize_time_slot_staffing_rules
@@ -23,8 +25,8 @@ def to_minutes(time_str: str) -> int:
     return int(hour) * 60 + int(minute)
 
 
-def base_work_key(key: str) -> str:
-    return SEMI_TO_BASE.get(key, key)
+def base_work_key(key: str, settings: dict | None = None) -> str:
+    return resolve_base_work_key(key, settings)
 
 
 def segments_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
@@ -68,7 +70,7 @@ def get_assignable_work_types(settings: dict) -> list[dict]:
     options: list[dict] = []
     for item in get_staffing_basis_options(settings):
         key = str(item.get("key", "")).strip()
-        if not key or base_work_key(key) not in WORK_BASE_KEYS:
+        if not key or base_work_key(key, settings) not in WORK_BASE_KEYS:
             continue
         if not is_work_type_visible(key, settings):
             continue
@@ -82,7 +84,7 @@ def get_assignable_work_types(settings: dict) -> list[dict]:
         options.append(
             {
                 "key": key,
-                "base_key": base_work_key(key),
+                "base_key": base_work_key(key, settings),
                 "label": str(item.get("label", key)).strip() or key,
                 "symbol": symbol,
                 "start_time": start_time,
