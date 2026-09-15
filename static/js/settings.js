@@ -103,7 +103,7 @@ function syncAllHoursPreviews() {
 }
 
 function defaultWorkTypeRow() {
-  return { key: "", label: "", start_time: "09:00", end_time: "18:00" };
+  return { key: `work_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`, label: "", base_key: "day", start_time: "09:00", end_time: "18:00" };
 }
 
 function defaultTimeSlotRow() {
@@ -120,7 +120,7 @@ function getShiftSymbolMap() {
 }
 
 function collectRegisteredWorkTypes() {
-  return collectStaffingBasisOptions().filter((item) => item.key && item.label);
+  return collectStaffingBasisOptions().filter((item) => item.key).map((item) => ({...item, label: item.label || "新しい勤務"}));
 }
 
 function toMinutes(timeStr) {
@@ -180,64 +180,42 @@ function workTypesCoveringSlot(startTime, endTime, workTypes) {
   return [...matched];
 }
 
-function renderStaffingBasisRows(options = []) {
+const BASE_LABELS = {early: "早番", day: "日勤", late: "遅出", night: "夜勤"};
+const FIXED_WORK_KEYS = new Set(Object.keys(BASE_LABELS).flatMap((key) => [key, `semi_${key}`]));
+
+function renderStaffingBasisRows(options = [], settings = null) {
   if (!staffingBasisTbody) return;
-  const symbols = getShiftSymbolMap();
-  const rows = options.length ? options : [defaultWorkTypeRow()];
-  staffingBasisTbody.innerHTML = rows
-    .map(
-      (item, index) => `
-      <tr class="staffing-basis-table-row" data-index="${index}" data-key="${escapeAttr(item.key ?? "")}">
-        <td>
-          <input
-            type="text"
-            class="input-text staffing-basis-label"
-            maxlength="20"
-            placeholder="例: 早番"
-            value="${escapeAttr(item.label ?? "")}"
-            aria-label="勤務区分 ${index + 1}"
-          >
-        </td>
-        <td class="col-work-type-key">
-          <input
-            type="text"
-            class="input-text staffing-basis-key input-text-muted"
-            maxlength="20"
-            pattern="[a-z][a-z0-9_]*"
-            placeholder="early"
-            value="${escapeAttr(item.key ?? "")}"
-            aria-label="内部キー ${index + 1}"
-          >
-        </td>
-        <td class="col-work-type-symbol">
-          <span class="staffing-basis-symbol-preview" data-symbol-key="${escapeAttr(item.key ?? "")}">${escapeAttr(symbols[item.key] ?? "—")}</span>
-        </td>
-        <td class="staffing-basis-time-cell">
-          <div class="staffing-basis-time-range">
-            <input
-              type="time"
-              class="staffing-basis-start staffing-basis-time-input"
-              value="${escapeAttr(item.start_time ?? "09:00")}"
-              aria-label="勤務開始 ${index + 1}"
-            >
-            <span class="staffing-basis-time-sep" aria-hidden="true">〜</span>
-            <input
-              type="time"
-              class="staffing-basis-end staffing-basis-time-input"
-              value="${escapeAttr(item.end_time ?? "18:00")}"
-              aria-label="勤務終了 ${index + 1}"
-            >
-          </div>
-          <div class="staffing-basis-hours-preview" aria-live="polite">${escapeAttr(formatWorkHoursPreview(item.start_time ?? "09:00", item.end_time ?? "18:00"))}</div>
-        </td>
-        <td class="col-actions">
-          <button type="button" class="btn btn-sm btn-danger" data-remove-staffing-basis>削除</button>
-        </td>
-      </tr>`
-    )
-    .join("");
+  const symbols = settings?.shift_symbols ?? getShiftSymbolMap();
+  const visibility = settings?.visible_work_types ?? collectVisibleWorkTypes();
+  staffingBasisTbody.innerHTML = options.map((item, index) => {
+    const key = item.key;
+    const base = item.base_key ?? key.replace("semi_", "");
+    return `<article class="staffing-basis-table-row work-editor-card" data-key="${escapeAttr(key)}">
+      <div class="work-editor-card-head"><span>勤務 ${index + 1}</span>
+        <button type="button" class="btn btn-sm" data-remove-staffing-basis aria-label="${escapeAttr(item.label || "この勤務")}を削除">削除</button></div>
+      <input type="hidden" class="staffing-basis-key" value="${escapeAttr(key)}">
+      <div class="work-editor-fields">
+        <label class="form-field"><span class="form-label">勤務名</span><input class="input-text staffing-basis-label" maxlength="20" required placeholder="例：短時間日勤" value="${escapeAttr(item.label ?? "")}"></label>
+        <label class="form-field"><span class="form-label">表示記号</span><input class="input-text staffing-basis-symbol" maxlength="10" required placeholder="例：短" value="${escapeAttr(symbols[key] ?? item.label?.slice(0,10) ?? "")}"></label>
+        <label class="form-field"><span class="form-label">種類</span><select class="staffing-basis-base" ${FIXED_WORK_KEYS.has(key) ? "disabled" : ""}>${Object.entries(BASE_LABELS).map(([value,label]) => `<option value="${value}" ${base === value || (!BASE_LABELS[base] && value === "day") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+        <label class="form-field"><span class="form-label">開始</span><input type="time" class="staffing-basis-start" required value="${escapeAttr(item.start_time ?? "09:00")}"></label>
+        <label class="form-field"><span class="form-label">終了</span><input type="time" class="staffing-basis-end" required value="${escapeAttr(item.end_time ?? "18:00")}"></label>
+      </div>
+      <div class="work-editor-card-foot"><label class="check-row"><input type="checkbox" class="staffing-basis-visible" ${visibility[key] !== false ? "checked" : ""}> カレンダーに表示</label><span class="staffing-basis-hours-preview"></span></div>
+    </article>`;
+  }).join("");
+  const registered = new Set(options.map((item) => item.key));
+  form.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
+    row.hidden = registered.has(row.dataset.workTypeKey);
+    row.querySelectorAll("input").forEach((input) => {
+      if (row.hidden) input.required = false;
+    });
+  });
+  form.querySelectorAll(".work-type-group").forEach((group) => {
+    group.hidden = ![...group.querySelectorAll(".work-type-row[data-work-type-key]")].some((row) => !row.hidden);
+  });
+  syncWorkTypeSymbolFields();
   syncAllHoursPreviews();
-  refreshStaffingBasisSymbolPreviews();
   refreshTimeSlotCoverageHints();
 }
 
@@ -340,7 +318,7 @@ function escapeHtmlFloorBadge(floor) {
 }
 
 function syncWorkTypeMinStaffFromBasis() {
-  const workTypes = collectStaffingBasisOptions().filter((item) => item.key && item.label);
+  const workTypes = collectRegisteredWorkTypes();
   renderWorkTypeMinStaffRows(workTypes, collectMinStaffByFloor());
 }
 
@@ -504,7 +482,6 @@ function syncStaffingRequirementMode() {
     const input = tab.querySelector('input[name="staffing_requirement_mode"]');
     if (!(input instanceof HTMLInputElement)) return;
     tab.classList.toggle("is-selected", input.checked);
-    tab.setAttribute("aria-selected", input.checked ? "true" : "false");
   });
 }
 
@@ -523,6 +500,7 @@ function collectStaffingBasisOptions() {
       label: row.querySelector(".staffing-basis-label")?.value.trim() ?? "",
       start_time: row.querySelector(".staffing-basis-start")?.value.trim() ?? "",
       end_time: row.querySelector(".staffing-basis-end")?.value.trim() ?? "",
+      ...(!FIXED_WORK_KEYS.has(row.dataset.key) ? {base_key: row.querySelector(".staffing-basis-base")?.value ?? "day"} : {}),
     }))
     .filter((item) => item.key || item.label);
 }
@@ -543,6 +521,7 @@ function applyWorkTypeTemplate() {
     return;
   }
   renderStaffingBasisRows(template.options.map((item) => ({ ...item })));
+  markDirty();
   syncWorkTypeMinStaffFromBasis();
   showAlert(`「${template.label}」を反映しました。必要人数の勤務区分一覧も更新しました。適用ボタンで確定してください。`, "info");
 }
@@ -554,7 +533,7 @@ function syncWorkTypeSymbolFields() {
     const symbolInput = row.querySelector(".work-type-symbol-input");
     if (!visibleInput || !symbolInput) return;
     const key = row.dataset.workTypeKey ?? "";
-    const enabled = FIXED_VISIBLE_WORK_TYPES.has(key) || visibleInput.checked;
+    const enabled = !row.hidden && (FIXED_VISIBLE_WORK_TYPES.has(key) || visibleInput.checked);
     symbolInput.disabled = !enabled;
     symbolInput.required = enabled;
   });
@@ -611,7 +590,7 @@ function populateForm(data) {
       continue;
     }
     if (key === "staffing_basis_options") {
-      renderStaffingBasisRows(Array.isArray(value) ? value : []);
+      renderStaffingBasisRows(Array.isArray(value) ? value : [], data);
       renderWorkTypeMinStaffRows(
         Array.isArray(value) ? value.filter((item) => item.key && item.label) : [],
         resolveMinStaffByFloor(data)
@@ -668,6 +647,9 @@ function collectVisibleWorkTypes() {
     const key = element.name.slice(VISIBLE_WORK_TYPE_PREFIX.length);
     visibility[key] = FIXED_VISIBLE_WORK_TYPES.has(key) ? true : element.checked;
   }
+  staffingBasisTbody?.querySelectorAll(".staffing-basis-table-row").forEach((row) => {
+    visibility[row.dataset.key] = row.querySelector(".staffing-basis-visible").checked;
+  });
   return visibility;
 }
 
@@ -681,6 +663,9 @@ function collectShiftSymbols() {
     const key = element.name.slice(SHIFT_SYMBOL_PREFIX.length);
     symbols[key] = element.value.trim();
   }
+  staffingBasisTbody?.querySelectorAll(".staffing-basis-table-row").forEach((row) => {
+    symbols[row.dataset.key] = row.querySelector(".staffing-basis-symbol").value.trim();
+  });
   return symbols;
 }
 
@@ -725,18 +710,51 @@ function collectFormData() {
   return data;
 }
 
+let settingsReady = false;
+let dirty = false;
+const saveButton = document.getElementById("btn-save-settings");
+const saveStatus = document.getElementById("settings-save-status");
+function markDirty() {
+  if (!settingsReady) return;
+  dirty = true;
+  saveStatus.textContent = "未保存の変更があります";
+}
+function markSaved() {
+  dirty = false;
+  saveStatus.textContent = "保存済み";
+}
+form?.addEventListener("input", markDirty);
+form?.addEventListener("change", markDirty);
+window.addEventListener("beforeunload", (event) => {
+  if (!dirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 async function loadSettings() {
+  saveButton.disabled = true;
+  try {
   hideAlert();
   const response = await fetch("/api/settings");
   if (!response.ok) {
-    showAlert("設定の読み込みに失敗しました。", "error");
+    saveStatus.textContent = "読み込み失敗";
+    showAlert("設定の読み込みに失敗しました。ページを再読み込みしてください。", "error");
     return;
   }
   populateForm(await response.json());
+  settingsReady = true;
+  saveButton.disabled = false;
+  markSaved();
+  } catch { saveStatus.textContent = "読み込み失敗"; showAlert("設定を読み込めませんでした。ページを再読み込みしてください。", "error"); }
 }
 
 async function saveSettings(event) {
   event.preventDefault();
+  if (!settingsReady || saveButton.disabled) return;
+  if (!validateSettingsForm()) return;
+  saveButton.disabled = true;
+  saveStatus.textContent = "保存中…";
+  try {
   hideAlert();
 
   const response = await fetch("/api/settings", {
@@ -754,10 +772,15 @@ async function saveSettings(event) {
   }
 
   populateForm(await response.json());
-  showAlert("設定を適用しました。カレンダー・職員管理画面を再読み込みすると反映されます。");
+  markSaved();
+  showAlert("設定を保存しました。カレンダー・職員管理画面を再読み込みすると反映されます。");
+  } catch { showAlert("通信に失敗しました。変更は画面に残っています。もう一度保存してください。", "error"); }
+  finally { saveButton.disabled = false; if (dirty) saveStatus.textContent = "未保存の変更があります"; }
 }
 
 async function resetDefaults() {
+  if (!settingsReady) return;
+  try {
   if (!window.confirm("すべての設定を初期値に戻します。よろしいですか？")) return;
   hideAlert();
 
@@ -767,7 +790,9 @@ async function resetDefaults() {
     return;
   }
   populateForm(await response.json());
-  showAlert("デフォルト値をフォームに反映しました。適用ボタンで確定してください。", "info");
+  markDirty();
+  showAlert("デフォルト値をフォームに反映しました。「変更を保存」で確定してください。", "info");
+  } catch { showAlert("デフォルト設定を取得できませんでした。もう一度お試しください。", "error"); }
 }
 
 form?.addEventListener("submit", saveSettings);
@@ -794,19 +819,25 @@ syncWorkTypeMinStaffButton?.addEventListener("click", () => {
 });
 addTimeSlotButton?.addEventListener("click", () => {
   renderTimeSlotRows([...collectTimeSlotStaffingRules(), defaultTimeSlotRow()]);
+  markDirty();
 });
 addStaffingBasisButton?.addEventListener("click", () => {
   renderStaffingBasisRows([...collectStaffingBasisOptions(), defaultWorkTypeRow()]);
+  syncWorkTypeMinStaffFromBasis();
+  staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
+  markDirty();
 });
 staffingBasisTbody?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;
   const row = event.target.closest(".staffing-basis-table-row");
   if (event.target.classList.contains("staffing-basis-start") || event.target.classList.contains("staffing-basis-end")) {
     if (row) updateHoursPreview(row);
+    syncWorkTypeMinStaffFromBasis();
     refreshTimeSlotCoverageHints();
     return;
   }
   if (event.target.classList.contains("staffing-basis-key") || event.target.classList.contains("staffing-basis-label")) {
+    syncWorkTypeMinStaffFromBasis();
     refreshStaffingBasisSymbolPreviews();
     refreshTimeSlotCoverageHints();
   }
@@ -831,6 +862,7 @@ timeSlotStaffingTbody?.addEventListener("click", (event) => {
     rows.splice(index, 1);
   }
   renderTimeSlotRows(rows.length ? rows : [defaultTimeSlotRow()]);
+  markDirty();
 });
 staffingBasisTbody?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-staffing-basis]");
@@ -842,7 +874,33 @@ staffingBasisTbody?.addEventListener("click", (event) => {
   if (index >= 0) {
     rows.splice(index, 1);
   }
-  renderStaffingBasisRows(rows.length ? rows : [defaultWorkTypeRow()]);
+  if (!rows.length) { showAlert("勤務を1件以上残してください。", "error"); return; }
+  if (!window.confirm("この勤務を一覧から削除します。保存するまで確定されません。続けますか？")) return;
+  renderStaffingBasisRows(rows);
+  markDirty();
   syncWorkTypeMinStaffFromBasis();
 });
+function validateSettingsForm() {
+  const labels = new Set();
+  for (const row of staffingBasisTbody.querySelectorAll(".staffing-basis-table-row")) {
+    const label = row.querySelector(".staffing-basis-label");
+    label.setCustomValidity(labels.has(label.value.trim()) ? "勤務名が重複しています。" : "");
+    labels.add(label.value.trim());
+    const end = row.querySelector(".staffing-basis-end");
+    end.setCustomValidity(end.value === row.querySelector(".staffing-basis-start").value ? "開始と終了を異なる時刻にしてください。" : "");
+  }
+  const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
+  if (!invalid) return true;
+  const section = invalid.closest(".settings-section");
+  if (section?.classList.contains("is-hidden-panel")) {
+    document.querySelectorAll(".settings-section").forEach((item) => item.classList.toggle("is-hidden-panel", item !== section));
+  }
+  for (let parent = invalid.parentElement; parent; parent = parent.parentElement) {
+    if (parent instanceof HTMLDetailsElement) parent.open = true;
+  }
+  invalid.reportValidity();
+  invalid.focus();
+  return false;
+}
+form.noValidate = true;
 loadSettings();
