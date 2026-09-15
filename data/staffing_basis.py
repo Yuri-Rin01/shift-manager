@@ -42,6 +42,16 @@ def _catalog_by_key() -> dict[str, dict]:
     return {item["key"]: item for item in DEFAULT_STAFFING_BASIS_CATALOG}
 
 
+def base_work_key(key: str, settings: dict | None = None) -> str:
+    fixed = {"semi_early": "early", "semi_day": "day", "semi_late": "late", "semi_night": "night"}
+    if key in fixed or key in {"early", "day", "late", "night"}:
+        return fixed.get(key, key)
+    for item in (settings or {}).get("staffing_basis_options", []):
+        if item.get("key") == key:
+            return item.get("base_key", "day")
+    return key
+
+
 def normalize_staffing_basis_option(item: dict) -> dict | None:
     if not isinstance(item, dict):
         return None
@@ -67,6 +77,7 @@ def normalize_staffing_basis_option(item: dict) -> dict | None:
         "start_time": start_time,
         "end_time": end_time,
         "break_minutes": break_minutes,
+        **({"base_key": item.get("base_key", "day")} if key not in _catalog_by_key() else {}),
     }
 
 
@@ -292,6 +303,8 @@ def validate_staffing_basis_options(settings: dict) -> None:
             raise ValueError(f"勤務区分 {index} 行目: 時刻は HH:MM 形式（例: 08:30）で入力してください。")
         if start_time == end_time:
             raise ValueError(f"勤務区分 {index} 行目: 開始と終了時刻は異なる値にしてください。")
+        if item.get("base_key", "day") not in {"early", "day", "late", "night"}:
+            raise ValueError(f"勤務区分 {index} 行目: 勤務の種類を選択してください。")
         keys.append(key)
         labels.append(label)
 

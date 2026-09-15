@@ -1,7 +1,9 @@
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from app_paths import data_root
+
+BASE_DIR = data_root()
 DB_PATH = BASE_DIR / "shift.db"
 
 CREATE_STAFF_TABLE = """

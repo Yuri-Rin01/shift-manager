@@ -11,6 +11,11 @@ shift.db
 .env
 *.local
 
+# PyInstaller / Windows EXE build output
+build/
+dist/
+*.exe
+
 # OS / editor
 .DS_Store
 Thumbs.db

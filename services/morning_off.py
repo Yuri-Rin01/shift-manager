@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from data.staffing_basis import base_work_key as resolve_base_work_key
+
 from datetime import date, timedelta
 
 from data.shift_symbols import get_shift_symbols, symbol_to_key
@@ -31,8 +33,8 @@ REST_AFTER_MORNING_OFF_FIXED = True
 CHAIN_REST_SOURCE = "rest"
 
 
-def _base_work_key(key: str) -> str:
-    return SEMI_TO_BASE.get(key, key)
+def _base_work_key(key: str, settings: dict | None = None) -> str:
+    return resolve_base_work_key(key, settings)
 
 
 def morning_off_after_night_enabled(settings: dict | None = None) -> bool:
@@ -64,7 +66,7 @@ def is_night_work_symbol(symbol: str, settings: dict) -> bool:
     key = symbol_to_key(symbol, settings)
     if not key:
         return False
-    return _base_work_key(key) == "night"
+    return _base_work_key(key, settings) == "night"
 
 
 def is_morning_off_symbol(symbol: str, settings: dict) -> bool:
@@ -75,7 +77,7 @@ def is_day_work_symbol(symbol: str, settings: dict) -> bool:
     key = symbol_to_key(symbol, settings)
     if not key or key in LEAVE_KEYS or key == "morning_off":
         return False
-    return _base_work_key(key) in DAY_WORK_BASE_KEYS
+    return _base_work_key(key, settings) in DAY_WORK_BASE_KEYS
 
 
 def _next_date(year: int, month: int, day: int) -> date | None:

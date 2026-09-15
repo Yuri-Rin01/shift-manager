@@ -8,13 +8,16 @@ from data.auto_generate_defaults import FACILITY_NIGHT_FLOOR_MINS
 from data.night_eligibility import staff_can_be_night_leader, staff_can_work_night
 from data.night_staffing_guidance import build_night_staffing_guidance
 from data.calendar_period import (
+    auto_generate_days,
+    clamp_scope_to_period,
+    filter_period_days,
     auto_generate_bounds,
     format_scope_range,
     resolve_configured_period_off_days,
 )
 from data.auto_generate_suggestions import enrich_warnings, unique_suggestions
-from data.masters import get_departments
 from data.placement_rules import (
+    get_floor_labels,
     normalize_min_staff_by_floor,
     normalize_night_leader_groups,
     normalize_staffing_requirement_mode,
@@ -53,44 +56,111 @@ def _night_floor_capable(staff_list: list[dict], floor: str, settings: dict) -> 
     return [staff for staff in _night_capable(staff_list, settings) if floor in _staff_floors(staff)]
 
 
-def _count_leave_cells(scope_start: date, scope_end: date) -> int:
+def _count_leave_cells(
+    scope_start: date,
+    scope_end: date,
+    staff_ids: set[int] | None = None,
+) -> int:
     cells = get_shifts_between(scope_start, scope_end)
-    return sum(1 for cell in cells.values() if cell.get("source") == "leave")
+    total = 0
+    for (staff_id, _), cell in cells.items():
+        if staff_ids is not None and staff_id not in staff_ids:
+            continue
+        if cell.get("source") == "leave":
+            total += 1
+    return total
 
 
-def build_auto_generate_preflight(year: int, month: int) -> dict:
+def _normalize_selected_floors(floors: list[str] | None) -> list[str]:
+    available = get_floor_labels()
+    if not floors:
+        return list(available)
+    wanted = {str(item).strip() for item in floors if str(item).strip()}
+    selected = [floor for floor in available if floor in wanted]
+    return selected or list(available)
+
+
+def _staff_for_floors(staff_list: list[dict], floors: list[str]) -> list[dict]:
+    floor_set = set(floors)
+    if not floor_set:
+        return list(staff_list)
+    return [staff for staff in staff_list if set(_staff_floors(staff)) & floor_set]
+
+
+def build_auto_generate_preflight(
+    year: int,
+    month: int,
+    *,
+    scope_start: date | str | None = None,
+    scope_end: date | str | None = None,
+    floors: list[str] | None = None,
+) -> dict:
     settings = get_settings()
     start_day = int(settings.get("calendar_start_day", 1) or 1)
     week_start = settings.get("week_start", "sunday")
-    scope_start, scope_end = auto_generate_bounds(year, month, start_day, week_start=week_start)
+    period_start, period_end = auto_generate_bounds(year, month, start_day, week_start=week_start)
+    resolved_start, resolved_end = clamp_scope_to_period(
+        period_start, period_end, scope_start, scope_end
+    )
+    scope_days = filter_period_days(
+        auto_generate_days(year, month, start_day, week_start=week_start),
+        resolved_start,
+        resolved_end,
+    )
     scope_label = (
-        format_scope_range(scope_start, scope_end)
-        if scope_start and scope_end
+        format_scope_range(resolved_start, resolved_end)
+        if resolved_start and resolved_end
         else f"{year}年{month}月"
     )
 
-    staff_list = _active_staff()
+    available_floors = get_floor_labels()
+    selected_floors = _normalize_selected_floors(floors)
+    staff_list = _staff_for_floors(_active_staff(), selected_floors)
     night_capable = _night_capable(staff_list, settings)
     night_leaders = _night_leaders(night_capable)
-    dept_labels = [item["label"] for item in get_departments()]
-    tracked_floors = sorted(set(dept_labels) | set(FACILITY_NIGHT_FLOOR_MINS.keys()))
+    tracked_floors = [floor for floor in selected_floors]
     floor_caps = {
         floor: _night_floor_capable(staff_list, floor, settings) for floor in tracked_floors
     }
 
     leave_count = 0
     period_days = 0
-    if scope_start and scope_end:
-        leave_count = _count_leave_cells(scope_start, scope_end)
-        period_days = (scope_end - scope_start).days + 1
+    if resolved_start and resolved_end:
+        leave_count = _count_leave_cells(
+            resolved_start,
+            resolved_end,
+            {staff["id"] for staff in staff_list},
+        )
+        period_days = len(scope_days) if scope_days else (resolved_end - resolved_start).days + 1
 
-    _, off_days, _ = resolve_configured_period_off_days(settings, year, month, start_day)
-    min_by_floor = normalize_min_staff_by_floor(settings.get("min_staff_by_floor"), settings)
+    _, full_off_days, _ = resolve_configured_period_off_days(settings, year, month, start_day)
+    full_period_days = len(auto_generate_days(year, month, start_day, week_start=week_start))
+    if full_period_days > 0 and period_days < full_period_days:
+        off_days = max(0, round(int(full_off_days) * period_days / full_period_days))
+    else:
+        off_days = full_off_days
+
+    min_by_floor_all = normalize_min_staff_by_floor(settings.get("min_staff_by_floor"), settings)
+    min_by_floor = {
+        floor: values
+        for floor, values in min_by_floor_all.items()
+        if floor in selected_floors
+    }
     mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
     leader_required = bool(settings.get("require_leader_on_night", True))
     leader_groups = (
         normalize_night_leader_groups(settings.get("night_leader_groups")) if leader_required else []
     )
+    if selected_floors and leader_groups:
+        selected_set = set(selected_floors)
+        leader_groups = [
+            {
+                **group,
+                "floors": [floor for floor in (group.get("floors") or []) if floor in selected_set],
+            }
+            for group in leader_groups
+            if set(group.get("floors") or []) & selected_set
+        ]
 
     night_mins = {
         floor: int((values or {}).get("night") or 0) for floor, values in min_by_floor.items()
@@ -115,6 +185,8 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
         advanced_used.append("夜勤リーダーを毎日配置")
     if settings.get("consider_night_eligibility", True):
         advanced_used.append("夜勤可否を考慮")
+    if set(selected_floors) != set(available_floors):
+        advanced_used.append(f"対象フロア: {'、'.join(selected_floors)}")
 
     night_guidance = build_night_staffing_guidance(
         period_days=period_days,
@@ -149,9 +221,13 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
         "year": year,
         "month": month,
         "scope_label": scope_label,
-        "scope_start": scope_start.isoformat() if scope_start else None,
-        "scope_end": scope_end.isoformat() if scope_end else None,
-        "departments": dept_labels,
+        "scope_start": resolved_start.isoformat() if resolved_start else None,
+        "scope_end": resolved_end.isoformat() if resolved_end else None,
+        "period_start": period_start.isoformat() if period_start else None,
+        "period_end": period_end.isoformat() if period_end else None,
+        "departments": selected_floors,
+        "available_floors": available_floors,
+        "selected_floors": selected_floors,
         "staff_count": len(staff_list),
         "leave_count": leave_count,
         "night_capable_count": len(night_capable),
@@ -176,6 +252,7 @@ def build_auto_generate_preflight(year: int, month: int) -> dict:
         "staff_href": "/staff",
         "settings_auto_href": "/settings?panel=auto",
     }
+
 
 
 def _build_warnings(

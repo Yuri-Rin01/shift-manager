@@ -100,16 +100,37 @@ def delete_shift_cell(staff_id: int, shift_date: date) -> bool:
         return cursor.rowcount > 0
 
 
-def delete_shifts_between(start: date, end: date) -> int:
-    """指定期間のシフト割当を削除。削除件数を返す。"""
+def delete_shifts_between(
+    start: date,
+    end: date,
+    *,
+    staff_ids: list[int] | None = None,
+) -> int:
+    """指定期間のシフト割当を削除。削除件数を返す。
+
+    staff_ids を渡すとその職員のみ削除する（フロア限定生成用）。
+    """
     with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            DELETE FROM shift_assignments
-            WHERE shift_date >= ? AND shift_date <= ?
-            """,
-            (start.isoformat(), end.isoformat()),
-        )
+        if staff_ids is not None:
+            if not staff_ids:
+                return 0
+            placeholders = ",".join("?" for _ in staff_ids)
+            cursor = conn.execute(
+                f"""
+                DELETE FROM shift_assignments
+                WHERE shift_date >= ? AND shift_date <= ?
+                  AND staff_id IN ({placeholders})
+                """,
+                (start.isoformat(), end.isoformat(), *staff_ids),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                DELETE FROM shift_assignments
+                WHERE shift_date >= ? AND shift_date <= ?
+                """,
+                (start.isoformat(), end.isoformat()),
+            )
         conn.commit()
         return cursor.rowcount
 

@@ -1,6 +1,21 @@
 {% from "partials/floor_badges.html" import floor_badges %}
+{% set ns = namespace(max_sym=1) %}
+{% if legend is defined %}
+  {% for item in legend %}
+    {% set sym = item.symbol or "" %}
+    {% if sym|length > ns.max_sym %}{% set ns.max_sym = sym|length %}{% endif %}
+  {% endfor %}
+{% endif %}
+{% if staff_rows is defined %}
+  {% for row in staff_rows %}
+    {% for cell in row.cells %}
+      {% set sym = cell.symbol or "" %}
+      {% if sym|length > ns.max_sym %}{% set ns.max_sym = sym|length %}{% endif %}
+    {% endfor %}
+  {% endfor %}
+{% endif %}
 <div class="{% if not compact %}table-wrap{% endif %}">
-  <table class="shift-table{% if compact %} shift-table-compact{% endif %}">
+  <table class="shift-table{% if compact %} shift-table-compact{% endif %}{% if ns.max_sym > 2 %} has-long-symbols{% endif %}{% if ns.max_sym > 8 %} has-xl-symbols{% endif %}"{% if ns.max_sym > 1 %} data-symbol-max-len="{{ ns.max_sym }}"{% endif %}>
     <thead>
       {% if show_week_number %}
         <tr class="week-number-row">

@@ -308,12 +308,24 @@ def _type_enabled(type_def: dict, settings: dict) -> bool:
     return True
 
 
+def _custom_shift_types(settings: dict) -> list[dict]:
+    from data.staffing_basis import get_staffing_basis_options, base_work_key
+    return [
+        {"key": item["key"], "label": item["label"],
+         "class": f"shift-{base_work_key(item['key'], settings)}",
+         "default_symbol": item["label"][:16], "order": 100 + index,
+         "summary_label": f"{item['label']}人数"}
+        for index, item in enumerate(get_staffing_basis_options(settings))
+        if item["key"] not in CATALOG_BY_KEY and item["key"] not in SEMI_BY_KEY
+    ]
+
+
 def get_shift_symbol_types(settings: dict | None = None) -> list[dict]:
     from db.settings_repository import get_settings
 
     cfg = settings or get_settings()
     return sorted(
-        [item for item in SHIFT_TYPE_CATALOG if _type_allowed_for_facility(item, cfg)],
+        [item for item in [*SHIFT_TYPE_CATALOG, *_custom_shift_types(cfg)] if _type_allowed_for_facility(item, cfg)],
         key=lambda item: item["order"],
     )
 
@@ -323,7 +335,7 @@ def get_configurable_shift_types(settings: dict | None = None) -> list[dict]:
 
     cfg = settings or get_settings()
     return sorted(
-        [item for item in SHIFT_TYPE_CATALOG if _type_enabled(item, cfg)],
+        [item for item in [*SHIFT_TYPE_CATALOG, *_custom_shift_types(cfg)] if _type_enabled(item, cfg)],
         key=lambda item: item["order"],
     )
 
@@ -335,12 +347,14 @@ def get_shift_symbols(settings: dict | None = None) -> dict[str, str]:
     symbols = dict(DEFAULT_SHIFT_SYMBOLS)
     for item in SEMI_SHIFT_TYPES:
         symbols.setdefault(item["key"], item["default_symbol"])
+    for item in _custom_shift_types(cfg):
+        symbols.setdefault(item["key"], item["default_symbol"])
     overrides = cfg.get("shift_symbols") or {}
     if isinstance(overrides, dict):
         for key, value in overrides.items():
             if key == "public":
                 continue
-            if (key in CATALOG_BY_KEY or key in SEMI_BY_KEY) and isinstance(value, str) and value.strip():
+            if key in symbols and isinstance(value, str) and value.strip():
                 symbols[key] = value.strip()
     return symbols
 
@@ -387,6 +401,9 @@ def get_class_for_symbol(symbol: str, settings: dict | None = None) -> str:
         return CATALOG_BY_KEY[key]["class"]
     if key and key in SEMI_BY_KEY:
         return SEMI_BY_KEY[key]["class"]
+    for item in _custom_shift_types(settings or {}):
+        if item["key"] == key:
+            return item["class"]
     return "shift-off"
 
 
@@ -413,7 +430,7 @@ def build_symbol_class_map(settings: dict | None = None) -> dict[str, str]:
     cfg = settings or get_settings()
     symbols = get_shift_symbols(cfg)
     mapping: dict[str, str] = {}
-    for type_def in SHIFT_TYPE_CATALOG:
+    for type_def in [*SHIFT_TYPE_CATALOG, *_custom_shift_types(cfg)]:
         symbol = symbols.get(type_def["key"], "")
         if symbol:
             mapping[symbol] = type_def["class"]
@@ -440,6 +457,10 @@ def build_shift_legend(settings: dict | None = None) -> list[dict]:
             }
         )
     legend.extend(_semi_legend_items(cfg, symbols))
+    from data.staffing_basis import get_staffing_basis_options
+    labels = {item["key"]: item["label"] for item in get_staffing_basis_options(cfg)}
+    for item in legend:
+        item["label"] = labels.get(item["key"], item["label"])
     return legend
 
 

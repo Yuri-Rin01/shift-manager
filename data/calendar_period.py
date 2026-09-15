@@ -53,6 +53,53 @@ def auto_generate_bounds(
     return date.fromisoformat(days[0]["date"]), date.fromisoformat(days[-1]["date"])
 
 
+
+def clamp_scope_to_period(
+    period_start: date | None,
+    period_end: date | None,
+    scope_start: date | str | None = None,
+    scope_end: date | str | None = None,
+) -> tuple[date | None, date | None]:
+    """表示期間内に開始・終了日を収める。未指定なら期間全体。"""
+    if period_start is None or period_end is None:
+        return None, None
+
+    def _parse(value: date | str | None) -> date | None:
+        if value is None or value == "":
+            return None
+        if isinstance(value, date):
+            return value
+        try:
+            return date.fromisoformat(str(value).strip()[:10])
+        except ValueError:
+            return None
+
+    start = _parse(scope_start) or period_start
+    end = _parse(scope_end) or period_end
+    if start < period_start:
+        start = period_start
+    if end > period_end:
+        end = period_end
+    if start > end:
+        return None, None
+    return start, end
+
+
+def filter_period_days(
+    days: list[dict],
+    scope_start: date | None,
+    scope_end: date | None,
+) -> list[dict]:
+    """期間日リストを指定範囲に絞り込む。"""
+    if not days:
+        return []
+    if scope_start is None or scope_end is None:
+        return list(days)
+    start_s = scope_start.isoformat()
+    end_s = scope_end.isoformat()
+    return [item for item in days if start_s <= item["date"] <= end_s]
+
+
 def format_scope_range(start: date, end: date) -> str:
     """自動生成の対象期間ラベル（表示区間）。"""
     if start == end:

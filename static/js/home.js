@@ -1411,13 +1411,19 @@ function updateFlickHighlight(directionIndex) {
   const options = getFlickOptions();
   if (center) {
     if (directionIndex >= 0 && directionIndex < options.length && options[directionIndex]) {
-      center.textContent = options[directionIndex].symbol;
+      center.classList.toggle("is-long-symbol", isLongShiftSymbol(options[directionIndex].symbol));
+      center.textContent = isLongShiftSymbol(options[directionIndex].symbol)
+        ? formatShiftSymbolForCell(options[directionIndex].symbol)
+        : options[directionIndex].symbol;
       center.className = `shift-flick-center-symbol ${options[directionIndex].class}`;
     } else {
       const currentSymbol = activeEditCell?.dataset.symbol ?? "";
       const currentOption = shiftOptions.find((item) => item.symbol === currentSymbol);
-      center.textContent = currentSymbol || "·";
-      center.className = `shift-flick-center-symbol ${currentOption?.class ?? "shift-off"}`;
+      center.classList.toggle("is-long-symbol", isLongShiftSymbol(currentSymbol));
+      center.textContent = isLongShiftSymbol(currentSymbol)
+        ? formatShiftSymbolForCell(currentSymbol)
+        : (currentSymbol || "·");
+      center.className = `shift-flick-center-symbol ${currentOption?.class ?? "shift-off"}${isLongShiftSymbol(currentSymbol) ? " is-long-symbol" : ""}`;
     }
   }
 }
@@ -1464,8 +1470,10 @@ function openFlickPad(td) {
     button.style.top = `${top}px`;
 
     const symbolSpan = document.createElement("span");
-    symbolSpan.className = "shift-flick-dir-symbol";
-    symbolSpan.textContent = option.symbol;
+    symbolSpan.className = `shift-flick-dir-symbol${isLongShiftSymbol(option.symbol) ? " is-long-symbol" : ""}`;
+    symbolSpan.textContent = isLongShiftSymbol(option.symbol)
+      ? formatShiftSymbolForCell(option.symbol)
+      : option.symbol;
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-flick-dir-label";
@@ -1486,6 +1494,72 @@ function closeFlickPad() {
     activeEditCell.classList.remove("is-editing");
     activeEditCell = null;
   }
+}
+
+
+function symbolCharLength(symbol) {
+  return [...String(symbol || "")].length;
+}
+
+function isLongShiftSymbol(symbol) {
+  return symbolCharLength(symbol) > 2;
+}
+
+function isTimeRangeShiftSymbol(symbol) {
+  return /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(String(symbol || "").trim());
+}
+
+function formatShiftSymbolForCell(symbol) {
+  const raw = String(symbol || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/^(\d{1,2}:\d{2})\s*[-〜～~－]\s*(\d{1,2}:\d{2})$/);
+  if (match) return `${match[1]}\n${match[2]}`;
+  if (symbolCharLength(raw) > 6) {
+    const mid = Math.ceil(symbolCharLength(raw) / 2);
+    const chars = [...raw];
+    return `${chars.slice(0, mid).join("")}\n${chars.slice(mid).join("")}`;
+  }
+  return raw;
+}
+
+function paintShiftSymbolElement(element, symbol) {
+  if (!element) return;
+  const value = symbol || "";
+  element.dataset.symbol = value;
+  const long = isLongShiftSymbol(value);
+  element.classList.toggle("is-long-symbol", long);
+  if (long) {
+    element.textContent = formatShiftSymbolForCell(value);
+  } else {
+    element.textContent = "";
+  }
+}
+
+function syncShiftTableLongSymbolMode() {
+  const table = document.querySelector(".shift-table");
+  if (!table) return;
+  let maxLen = 1;
+  for (const item of shiftOptions) {
+    maxLen = Math.max(maxLen, symbolCharLength(item?.symbol));
+  }
+  table.querySelectorAll(".shift-cell[data-symbol], .shift-td[data-symbol]").forEach((el) => {
+    maxLen = Math.max(maxLen, symbolCharLength(el.dataset.symbol));
+  });
+  table.classList.toggle("has-long-symbols", maxLen > 2);
+  table.classList.toggle("has-xl-symbols", maxLen > 8);
+  table.dataset.symbolMaxLen = String(maxLen);
+}
+
+function refreshRenderedShiftSymbols() {
+  document.querySelectorAll(".shift-table .shift-cell[data-symbol]").forEach((span) => {
+    paintShiftSymbolElement(span, span.dataset.symbol || "");
+  });
+  document.querySelectorAll(".legend-symbol").forEach((el) => {
+    const symbol = (el.textContent || el.dataset.symbol || "").trim();
+    if (!symbol || symbol === "手" || symbol === "休") return;
+    el.classList.toggle("is-long-symbol", isLongShiftSymbol(symbol));
+  });
+  syncShiftTableLongSymbolMode();
 }
 
 function shiftClassList(symbol) {
@@ -1515,12 +1589,12 @@ function applyCellSymbol(td, symbol, options = {}) {
 
   const span = document.createElement("span");
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
-  span.dataset.symbol = symbol || "";
   span.setAttribute("aria-label", symbol || "未入力");
-  // Keep text out of the DOM so iOS long-press cannot select cell symbols
-  span.textContent = "";
+  // Short symbols stay in data-symbol (::after). Long/time-range symbols use text for wrapping.
+  paintShiftSymbolElement(span, symbol || "");
   // Transparent hit layer sits above the glyph so iOS callout has no text target
   td.replaceChildren(hit, span);
+  syncShiftTableLongSymbolMode();
 }
 
 function captureCellState(td) {
@@ -1713,8 +1787,10 @@ function openCellEditor(td) {
     button.setAttribute("aria-selected", option.symbol === currentSymbol ? "true" : "false");
 
     const symbolSpan = document.createElement("span");
-    symbolSpan.className = "shift-picker-symbol";
-    symbolSpan.textContent = option.symbol;
+    symbolSpan.className = `shift-picker-symbol${isLongShiftSymbol(option.symbol) ? " is-long-symbol" : ""}`;
+    symbolSpan.textContent = isLongShiftSymbol(option.symbol)
+      ? formatShiftSymbolForCell(option.symbol)
+      : option.symbol;
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-picker-label";
@@ -2198,6 +2274,7 @@ function initShiftCellEditor() {
 }
 
 initShiftCellEditor();
+refreshRenderedShiftSymbols();
 
 const autoGenerateButton = document.getElementById("btn-auto-generate");
 const autoGenerateModal = document.getElementById("auto-generate-modal");
@@ -2214,9 +2291,18 @@ const autoGenerateConfirmSummary = document.getElementById("auto-generate-confir
 const autoGenerateConfirmWarningsWrap = document.getElementById("auto-generate-confirm-warnings-wrap");
 const autoGenerateConfirmWarnings = document.getElementById("auto-generate-confirm-warnings");
 const autoGenerateConfirmRun = document.getElementById("auto-generate-confirm-run");
+const autoGenerateYear = document.getElementById("auto-generate-year");
+const autoGenerateMonth = document.getElementById("auto-generate-month");
+const autoGenerateScopeStart = document.getElementById("auto-generate-scope-start");
+const autoGenerateScopeEnd = document.getElementById("auto-generate-scope-end");
+const autoGenerateFloors = document.getElementById("auto-generate-floors");
+const autoGenerateScopeRefresh = document.getElementById("auto-generate-scope-refresh");
+const autoGenerateScopeStatus = document.getElementById("auto-generate-scope-status");
 
 let autoGenerateShouldReload = false;
 let pendingPreflight = null;
+let autoGenerateScopeSyncing = false;
+let autoGeneratePreflightSeq = 0;
 
 const AUTO_GENERATE_LEVEL_LABELS = {
   error: "エラー",
@@ -2397,10 +2483,111 @@ function closeAutoGenerateConfirmModal() {
   autoGenerateConfirmModal.classList.add("hidden");
   autoGenerateConfirmModal.setAttribute("aria-hidden", "true");
   pendingPreflight = null;
+  setAutoGenerateScopeStatus("");
   if (autoGenerateConfirmRun) autoGenerateConfirmRun.disabled = false;
 }
 
-function showAutoGenerateConfirm(preflight) {
+
+function ensureAutoGenerateYearOptions(selectedYear) {
+  if (!autoGenerateYear) return;
+  const current = Number(selectedYear) || Number(window.CALENDAR_YEAR) || new Date().getFullYear();
+  const existing = new Set([...autoGenerateYear.options].map((opt) => Number(opt.value)));
+  for (let year = current - 2; year <= current + 2; year += 1) {
+    if (existing.has(year)) continue;
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = `${year}年`;
+    autoGenerateYear.appendChild(option);
+    existing.add(year);
+  }
+  [...autoGenerateYear.options]
+    .sort((a, b) => Number(a.value) - Number(b.value))
+    .forEach((option) => autoGenerateYear.appendChild(option));
+  autoGenerateYear.value = String(current);
+}
+
+function renderAutoGenerateFloorChecks(available, selected) {
+  if (!autoGenerateFloors) return;
+  const availableList = Array.isArray(available) && available.length
+    ? available
+    : Array.isArray(window.DEPT_ORDER) ? window.DEPT_ORDER : [];
+  const selectedSet = new Set(
+    Array.isArray(selected) && selected.length ? selected : availableList
+  );
+  autoGenerateFloors.replaceChildren();
+  availableList.forEach((floor) => {
+    const label = document.createElement("label");
+    label.className = "check-row";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = floor;
+    input.checked = selectedSet.has(floor);
+    input.dataset.autoGenerateFloor = "1";
+    const span = document.createElement("span");
+    span.textContent = floor;
+    label.append(input, span);
+    autoGenerateFloors.appendChild(label);
+  });
+}
+
+function getAutoGenerateScopeParams() {
+  const year = Number(autoGenerateYear?.value || window.CALENDAR_YEAR || 0);
+  const month = Number(autoGenerateMonth?.value || window.CALENDAR_MONTH || 0);
+  const scopeStart = autoGenerateScopeStart?.value || "";
+  const scopeEnd = autoGenerateScopeEnd?.value || "";
+  const floors = [...(autoGenerateFloors?.querySelectorAll('input[type="checkbox"]') || [])]
+    .filter((input) => input.checked)
+    .map((input) => input.value);
+  return { year, month, scopeStart, scopeEnd, floors };
+}
+
+function buildAutoGeneratePreflightQuery(params) {
+  const query = new URLSearchParams();
+  query.set("year", String(params.year));
+  query.set("month", String(params.month));
+  if (params.scopeStart) query.set("scope_start", params.scopeStart);
+  if (params.scopeEnd) query.set("scope_end", params.scopeEnd);
+  if (params.floors && params.floors.length) query.set("floors", params.floors.join(","));
+  return query.toString();
+}
+
+function syncAutoGenerateScopeControls(preflight, { preserveDates = false } = {}) {
+  if (!preflight) return;
+  autoGenerateScopeSyncing = true;
+  try {
+    ensureAutoGenerateYearOptions(preflight.year);
+    if (autoGenerateYear) autoGenerateYear.value = String(preflight.year);
+    if (autoGenerateMonth) autoGenerateMonth.value = String(preflight.month);
+    const periodStart = preflight.period_start || preflight.scope_start || "";
+    const periodEnd = preflight.period_end || preflight.scope_end || "";
+    if (autoGenerateScopeStart) {
+      autoGenerateScopeStart.min = periodStart || "";
+      autoGenerateScopeStart.max = periodEnd || "";
+      if (!preserveDates || !autoGenerateScopeStart.value) {
+        autoGenerateScopeStart.value = preflight.scope_start || periodStart || "";
+      }
+    }
+    if (autoGenerateScopeEnd) {
+      autoGenerateScopeEnd.min = periodStart || "";
+      autoGenerateScopeEnd.max = periodEnd || "";
+      if (!preserveDates || !autoGenerateScopeEnd.value) {
+        autoGenerateScopeEnd.value = preflight.scope_end || periodEnd || "";
+      }
+    }
+    renderAutoGenerateFloorChecks(
+      preflight.available_floors || preflight.departments || window.DEPT_ORDER || [],
+      preflight.selected_floors || preflight.departments || []
+    );
+  } finally {
+    autoGenerateScopeSyncing = false;
+  }
+}
+
+function setAutoGenerateScopeStatus(message) {
+  if (autoGenerateScopeStatus) autoGenerateScopeStatus.textContent = message || "";
+}
+
+function showAutoGenerateConfirm(preflight, { syncControls = true } = {}) {
   pendingPreflight = preflight;
   if (!autoGenerateConfirmModal) {
     const ok = window.confirm(
@@ -2409,8 +2596,37 @@ function showAutoGenerateConfirm(preflight) {
     if (ok) executeAutoGenerate();
     return;
   }
+  if (syncControls) {
+    syncAutoGenerateScopeControls(preflight);
+  } else {
+    // サーバー側で丸められた日付だけ反映（フロア選択は維持）
+    autoGenerateScopeSyncing = true;
+    try {
+      if (autoGenerateScopeStart && preflight.scope_start) {
+        autoGenerateScopeStart.value = preflight.scope_start;
+      }
+      if (autoGenerateScopeEnd && preflight.scope_end) {
+        autoGenerateScopeEnd.value = preflight.scope_end;
+      }
+      if (autoGenerateScopeStart && preflight.period_start) {
+        autoGenerateScopeStart.min = preflight.period_start;
+        autoGenerateScopeStart.max = preflight.period_end || "";
+      }
+      if (autoGenerateScopeEnd && preflight.period_end) {
+        autoGenerateScopeEnd.min = preflight.period_start || "";
+        autoGenerateScopeEnd.max = preflight.period_end;
+      }
+    } finally {
+      autoGenerateScopeSyncing = false;
+    }
+  }
   if (autoGenerateConfirmSubtitle) {
     autoGenerateConfirmSubtitle.textContent = preflight.scope_label || "";
+  }
+  const hint = document.getElementById("auto-generate-confirm-hint");
+  if (hint) {
+    const floors = (preflight.selected_floors || preflight.departments || []).join("、") || "全フロア";
+    hint.textContent = `手動入力済みセル（赤枠）と希望休は上書きしません。続行すると ${preflight.scope_label || "選択範囲"}（${floors}）の自動生成セルを置き換えます。`;
   }
   if (autoGenerateConfirmSummary) {
     const floors = preflight.night_mins_by_floor || {};
@@ -2507,37 +2723,77 @@ function showAutoGenerateConfirm(preflight) {
   autoGenerateConfirmModal.setAttribute("aria-hidden", "false");
 }
 
+async function fetchAutoGeneratePreflight(params) {
+  const query = buildAutoGeneratePreflightQuery(params);
+  const response = await fetch(`/api/shifts/generate/preflight?${query}`);
+  const rawText = await response.text();
+  let data = {};
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    data = { detail: rawText || "確認情報の取得に失敗しました。" };
+  }
+  if (!response.ok) {
+    const error = new Error(formatApiErrorDetail(data.detail));
+    error.status = response.status;
+    error.payload = data;
+    throw error;
+  }
+  return data;
+}
+
+async function refreshAutoGeneratePreflight({ syncControls = false } = {}) {
+  const params = getAutoGenerateScopeParams();
+  if (!params.year || !params.month) return null;
+  const seq = ++autoGeneratePreflightSeq;
+  setAutoGenerateScopeStatus("確認中…");
+  if (autoGenerateConfirmRun) autoGenerateConfirmRun.disabled = true;
+  try {
+    const data = await fetchAutoGeneratePreflight(params);
+    if (seq !== autoGeneratePreflightSeq) return null;
+    showAutoGenerateConfirm(data, { syncControls });
+    setAutoGenerateScopeStatus("範囲を反映しました");
+    return data;
+  } catch (error) {
+    if (seq !== autoGeneratePreflightSeq) return null;
+    setAutoGenerateScopeStatus(error instanceof Error ? error.message : "確認に失敗しました");
+    if (autoGenerateConfirmRun) {
+      autoGenerateConfirmRun.disabled = true;
+      autoGenerateConfirmRun.textContent = "問題を解消してから生成できます";
+    }
+    return null;
+  }
+}
+
 async function openAutoGenerateConfirm() {
   const year = window.CALENDAR_YEAR;
   const month = window.CALENDAR_MONTH;
   if (!year || !month) return;
 
+  ensureAutoGenerateYearOptions(year);
+  if (autoGenerateYear) autoGenerateYear.value = String(year);
+  if (autoGenerateMonth) autoGenerateMonth.value = String(month);
+  if (autoGenerateScopeStart) autoGenerateScopeStart.value = "";
+  if (autoGenerateScopeEnd) autoGenerateScopeEnd.value = "";
+  renderAutoGenerateFloorChecks(window.DEPT_ORDER || [], window.DEPT_ORDER || []);
+
   autoGenerateButton.disabled = true;
   autoGenerateButton.textContent = "確認中…";
+  setAutoGenerateScopeStatus("確認中…");
   try {
-    const response = await fetch(`/api/shifts/generate/preflight?year=${year}&month=${month}`);
-    const rawText = await response.text();
-    let data = {};
-    try {
-      data = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      data = { detail: rawText || "確認情報の取得に失敗しました。" };
-    }
-    if (!response.ok) {
-      showAutoGenerateResult({
-        success: false,
-        title: "確認に失敗しました",
-        subtitle: `HTTP ${response.status}`,
-        summary: formatApiErrorDetail(data.detail),
-      });
-      return;
-    }
-    showAutoGenerateConfirm(data);
+    const data = await fetchAutoGeneratePreflight({
+      year,
+      month,
+      scopeStart: "",
+      scopeEnd: "",
+      floors: window.DEPT_ORDER || [],
+    });
+    showAutoGenerateConfirm(data, { syncControls: true });
   } catch (error) {
     showAutoGenerateResult({
       success: false,
       title: "確認に失敗しました",
-      subtitle: "通信エラー",
+      subtitle: error?.status ? `HTTP ${error.status}` : "通信エラー",
       summary: error instanceof Error ? error.message : "確認情報の取得中にエラーが発生しました。",
     });
   } finally {
@@ -2547,8 +2803,9 @@ async function openAutoGenerateConfirm() {
 }
 
 async function executeAutoGenerate() {
-  const year = window.CALENDAR_YEAR;
-  const month = window.CALENDAR_MONTH;
+  const params = getAutoGenerateScopeParams();
+  const year = params.year || window.CALENDAR_YEAR;
+  const month = params.month || window.CALENDAR_MONTH;
   if (!year || !month) return;
 
   closeAutoGenerateConfirmModal();
@@ -2558,7 +2815,14 @@ async function executeAutoGenerate() {
     const response = await fetch("/api/shifts/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ year, month, preview: false }),
+      body: JSON.stringify({
+        year,
+        month,
+        preview: false,
+        scope_start: params.scopeStart || null,
+        scope_end: params.scopeEnd || null,
+        floors: params.floors && params.floors.length ? params.floors : null,
+      }),
     });
     const rawText = await response.text();
     let data = {};
@@ -2656,6 +2920,29 @@ document.querySelectorAll("[data-close-auto-generate-confirm]").forEach((element
 autoGenerateConfirmRun?.addEventListener("click", () => {
   if (pendingPreflight && pendingPreflight.can_generate === false) return;
   executeAutoGenerate();
+});
+autoGenerateScopeRefresh?.addEventListener("click", () => {
+  refreshAutoGeneratePreflight({ syncControls: true });
+});
+[autoGenerateYear, autoGenerateMonth].forEach((element) => {
+  element?.addEventListener("change", () => {
+    if (autoGenerateScopeSyncing) return;
+    if (autoGenerateScopeStart) autoGenerateScopeStart.value = "";
+    if (autoGenerateScopeEnd) autoGenerateScopeEnd.value = "";
+    refreshAutoGeneratePreflight({ syncControls: true });
+  });
+});
+[autoGenerateScopeStart, autoGenerateScopeEnd].forEach((element) => {
+  element?.addEventListener("change", () => {
+    if (autoGenerateScopeSyncing) return;
+    refreshAutoGeneratePreflight({ syncControls: false });
+  });
+});
+autoGenerateFloors?.addEventListener("change", (event) => {
+  if (autoGenerateScopeSyncing) return;
+  if (!(event.target instanceof HTMLInputElement)) return;
+  if (event.target.dataset.autoGenerateFloor !== "1") return;
+  refreshAutoGeneratePreflight({ syncControls: false });
 });
 autoGenerateButton?.addEventListener("click", openAutoGenerateConfirm);
 

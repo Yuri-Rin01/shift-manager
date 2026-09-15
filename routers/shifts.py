@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -372,11 +373,29 @@ def clear_shift_schedule(data: ShiftClearRequest):
     response_model=AutoGeneratePreflightResponse,
     name="preflight_shift_generate",
 )
-def preflight_shift_generate(year: int, month: int):
+def preflight_shift_generate(
+    year: int,
+    month: int,
+    scope_start: str | None = None,
+    scope_end: str | None = None,
+    floors: Annotated[
+        str | None,
+        Query(description="対象フロア（カンマ区切り）。未指定なら全フロア。"),
+    ] = None,
+):
     """自動生成前の確認サマリーと矛盾警告。"""
     if year < 2000 or year > 2100 or month < 1 or month > 12:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="年月が不正です")
-    raw = build_auto_generate_preflight(year, month)
+    floor_list = None
+    if isinstance(floors, str) and floors.strip():
+        floor_list = [part.strip() for part in floors.split(",") if part.strip()]
+    raw = build_auto_generate_preflight(
+        year,
+        month,
+        scope_start=scope_start,
+        scope_end=scope_end,
+        floors=floor_list,
+    )
     return AutoGeneratePreflightResponse(
         **{
             **raw,
@@ -399,5 +418,14 @@ def preflight_shift_generate(year: int, month: int):
 
 @router.post("/generate", response_model=ShiftGenerateResponse, name="generate_shift_schedule")
 def generate_shift_schedule(data: ShiftGenerateRequest):
-    """シフト自動生成（カレンダー表示区間全体が対象）。"""
-    return _to_generate_response(generate_shifts(data.year, data.month, preview=data.preview))
+    """シフト自動生成（確認画面で選んだ範囲・フロアが対象）。"""
+    return _to_generate_response(
+        generate_shifts(
+            data.year,
+            data.month,
+            preview=data.preview,
+            scope_start=data.scope_start,
+            scope_end=data.scope_end,
+            floors=data.floors,
+        )
+    )
