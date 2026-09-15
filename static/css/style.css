@@ -6941,8 +6941,8 @@ input[type="checkbox"]:focus-visible {
 
 .student-labor-gauge-metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .student-labor-gauge-row + .student-labor-gauge-row {
