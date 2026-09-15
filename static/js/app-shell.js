@@ -5,8 +5,8 @@
   const SHORT_MQ = window.matchMedia("(max-height: 520px)");
   const SIDEBAR_ID = "app-sidebar";
   const LS_KEY = "sidebar_collapsed";
-  const PEEK_LEAVE_MS = 220;
-  const EDGE_OPEN_PX = 18;
+  const PEEK_LEAVE_MS = 160;
+  const EDGE_OPEN_PX = 24;
 
   let peekCloseTimer = null;
   let pinnedCollapsed = false;
@@ -153,13 +153,12 @@
   function restoreDesktopState() {
     if (isCompact()) return;
     try {
-      if (localStorage.getItem(LS_KEY) === "1") setDesktopCollapsed(true);
-      else {
-        setDesktopCollapsed(false);
-        syncCollapseButton();
-      }
+      const saved = localStorage.getItem(LS_KEY);
+      // 初回は折りたたみ（近づけると開く）を既定にする
+      if (saved === null || saved === "1") setDesktopCollapsed(true);
+      else setDesktopCollapsed(false);
     } catch (_) {
-      syncCollapseButton();
+      setDesktopCollapsed(true);
     }
   }
 
@@ -172,6 +171,18 @@
     zone.setAttribute("aria-hidden", "true");
     document.body.appendChild(zone);
     return zone;
+  }
+
+  function pointerInsideSidebar(x, y, pane, zone) {
+    const rail = pane?.getBoundingClientRect();
+    if (rail && x >= rail.left && x <= rail.right && y >= rail.top && y <= rail.bottom) {
+      return true;
+    }
+    const hz = zone?.getBoundingClientRect();
+    if (hz && x >= hz.left && x <= hz.right && y >= hz.top && y <= hz.bottom) {
+      return true;
+    }
+    return x <= EDGE_OPEN_PX;
   }
 
   function bindPeekInteractions(pane) {
@@ -191,24 +202,24 @@
       schedulePeekClose();
     };
 
-    pane.addEventListener("mouseenter", openPeek);
-    pane.addEventListener("mouseleave", leavePeek);
-    zone.addEventListener("mouseenter", openPeek);
-    zone.addEventListener("mouseleave", leavePeek);
+    pane.addEventListener("pointerenter", openPeek);
+    pane.addEventListener("pointerleave", leavePeek);
+    zone.addEventListener("pointerenter", openPeek);
+    zone.addEventListener("pointerleave", leavePeek);
 
-    document.addEventListener("mousemove", (e) => {
-      if (isCompact() || !isDesktopCollapsed()) return;
-      if (e.clientX <= EDGE_OPEN_PX) {
-        clearPeekTimer();
-        setPeek(true);
-        return;
-      }
-      if (!isPeeking()) return;
-      const width = pane.getBoundingClientRect().width;
-      if (e.clientX > width + 12 && !pane.matches(":hover") && !zone.matches(":hover")) {
-        schedulePeekClose();
-      }
-    });
+    document.addEventListener(
+      "pointermove",
+      (e) => {
+        if (isCompact() || !isDesktopCollapsed()) return;
+        if (pointerInsideSidebar(e.clientX, e.clientY, pane, zone)) {
+          clearPeekTimer();
+          setPeek(true);
+          return;
+        }
+        if (isPeeking()) schedulePeekClose();
+      },
+      { passive: true }
+    );
   }
 
   function bind() {
