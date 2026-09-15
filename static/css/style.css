@@ -6916,14 +6916,16 @@ input[type="checkbox"]:focus-visible {
 /* 表下の％ゲージカード（留学生） */
 .student-labor-gauge-list {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
 }
 
 .student-labor-gauge-card {
-  padding: 8px 10px 8px;
+  padding: 8px 10px;
   background: #fff;
   border: 1px solid #d0ddd4;
   border-radius: 8px;
+  min-width: 0;
 }
 
 .student-labor-gauge-name {
@@ -6932,11 +6934,15 @@ input[type="checkbox"]:focus-visible {
   font-weight: 700;
   line-height: 1.25;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .student-labor-gauge-metrics {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
 }
 
 .student-labor-gauge-row + .student-labor-gauge-row {
@@ -6947,7 +6953,7 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 3px;
 }
 
@@ -6955,6 +6961,7 @@ input[type="checkbox"]:focus-visible {
   font-size: 10px;
   font-weight: 600;
   color: #64748b;
+  white-space: nowrap;
 }
 
 .student-labor-gauge-ratio {
@@ -6996,6 +7003,18 @@ input[type="checkbox"]:focus-visible {
   color: #b91c1c;
 }
 
+@media (min-width: 1100px) {
+  .student-labor-gauge-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+  .student-labor-gauge-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .student-labor-panel {
     margin-top: 8px;
@@ -7021,6 +7040,7 @@ input[type="checkbox"]:focus-visible {
   }
 
   .student-labor-gauge-list {
+    grid-template-columns: 1fr;
     gap: 5px;
   }
 
@@ -7032,12 +7052,6 @@ input[type="checkbox"]:focus-visible {
   .student-labor-gauge-name {
     margin-bottom: 4px;
     font-size: 12px;
-  }
-
-  /* 週・月を横並びにして縦を圧縮 */
-  .student-labor-gauge-metrics {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 10px;
   }
 
   .student-labor-gauge {
