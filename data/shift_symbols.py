@@ -313,7 +313,7 @@ def _custom_shift_types(settings: dict) -> list[dict]:
     return [
         {"key": item["key"], "label": item["label"],
          "class": f"shift-{base_work_key(item['key'], settings)}",
-         "default_symbol": item["label"][:10], "order": 100 + index,
+         "default_symbol": item["label"][:16], "order": 100 + index,
          "summary_label": f"{item['label']}人数"}
         for index, item in enumerate(get_staffing_basis_options(settings))
         if item["key"] not in CATALOG_BY_KEY and item["key"] not in SEMI_BY_KEY

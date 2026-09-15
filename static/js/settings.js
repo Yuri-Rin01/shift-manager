@@ -183,6 +183,36 @@ function workTypesCoveringSlot(startTime, endTime, workTypes) {
 const BASE_LABELS = {early: "早番", day: "日勤", late: "遅出", night: "夜勤"};
 const FIXED_WORK_KEYS = new Set(Object.keys(BASE_LABELS).flatMap((key) => [key, `semi_${key}`]));
 
+
+function compactTimeRangeSymbol(start, end) {
+  const s = String(start || "").trim();
+  const e = String(end || "").trim();
+  if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(e)) return "";
+  const slim = (t) => t.replace(/^0(\d:)/, "$1");
+  return `${slim(s)}-${slim(e)}`;
+}
+
+function maybeSyncSymbolFromHours(row) {
+  if (!(row instanceof HTMLElement)) return;
+  const labelInput = row.querySelector(".staffing-basis-label");
+  const symbolInput = row.querySelector(".staffing-basis-symbol");
+  const startInput = row.querySelector(".staffing-basis-start");
+  const endInput = row.querySelector(".staffing-basis-end");
+  if (!labelInput || !symbolInput || !startInput || !endInput) return;
+  const suggested = compactTimeRangeSymbol(startInput.value, endInput.value);
+  if (!suggested) return;
+  const label = labelInput.value.trim();
+  const symbol = symbolInput.value.trim();
+  const labelLooksLikeTime = /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(label);
+  const symbolLooksLikeTime = /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(symbol);
+  if (labelLooksLikeTime && (!symbol || symbolLooksLikeTime || symbol === label.slice(0, 16))) {
+    symbolInput.value = suggested.slice(0, 16);
+    if (labelLooksLikeTime) labelInput.value = suggested.slice(0, 20);
+  } else if (!symbol && labelLooksLikeTime) {
+    symbolInput.value = suggested.slice(0, 16);
+  }
+}
+
 function renderStaffingBasisRows(options = [], settings = null) {
   if (!staffingBasisTbody) return;
   const symbols = settings?.shift_symbols ?? getShiftSymbolMap();
@@ -196,7 +226,7 @@ function renderStaffingBasisRows(options = [], settings = null) {
       <input type="hidden" class="staffing-basis-key" value="${escapeAttr(key)}">
       <div class="work-editor-fields">
         <label class="form-field"><span class="form-label">勤務名</span><input class="input-text staffing-basis-label" maxlength="20" required placeholder="例：短時間日勤" value="${escapeAttr(item.label ?? "")}"></label>
-        <label class="form-field"><span class="form-label">表示記号</span><input class="input-text staffing-basis-symbol" maxlength="10" required placeholder="例：短" value="${escapeAttr(symbols[key] ?? item.label?.slice(0,10) ?? "")}"></label>
+        <label class="form-field"><span class="form-label">表示記号</span><input class="input-text staffing-basis-symbol" maxlength="16" required placeholder="例：9:00-16:00" value="${escapeAttr(symbols[key] ?? item.label?.slice(0,16) ?? "")}"></label>
         <label class="form-field"><span class="form-label">種類</span><select class="staffing-basis-base" ${FIXED_WORK_KEYS.has(key) ? "disabled" : ""}>${Object.entries(BASE_LABELS).map(([value,label]) => `<option value="${value}" ${base === value || (!BASE_LABELS[base] && value === "day") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
         <label class="form-field"><span class="form-label">開始</span><input type="time" class="staffing-basis-start" required value="${escapeAttr(item.start_time ?? "09:00")}"></label>
         <label class="form-field"><span class="form-label">終了</span><input type="time" class="staffing-basis-end" required value="${escapeAttr(item.end_time ?? "18:00")}"></label>

@@ -1411,13 +1411,19 @@ function updateFlickHighlight(directionIndex) {
   const options = getFlickOptions();
   if (center) {
     if (directionIndex >= 0 && directionIndex < options.length && options[directionIndex]) {
-      center.textContent = options[directionIndex].symbol;
+      center.classList.toggle("is-long-symbol", isLongShiftSymbol(options[directionIndex].symbol));
+      center.textContent = isLongShiftSymbol(options[directionIndex].symbol)
+        ? formatShiftSymbolForCell(options[directionIndex].symbol)
+        : options[directionIndex].symbol;
       center.className = `shift-flick-center-symbol ${options[directionIndex].class}`;
     } else {
       const currentSymbol = activeEditCell?.dataset.symbol ?? "";
       const currentOption = shiftOptions.find((item) => item.symbol === currentSymbol);
-      center.textContent = currentSymbol || "·";
-      center.className = `shift-flick-center-symbol ${currentOption?.class ?? "shift-off"}`;
+      center.classList.toggle("is-long-symbol", isLongShiftSymbol(currentSymbol));
+      center.textContent = isLongShiftSymbol(currentSymbol)
+        ? formatShiftSymbolForCell(currentSymbol)
+        : (currentSymbol || "·");
+      center.className = `shift-flick-center-symbol ${currentOption?.class ?? "shift-off"}${isLongShiftSymbol(currentSymbol) ? " is-long-symbol" : ""}`;
     }
   }
 }
@@ -1464,8 +1470,10 @@ function openFlickPad(td) {
     button.style.top = `${top}px`;
 
     const symbolSpan = document.createElement("span");
-    symbolSpan.className = "shift-flick-dir-symbol";
-    symbolSpan.textContent = option.symbol;
+    symbolSpan.className = `shift-flick-dir-symbol${isLongShiftSymbol(option.symbol) ? " is-long-symbol" : ""}`;
+    symbolSpan.textContent = isLongShiftSymbol(option.symbol)
+      ? formatShiftSymbolForCell(option.symbol)
+      : option.symbol;
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-flick-dir-label";
@@ -1486,6 +1494,72 @@ function closeFlickPad() {
     activeEditCell.classList.remove("is-editing");
     activeEditCell = null;
   }
+}
+
+
+function symbolCharLength(symbol) {
+  return [...String(symbol || "")].length;
+}
+
+function isLongShiftSymbol(symbol) {
+  return symbolCharLength(symbol) > 2;
+}
+
+function isTimeRangeShiftSymbol(symbol) {
+  return /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(String(symbol || "").trim());
+}
+
+function formatShiftSymbolForCell(symbol) {
+  const raw = String(symbol || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/^(\d{1,2}:\d{2})\s*[-〜～~－]\s*(\d{1,2}:\d{2})$/);
+  if (match) return `${match[1]}\n${match[2]}`;
+  if (symbolCharLength(raw) > 6) {
+    const mid = Math.ceil(symbolCharLength(raw) / 2);
+    const chars = [...raw];
+    return `${chars.slice(0, mid).join("")}\n${chars.slice(mid).join("")}`;
+  }
+  return raw;
+}
+
+function paintShiftSymbolElement(element, symbol) {
+  if (!element) return;
+  const value = symbol || "";
+  element.dataset.symbol = value;
+  const long = isLongShiftSymbol(value);
+  element.classList.toggle("is-long-symbol", long);
+  if (long) {
+    element.textContent = formatShiftSymbolForCell(value);
+  } else {
+    element.textContent = "";
+  }
+}
+
+function syncShiftTableLongSymbolMode() {
+  const table = document.querySelector(".shift-table");
+  if (!table) return;
+  let maxLen = 1;
+  for (const item of shiftOptions) {
+    maxLen = Math.max(maxLen, symbolCharLength(item?.symbol));
+  }
+  table.querySelectorAll(".shift-cell[data-symbol], .shift-td[data-symbol]").forEach((el) => {
+    maxLen = Math.max(maxLen, symbolCharLength(el.dataset.symbol));
+  });
+  table.classList.toggle("has-long-symbols", maxLen > 2);
+  table.classList.toggle("has-xl-symbols", maxLen > 8);
+  table.dataset.symbolMaxLen = String(maxLen);
+}
+
+function refreshRenderedShiftSymbols() {
+  document.querySelectorAll(".shift-table .shift-cell[data-symbol]").forEach((span) => {
+    paintShiftSymbolElement(span, span.dataset.symbol || "");
+  });
+  document.querySelectorAll(".legend-symbol").forEach((el) => {
+    const symbol = (el.textContent || el.dataset.symbol || "").trim();
+    if (!symbol || symbol === "手" || symbol === "休") return;
+    el.classList.toggle("is-long-symbol", isLongShiftSymbol(symbol));
+  });
+  syncShiftTableLongSymbolMode();
 }
 
 function shiftClassList(symbol) {
@@ -1515,12 +1589,12 @@ function applyCellSymbol(td, symbol, options = {}) {
 
   const span = document.createElement("span");
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
-  span.dataset.symbol = symbol || "";
   span.setAttribute("aria-label", symbol || "未入力");
-  // Keep text out of the DOM so iOS long-press cannot select cell symbols
-  span.textContent = "";
+  // Short symbols stay in data-symbol (::after). Long/time-range symbols use text for wrapping.
+  paintShiftSymbolElement(span, symbol || "");
   // Transparent hit layer sits above the glyph so iOS callout has no text target
   td.replaceChildren(hit, span);
+  syncShiftTableLongSymbolMode();
 }
 
 function captureCellState(td) {
@@ -1713,8 +1787,10 @@ function openCellEditor(td) {
     button.setAttribute("aria-selected", option.symbol === currentSymbol ? "true" : "false");
 
     const symbolSpan = document.createElement("span");
-    symbolSpan.className = "shift-picker-symbol";
-    symbolSpan.textContent = option.symbol;
+    symbolSpan.className = `shift-picker-symbol${isLongShiftSymbol(option.symbol) ? " is-long-symbol" : ""}`;
+    symbolSpan.textContent = isLongShiftSymbol(option.symbol)
+      ? formatShiftSymbolForCell(option.symbol)
+      : option.symbol;
 
     const labelSpan = document.createElement("span");
     labelSpan.className = "shift-picker-label";
@@ -2198,6 +2274,7 @@ function initShiftCellEditor() {
 }
 
 initShiftCellEditor();
+refreshRenderedShiftSymbols();
 
 const autoGenerateButton = document.getElementById("btn-auto-generate");
 const autoGenerateModal = document.getElementById("auto-generate-modal");

@@ -2122,6 +2122,66 @@ body.sidebar-collapsed .nav-item-glyph {
   min-height: 1em;
 }
 
+
+/* 時間帯など長い表示記号（例: 9:00-16:00）向け */
+.shift-table.has-long-symbols th.day-col,
+.shift-table.has-long-symbols td.day-col,
+.shift-table-compact.has-long-symbols .day-col {
+  min-width: 3.5rem;
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+.shift-table.has-long-symbols.has-xl-symbols th.day-col,
+.shift-table.has-long-symbols.has-xl-symbols td.day-col,
+.shift-table-compact.has-long-symbols.has-xl-symbols .day-col {
+  min-width: 4.25rem;
+}
+
+.shift-cell.is-long-symbol {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: pre-line;
+  word-break: break-word;
+  max-width: 100%;
+  padding: 0 1px;
+  letter-spacing: -0.02em;
+}
+
+.shift-cell.is-long-symbol::after {
+  content: none;
+}
+
+.shift-picker-symbol.is-long-symbol,
+.shift-flick-dir-symbol.is-long-symbol,
+.shift-flick-center-symbol.is-long-symbol,
+.legend-symbol.is-long-symbol {
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: pre-line;
+  min-width: 3.2em;
+  max-width: 5.5em;
+  word-break: break-word;
+}
+
+@media (max-width: 1024px) {
+  .shift-table.has-long-symbols th.day-col,
+  .shift-table.has-long-symbols td.day-col,
+  .shift-table-compact.has-long-symbols .day-col {
+    min-width: 3.25rem;
+  }
+}
+
+body.is-phone .shift-table.has-long-symbols th.day-col,
+body.is-phone .shift-table.has-long-symbols td.day-col {
+  min-width: 2.9rem;
+}
+
+body.is-phone .shift-cell.is-long-symbol {
+  font-size: 8px;
+}
+
 .shift-cell::after {
   content: attr(data-symbol);
   font-weight: inherit;
@@ -7627,4 +7687,19 @@ body.is-ios .content-home .student-labor-panel ::selection {
   .settings-app-menu > nav { position: absolute; left: 12px; top: 54px; width: 240px; max-height: 70vh; overflow-y: auto; z-index: 250; padding: 8px; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 25px #20304726; }
   .settings-app-menu a { display: block; padding: 12px; color: var(--text); text-decoration: none; }
   .settings-app-menu a:hover, .settings-app-menu a:focus-visible { background: #eff6ff; }
+}
+
+@media print {
+  .shift-table.has-long-symbols th.day-col,
+  .shift-table.has-long-symbols td.day-col {
+    min-width: 3.2rem;
+  }
+  .shift-cell.is-long-symbol {
+    font-size: 8pt;
+    line-height: 1.1;
+    white-space: pre-line;
+  }
+  .shift-cell.is-long-symbol::after {
+    content: none;
+  }
 }
