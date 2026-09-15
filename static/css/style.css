@@ -2123,30 +2123,28 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 
-/* 時間帯など長い表示記号（例: 9:00-16:00）向け */
-.shift-table.has-long-symbols th.day-col,
-.shift-table.has-long-symbols td.day-col,
-.shift-table-compact.has-long-symbols .day-col {
-  min-width: 3.5rem;
-  padding-left: 1px;
-  padding-right: 1px;
-}
-
-.shift-table.has-long-symbols.has-xl-symbols th.day-col,
-.shift-table.has-long-symbols.has-xl-symbols td.day-col,
-.shift-table-compact.has-long-symbols.has-xl-symbols .day-col {
-  min-width: 4.25rem;
-}
-
-.shift-cell.is-long-symbol {
-  font-size: 9px;
+/* 時間帯など長い表示記号（例: 9:00-16:00）向け — セル幅は変えず文字だけ収める */
+.shift-td .shift-cell.is-long-symbol {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: 7.5px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.05;
   white-space: pre-line;
   word-break: break-word;
-  max-width: 100%;
-  padding: 0 1px;
-  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  letter-spacing: -0.04em;
+  padding: 0;
+  transform-origin: center center;
+}
+
+.shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
+  font-size: 6.5px;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
 }
 
 .shift-cell.is-long-symbol::after {
@@ -2160,28 +2158,22 @@ body.sidebar-collapsed .nav-item-glyph {
   font-size: 11px;
   line-height: 1.15;
   white-space: pre-line;
-  min-width: 3.2em;
-  max-width: 5.5em;
   word-break: break-word;
 }
 
-@media (max-width: 1024px) {
-  .shift-table.has-long-symbols th.day-col,
-  .shift-table.has-long-symbols td.day-col,
-  .shift-table-compact.has-long-symbols .day-col {
-    min-width: 3.25rem;
-  }
+body.is-phone .shift-td .shift-cell.is-long-symbol {
+  font-size: 6.5px;
 }
 
-body.is-phone .shift-table.has-long-symbols th.day-col,
-body.is-phone .shift-table.has-long-symbols td.day-col {
-  min-width: 2.9rem;
+body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
+  font-size: 6px;
 }
 
-body.is-phone .shift-cell.is-long-symbol {
-  font-size: 8px;
-}
 
+.shift-table td.day-col.shift-td,
+.shift-table th.day-col {
+  overflow: hidden;
+}
 .shift-cell::after {
   content: attr(data-symbol);
   font-weight: inherit;
@@ -7690,13 +7682,9 @@ body.is-ios .content-home .student-labor-panel ::selection {
 }
 
 @media print {
-  .shift-table.has-long-symbols th.day-col,
-  .shift-table.has-long-symbols td.day-col {
-    min-width: 3.2rem;
-  }
   .shift-cell.is-long-symbol {
-    font-size: 8pt;
-    line-height: 1.1;
+    font-size: 6pt;
+    line-height: 1.05;
     white-space: pre-line;
   }
   .shift-cell.is-long-symbol::after {
