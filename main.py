@@ -3,14 +3,14 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from data.facility import get_facility_context
 from data.masters import get_departments, get_job_types, get_positions
 from data.staffing_basis import (
-    filter_visible_staffing_basis_options,
+    filter_ratio_staffing_basis_options,
     get_default_staffing_basis_ratios,
     get_staffing_basis_hours_map,
 )
@@ -37,6 +37,7 @@ from data.calendar_period import (
 from data.account_plan import get_account_plan_context
 from data.settings_panels import SETTINGS_PANELS, resolve_settings_panel
 from data.shift_symbols import get_work_type_setting_groups
+from data.flick_directions import FLICK_DIRECTIONS, FLICK_GRID_ORDER
 from data.routes import ROUTES, STUB_PAGES
 from db.database import init_db
 from db.settings_repository import get_settings
@@ -67,7 +68,7 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
 def _base_context(**extra) -> dict:
-    return {**get_facility_context(), **extra}
+    return {**get_facility_context(), **get_account_plan_context(), **extra}
 
 
 def _page_context(active_key: str, **extra) -> dict:
@@ -91,7 +92,7 @@ def _staff_editor_context() -> dict:
         app_settings, today.year, today.month, calendar_start_day
     )
     return {
-        "staffing_basis_options": filter_visible_staffing_basis_options(settings=app_settings),
+        "staffing_basis_options": filter_ratio_staffing_basis_options(settings=app_settings),
         "default_staffing_basis": get_default_staffing_basis_ratios(),
         "staffing_period_days": period_days,
         "staffing_period_off_days": default_off_days,
@@ -171,6 +172,11 @@ async def staff_page(request: Request):
     return templates.TemplateResponse(request, "staff/index.html", context)
 
 
+@app.get("/portable/login-panel/demo.html", response_class=HTMLResponse)
+async def login_panel_demo():
+    return FileResponse(BASE_DIR / "portable" / "login-panel" / "demo.html")
+
+
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request, panel: str | None = None):
     current_panel = resolve_settings_panel(panel)
@@ -186,10 +192,11 @@ async def settings_page(request: Request, panel: str | None = None):
         table_zoom_options=TABLE_ZOOM_OPTIONS,
         work_type_setting_groups=get_work_type_setting_groups(),
         work_type_templates=get_work_type_templates(),
+        flick_directions=FLICK_DIRECTIONS,
+        flick_grid_order=FLICK_GRID_ORDER,
         settings_panels=SETTINGS_PANELS,
         settings_panel=current_panel["id"],
         settings_panel_meta=current_panel,
-        **get_account_plan_context(),
     )
     return templates.TemplateResponse(request, "settings/index.html", context)
 

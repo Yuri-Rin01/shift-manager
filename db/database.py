@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS staff_floors (
 );
 """
 
+CREATE_STAFF_PLACEMENT_FLOORS_TABLE = """
+CREATE TABLE IF NOT EXISTS staff_placement_floors (
+    staff_id INTEGER NOT NULL,
+    floor TEXT NOT NULL,
+    PRIMARY KEY (staff_id, floor),
+    FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
+);
+"""
+
 CREATE_LEAVE_REQUESTS_TABLE = """
 CREATE TABLE IF NOT EXISTS leave_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,6 +107,7 @@ def init_db() -> None:
         conn.execute(CREATE_NIGHT_INCOMPATIBILITY_TABLE)
         conn.execute(CREATE_DAY_INCOMPATIBILITY_TABLE)
         conn.execute(CREATE_STAFF_FLOORS_TABLE)
+        conn.execute(CREATE_STAFF_PLACEMENT_FLOORS_TABLE)
         conn.execute(CREATE_LEAVE_REQUESTS_TABLE)
         _migrate_leave_requests_index(conn)
         columns = {row[1] for row in conn.execute("PRAGMA table_info(staff)")}
@@ -122,9 +132,21 @@ def init_db() -> None:
             conn.execute(
                 "UPDATE staff SET fix_night_shift_count = 1 WHERE night_shift_count IS NOT NULL"
             )
+        if "can_be_night_leader" not in columns:
+            conn.execute(
+                "ALTER TABLE staff ADD COLUMN can_be_night_leader INTEGER NOT NULL DEFAULT 0"
+            )
+        if "student_labor" not in columns:
+            conn.execute(
+                "ALTER TABLE staff ADD COLUMN student_labor TEXT NOT NULL DEFAULT '{}'"
+            )
         _migrate_staff_floors(conn)
+        _migrate_staff_placement_floors(conn)
+        _migrate_display_floors_to_single(conn)
+        _migrate_night_leader_flags(conn)
         _migrate_staffing_defaults(conn)
         _migrate_removed_staffing_basis(conn)
+        _migrate_night_out_of_staffing_ratios(conn)
         _migrate_staffing_basis_catalog(conn)
         _migrate_staffing_basis_hours(conn)
         _migrate_min_staff_by_work_type(conn)
@@ -148,7 +170,10 @@ def init_db() -> None:
                 (json.dumps(DEFAULT_SETTINGS, ensure_ascii=False),),
             )
         _seed_staff_if_empty(conn)
+        _sync_seed_staff_names(conn)
         _sync_seed_staff_floors(conn)
+        _sync_seed_staff_night_flags(conn)
+        _sync_seed_staff_job_types(conn)
         _migrate_departments_to_floors(conn)
         conn.commit()
     get_settings()
@@ -177,6 +202,73 @@ def _migrate_staff_floors(conn: sqlite3.Connection) -> None:
             "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
             (row["id"], row["department"]),
         )
+
+
+def _migrate_staff_placement_floors(conn: sqlite3.Connection) -> None:
+    """配置可能フロアが未設定なら担当フロアを初期値として複写する。"""
+    staff_rows = conn.execute("SELECT id, department FROM staff").fetchall()
+    for staff in staff_rows:
+        existing = conn.execute(
+            "SELECT 1 FROM staff_placement_floors WHERE staff_id = ? LIMIT 1",
+            (staff["id"],),
+        ).fetchone()
+        if existing:
+            continue
+        floors = conn.execute(
+            "SELECT floor FROM staff_floors WHERE staff_id = ? ORDER BY floor",
+            (staff["id"],),
+        ).fetchall()
+        values = [row["floor"] for row in floors]
+        if not values and staff["department"]:
+            values = [staff["department"]]
+        for floor in values:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+
+
+def _migrate_display_floors_to_single(conn: sqlite3.Connection) -> None:
+    """担当フロア（表示用）が複数残っている職員を1つに揃える。余剰は配置可能へ移す。"""
+    staff_rows = conn.execute("SELECT id, department FROM staff").fetchall()
+    for staff in staff_rows:
+        floors = [
+            row["floor"]
+            for row in conn.execute(
+                "SELECT floor FROM staff_floors WHERE staff_id = ? ORDER BY floor",
+                (staff["id"],),
+            ).fetchall()
+        ]
+        if len(floors) <= 1:
+            continue
+        # 余剰フロアは配置可能へ残す
+        for floor in floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+        primary = staff["department"] if staff["department"] in floors else floors[0]
+        conn.execute("DELETE FROM staff_floors WHERE staff_id = ?", (staff["id"],))
+        conn.execute(
+            "INSERT INTO staff_floors (staff_id, floor) VALUES (?, ?)",
+            (staff["id"], primary),
+        )
+        if staff["department"] != primary:
+            conn.execute(
+                "UPDATE staff SET department = ? WHERE id = ?",
+                (primary, staff["id"]),
+            )
+
+
+def _migrate_night_leader_flags(conn: sqlite3.Connection) -> None:
+    """夜勤リーダー可の職員は夜勤にも入れるよう揃える。"""
+    conn.execute(
+        """
+        UPDATE staff
+        SET can_work_night = 1
+        WHERE can_be_night_leader = 1 AND can_work_night = 0
+        """
+    )
 
 
 def _migrate_staffing_defaults(conn: sqlite3.Connection) -> None:
@@ -270,6 +362,46 @@ def _migrate_removed_staffing_basis(conn: sqlite3.Connection) -> None:
                 "UPDATE staff SET staffing_basis = ? WHERE id = ?",
                 (json.dumps(cleaned, ensure_ascii=False), row["id"]),
             )
+
+
+def _migrate_night_out_of_staffing_ratios(conn: sqlite3.Connection) -> None:
+    """夜勤・準夜を勤務割合から外し、日中区分だけで100%に正規化する。"""
+    import json
+
+    from data.staffing_basis import (
+        RATIO_EXCLUDED_KEYS,
+        equal_split_ratios,
+        normalize_staffing_basis_ratios,
+    )
+
+    rows = conn.execute("SELECT id, staffing_basis FROM staff").fetchall()
+    for row in rows:
+        raw = row["staffing_basis"]
+        if not raw:
+            continue
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        cleaned = {
+            str(key): int(value)
+            for key, value in parsed.items()
+            if str(key).strip() and str(key).strip() not in RATIO_EXCLUDED_KEYS
+        }
+        if cleaned == parsed:
+            continue
+        if not cleaned:
+            cleaned = equal_split_ratios(["early", "day"])
+        elif sum(cleaned.values()) != 100:
+            cleaned = normalize_staffing_basis_ratios(cleaned)
+            if sum(cleaned.values()) != 100:
+                cleaned = equal_split_ratios(list(cleaned.keys()))
+        conn.execute(
+            "UPDATE staff SET staffing_basis = ? WHERE id = ?",
+            (json.dumps(cleaned, ensure_ascii=False), row["id"]),
+        )
 
 
 def _migrate_staffing_basis_catalog(conn: sqlite3.Connection) -> None:
@@ -403,6 +535,9 @@ def _migrate_staffing_requirement_mode(conn: sqlite3.Connection) -> None:
     import json
 
     from data.placement_rules import (
+        apply_overnight_rules_to_night_mins,
+        normalize_min_staff_by_floor,
+        normalize_min_staff_by_work_type,
         normalize_staffing_requirement_mode,
         normalize_time_slot_staffing_rules,
     )
@@ -421,9 +556,24 @@ def _migrate_staffing_requirement_mode(conn: sqlite3.Connection) -> None:
         settings["staffing_requirement_mode"] = mode
         updated = True
 
+    before_rules = settings.get("time_slot_staffing_rules")
+    before_floor = settings.get("min_staff_by_floor")
+    before_work = settings.get("min_staff_by_work_type")
+    if apply_overnight_rules_to_night_mins(settings):
+        updated = True
     rules = normalize_time_slot_staffing_rules(settings.get("time_slot_staffing_rules"))
-    if settings.get("time_slot_staffing_rules") != rules:
-        settings["time_slot_staffing_rules"] = rules
+    settings["time_slot_staffing_rules"] = rules
+    settings["min_staff_by_floor"] = normalize_min_staff_by_floor(
+        settings.get("min_staff_by_floor"), settings
+    )
+    settings["min_staff_by_work_type"] = normalize_min_staff_by_work_type(
+        settings.get("min_staff_by_work_type"), settings
+    )
+    if (
+        before_rules != settings.get("time_slot_staffing_rules")
+        or before_floor != settings.get("min_staff_by_floor")
+        or before_work != settings.get("min_staff_by_work_type")
+    ):
         updated = True
 
     if updated:
@@ -463,28 +613,45 @@ def _staff_seed_floors(row: dict) -> list[str]:
     return [department] if department else []
 
 
+def _staff_seed_placement_floors(row: dict) -> list[str]:
+    floors = row.get("placement_floors")
+    if floors:
+        return list(dict.fromkeys(floors))
+    return _staff_seed_floors(row)
+
+
 def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
+    """職員が0件のときだけシード投入する（リネーム時の二重投入を防ぐ）。"""
     from data.staff_seed import SEED_STAFF
 
-    existing = {row[0] for row in conn.execute("SELECT name FROM staff").fetchall()}
-    to_insert = [row for row in SEED_STAFF if row["name"] not in existing]
-    if not to_insert:
+    count = conn.execute("SELECT COUNT(*) AS n FROM staff").fetchone()["n"]
+    if count > 0:
         return
 
-    for row in to_insert:
+    for row in SEED_STAFF:
         floors = _staff_seed_floors(row)
+        placement_floors = _staff_seed_placement_floors(row)
         primary = floors[0] if floors else row["department"]
+        from data.night_eligibility import resolve_night_flags
+
+        can_work_night, can_be_night_leader = resolve_night_flags(
+            can_work_night=bool(row.get("can_work_night")),
+            can_be_night_leader=bool(row.get("can_be_night_leader", False)),
+        )
         cursor = conn.execute(
             """
-            INSERT INTO staff (name, department, job_type, position, can_work_night)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO staff (
+                name, department, job_type, position, can_work_night, can_be_night_leader
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 row["name"],
                 primary,
                 row["job_type"],
                 row["position"],
-                int(row["can_work_night"]),
+                int(can_work_night),
+                int(can_be_night_leader),
             ),
         )
         staff_id = cursor.lastrowid
@@ -493,9 +660,49 @@ def _seed_staff_if_empty(conn: sqlite3.Connection) -> None:
                 "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
                 (staff_id, floor),
             )
+        for floor in placement_floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
+                (staff_id, floor),
+            )
+
+
+def _delete_staff_row(conn: sqlite3.Connection, staff_id: int) -> None:
+    """関連テーブル込みで職員を削除する。"""
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("DELETE FROM staff WHERE id = ?", (staff_id,))
+
+
+def _sync_seed_staff_names(conn: sqlite3.Connection) -> None:
+    """旧姓名のテスト職員を テストA / テストB / テストC … にリネームする。"""
+    from data.staff_seed import LEGACY_SEED_NAME_MAP
+
+    for legacy_name, new_name in LEGACY_SEED_NAME_MAP.items():
+        if legacy_name == new_name:
+            continue
+        legacy_row = conn.execute(
+            "SELECT id FROM staff WHERE name = ? LIMIT 1", (legacy_name,)
+        ).fetchone()
+        new_row = conn.execute(
+            "SELECT id FROM staff WHERE name = ? LIMIT 1", (new_name,)
+        ).fetchone()
+
+        if legacy_row and new_row:
+            # 二重投入済み: 履歴のある旧レコードを残し、新規サイドを捨てる
+            _delete_staff_row(conn, int(new_row["id"]))
+            conn.execute(
+                "UPDATE staff SET name = ? WHERE id = ?",
+                (new_name, int(legacy_row["id"])),
+            )
+        elif legacy_row and not new_row:
+            conn.execute(
+                "UPDATE staff SET name = ? WHERE id = ?",
+                (new_name, int(legacy_row["id"])),
+            )
 
 
 def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
+    """テスト要因の担当・配置フロアをシード定義で置き換える。"""
     from data.staff_seed import SEED_STAFF
 
     seed_by_name = {row["name"]: row for row in SEED_STAFF}
@@ -506,14 +713,82 @@ def _sync_seed_staff_floors(conn: sqlite3.Connection) -> None:
         floors = _staff_seed_floors(seed)
         if not floors:
             continue
-        for floor in floors:
-            conn.execute(
-                "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
-                (staff["id"], floor),
-            )
+        placement_floors = _staff_seed_placement_floors(seed)
         primary = floors[0]
         if primary and staff["department"] != primary:
             conn.execute(
                 "UPDATE staff SET department = ? WHERE id = ?",
                 (primary, staff["id"]),
+            )
+        conn.execute("DELETE FROM staff_floors WHERE staff_id = ?", (staff["id"],))
+        for floor in floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+        conn.execute(
+            "DELETE FROM staff_placement_floors WHERE staff_id = ?",
+            (staff["id"],),
+        )
+        for floor in placement_floors:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_placement_floors (staff_id, floor) VALUES (?, ?)",
+                (staff["id"], floor),
+            )
+
+
+def _sync_seed_staff_night_flags(conn: sqlite3.Connection) -> None:
+    """テスト要因: シード定義の夜勤可否・夜勤リーダー可を既存レコードへ反映する。"""
+    from data.night_eligibility import resolve_night_flags
+    from data.staff_seed import SEED_STAFF
+
+    for row in SEED_STAFF:
+        can_work_night, can_be_night_leader = resolve_night_flags(
+            can_work_night=bool(row.get("can_work_night")),
+            can_be_night_leader=bool(row.get("can_be_night_leader", False)),
+        )
+        conn.execute(
+            """
+            UPDATE staff
+            SET can_work_night = ?, can_be_night_leader = ?
+            WHERE name = ?
+            """,
+            (
+                int(can_work_night),
+                int(can_be_night_leader),
+                row["name"],
+            ),
+        )
+
+
+def _sync_seed_staff_job_types(conn: sqlite3.Connection) -> None:
+    """テスト要因: シード定義の職種・役職を既存レコードへ反映する。"""
+    import json
+
+    from data.staff_seed import SEED_STAFF
+    from data.student_labor_limits import normalize_student_labor_profile
+
+    for row in SEED_STAFF:
+        conn.execute(
+            """
+            UPDATE staff
+            SET job_type = ?, position = ?
+            WHERE name = ?
+            """,
+            (row["job_type"], row["position"], row["name"]),
+        )
+        if row.get("job_type") == "留学生":
+            profile = normalize_student_labor_profile(
+                {
+                    "residence_status": "student",
+                    "permission_status": "yes",
+                    "limit_enabled": True,
+                    "has_other_job": False,
+                    "other_job_weekly_minutes": 0,
+                },
+                job_type="留学生",
+            )
+            conn.execute(
+                "UPDATE staff SET student_labor = ? WHERE name = ?",
+                (json.dumps(profile, ensure_ascii=False), row["name"]),
             )

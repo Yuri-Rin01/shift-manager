@@ -2,14 +2,17 @@ import json
 import sqlite3
 
 from db.database import get_connection
+from data.night_eligibility import resolve_night_flags
 from data.staffing_basis import get_default_staffing_basis_ratios, parse_staffing_basis_raw
 from data.masters import filter_staff_for_facility
 from schemas.staff import StaffBulkUpdate, StaffCreate, StaffUpdate
 
+from data.student_labor_limits import normalize_student_labor_profile
+
 STAFF_COLUMNS = (
-    "id, name, department, job_type, position, can_work_night, "
+    "id, name, department, job_type, position, can_work_night, can_be_night_leader, "
     "staffing_basis, exclude_from_staffing, off_days_per_period, "
-    "night_shift_count, fix_night_shift_count"
+    "night_shift_count, fix_night_shift_count, student_labor"
 )
 
 NIGHT_INCOMPAT_TABLE = "staff_night_incompatibilities"
@@ -28,16 +31,28 @@ def _serialize_staffing_basis(values: dict[str, int]) -> str:
     return json.dumps(values, ensure_ascii=False)
 
 
+def _parse_student_labor(raw: str | None, *, job_type: str | None = None) -> dict:
+    try:
+        data = json.loads(raw) if raw else {}
+    except (TypeError, json.JSONDecodeError):
+        data = {}
+    return normalize_student_labor_profile(data, job_type=job_type)
+
+
+def _serialize_student_labor(values: dict) -> str:
+    return json.dumps(normalize_student_labor_profile(values), ensure_ascii=False)
+
+
 def _primary_department(floors: list[str]) -> str:
     return floors[0] if floors else ""
 
 
-def _load_floors_map(conn: sqlite3.Connection) -> dict[int, list[str]]:
+def _load_floors_map(conn: sqlite3.Connection, table: str = "staff_floors") -> dict[int, list[str]]:
     mapping: dict[int, list[str]] = {}
     rows = conn.execute(
-        """
+        f"""
         SELECT staff_id, floor
-        FROM staff_floors
+        FROM {table}
         ORDER BY floor
         """
     ).fetchall()
@@ -46,11 +61,11 @@ def _load_floors_map(conn: sqlite3.Connection) -> dict[int, list[str]]:
     return mapping
 
 
-def _load_floors(conn: sqlite3.Connection, staff_id: int) -> list[str]:
+def _load_floors(conn: sqlite3.Connection, staff_id: int, table: str = "staff_floors") -> list[str]:
     rows = conn.execute(
-        """
+        f"""
         SELECT floor
-        FROM staff_floors
+        FROM {table}
         WHERE staff_id = ?
         ORDER BY floor
         """,
@@ -58,15 +73,17 @@ def _load_floors(conn: sqlite3.Connection, staff_id: int) -> list[str]:
     ).fetchall()
     if rows:
         return [row["floor"] for row in rows]
-    row = conn.execute("SELECT department FROM staff WHERE id = ?", (staff_id,)).fetchone()
-    return [row["department"]] if row and row["department"] else []
+    if table == "staff_floors":
+        row = conn.execute("SELECT department FROM staff WHERE id = ?", (staff_id,)).fetchone()
+        return [row["department"]] if row and row["department"] else []
+    return _load_floors(conn, staff_id, "staff_floors")
 
 
-def _set_floors(conn: sqlite3.Connection, staff_id: int, floors: list[str]) -> None:
+def _set_floors(conn: sqlite3.Connection, staff_id: int, floors: list[str], table: str = "staff_floors") -> None:
     unique_floors = list(dict.fromkeys(floors))
-    conn.execute("DELETE FROM staff_floors WHERE staff_id = ?", (staff_id,))
+    conn.execute(f"DELETE FROM {table} WHERE staff_id = ?", (staff_id,))
     conn.executemany(
-        "INSERT INTO staff_floors (staff_id, floor) VALUES (?, ?)",
+        f"INSERT INTO {table} (staff_id, floor) VALUES (?, ?)",
         [(staff_id, floor) for floor in unique_floors],
     )
 
@@ -118,20 +135,43 @@ def _set_incompatibilities(
 def _row_to_dict(
     row: sqlite3.Row,
     floors: list[str],
+    placement_floors: list[str] | None = None,
     night_incompatible_ids: list[int] | None = None,
     day_incompatible_ids: list[int] | None = None,
 ) -> dict:
-    departments = floors or ([row["department"]] if row["department"] else [])
+    raw_floors = floors or ([row["department"]] if row["department"] else [])
+    # 担当フロアは表示用に1つのみ。過去データで複数ある場合は先頭を採用し余剰は配置可能へ。
+    primary = row["department"] if row["department"] in raw_floors else (raw_floors[0] if raw_floors else "")
+    departments = [primary] if primary else []
+    placement = placement_floors if placement_floors is not None else list(raw_floors)
+    if not placement:
+        placement = list(raw_floors) or list(departments)
+    else:
+        # 旧・担当の余剰フロアを配置可能から落とさない
+        merged = list(dict.fromkeys([*placement, *raw_floors]))
+        placement = merged
+    keys = row.keys()
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=bool(row["can_work_night"]),
+        can_be_night_leader=bool(row["can_be_night_leader"]) if "can_be_night_leader" in keys else False,
+    )
     return {
         "id": row["id"],
         "name": row["name"],
         "departments": departments,
         "department": _primary_department(departments),
+        "placement_floors": placement,
         "job_type": row["job_type"],
         "position": row["position"],
-        "can_work_night": bool(row["can_work_night"]),
+        "can_work_night": can_work_night,
+        "can_be_night_leader": can_be_night_leader,
         "staffing_basis": _parse_staffing_basis(row["staffing_basis"]),
         "exclude_from_staffing": bool(row["exclude_from_staffing"]),
+        "off_days_per_period": (
+            int(row["off_days_per_period"])
+            if "off_days_per_period" in keys and row["off_days_per_period"] is not None
+            else None
+        ),
         "night_shift_count": (
             int(row["night_shift_count"])
             if row["night_shift_count"] is not None
@@ -140,6 +180,10 @@ def _row_to_dict(
         "fix_night_shift_count": bool(row["fix_night_shift_count"]),
         "night_incompatible_ids": night_incompatible_ids or [],
         "day_incompatible_ids": day_incompatible_ids or [],
+        "student_labor": _parse_student_labor(
+            row["student_labor"] if "student_labor" in keys else "{}",
+            job_type=row["job_type"],
+        ),
     }
 
 
@@ -149,12 +193,14 @@ def list_staff() -> list[dict]:
             f"SELECT {STAFF_COLUMNS} FROM staff ORDER BY department, name"
         ).fetchall()
         floors_map = _load_floors_map(conn)
+        placement_map = _load_floors_map(conn, "staff_placement_floors")
         night_map = _load_incompatibilities_map(conn, NIGHT_INCOMPAT_TABLE)
         day_map = _load_incompatibilities_map(conn, DAY_INCOMPAT_TABLE)
     staff = [
         _row_to_dict(
             row,
             floors_map.get(row["id"], []),
+            placement_map.get(row["id"], floors_map.get(row["id"], [])),
             night_map.get(row["id"], []),
             day_map.get(row["id"], []),
         )
@@ -172,38 +218,48 @@ def get_staff(staff_id: int) -> dict | None:
         if row is None:
             return None
         floors = _load_floors(conn, staff_id)
+        placement_floors = _load_floors(conn, staff_id, "staff_placement_floors")
         night_ids = _load_incompatibilities(conn, staff_id, NIGHT_INCOMPAT_TABLE)
         day_ids = _load_incompatibilities(conn, staff_id, DAY_INCOMPAT_TABLE)
-    return _row_to_dict(row, floors, night_ids, day_ids)
+    return _row_to_dict(row, floors, placement_floors, night_ids, day_ids)
 
 
 def create_staff(data: StaffCreate) -> dict:
     primary = _primary_department(data.departments)
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=data.can_work_night,
+        can_be_night_leader=data.can_be_night_leader,
+    )
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO staff (
-                name, department, job_type, position, can_work_night,
+                name, department, job_type, position, can_work_night, can_be_night_leader,
                 staffing_basis, exclude_from_staffing, off_days_per_period,
-                night_shift_count, fix_night_shift_count
+                night_shift_count, fix_night_shift_count, student_labor
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.name,
                 primary,
                 data.job_type,
                 data.position,
-                int(data.can_work_night),
+                int(can_work_night),
+                int(can_be_night_leader),
                 _serialize_staffing_basis(data.staffing_basis),
                 int(data.exclude_from_staffing),
-                None,
+                data.off_days_per_period,
                 data.night_shift_count if data.fix_night_shift_count else None,
                 int(data.fix_night_shift_count),
+                _serialize_student_labor(
+                    normalize_student_labor_profile(data.student_labor, job_type=data.job_type)
+                ),
             ),
         )
         staff_id = cursor.lastrowid
         _set_floors(conn, staff_id, data.departments)
+        _set_floors(conn, staff_id, data.placement_floors, "staff_placement_floors")
         night_ids = _merge_day_into_night(data.night_incompatible_ids, data.day_incompatible_ids)
         _set_incompatibilities(conn, staff_id, night_ids, NIGHT_INCOMPAT_TABLE)
         _set_incompatibilities(conn, staff_id, data.day_incompatible_ids, DAY_INCOMPAT_TABLE)
@@ -220,14 +276,25 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
 
     fields_set = data.model_fields_set
     departments = data.departments if data.departments is not None else current["departments"]
+    placement_floors = (
+        data.placement_floors
+        if data.placement_floors is not None
+        else current.get("placement_floors") or departments
+    )
     updated = {
         "name": data.name if data.name is not None else current["name"],
         "departments": departments,
+        "placement_floors": placement_floors,
         "department": _primary_department(departments),
         "job_type": data.job_type if data.job_type is not None else current["job_type"],
         "position": data.position if data.position is not None else current["position"],
         "can_work_night": (
             data.can_work_night if data.can_work_night is not None else current["can_work_night"]
+        ),
+        "can_be_night_leader": (
+            data.can_be_night_leader
+            if data.can_be_night_leader is not None
+            else current.get("can_be_night_leader", False)
         ),
         "staffing_basis": (
             data.staffing_basis if data.staffing_basis is not None else current["staffing_basis"]
@@ -236,6 +303,11 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             data.exclude_from_staffing
             if data.exclude_from_staffing is not None
             else current["exclude_from_staffing"]
+        ),
+        "off_days_per_period": (
+            data.off_days_per_period
+            if "off_days_per_period" in fields_set
+            else current.get("off_days_per_period")
         ),
         "night_shift_count": (
             data.night_shift_count
@@ -257,7 +329,25 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             if data.day_incompatible_ids is not None
             else current["day_incompatible_ids"]
         ),
+        "student_labor": (
+            normalize_student_labor_profile(
+                data.student_labor,
+                job_type=data.job_type if data.job_type is not None else current["job_type"],
+            )
+            if data.student_labor is not None
+            else normalize_student_labor_profile(
+                current.get("student_labor") or {},
+                job_type=data.job_type if data.job_type is not None else current["job_type"],
+            )
+        ),
     }
+
+    can_work_night, can_be_night_leader = resolve_night_flags(
+        can_work_night=updated["can_work_night"],
+        can_be_night_leader=updated["can_be_night_leader"],
+    )
+    updated["can_work_night"] = can_work_night
+    updated["can_be_night_leader"] = can_be_night_leader
 
     if not updated["fix_night_shift_count"]:
         updated["night_shift_count"] = None
@@ -267,8 +357,9 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             """
             UPDATE staff
             SET name = ?, department = ?, job_type = ?, position = ?, can_work_night = ?,
-                staffing_basis = ?, exclude_from_staffing = ?, off_days_per_period = ?,
-                night_shift_count = ?, fix_night_shift_count = ?
+                can_be_night_leader = ?, staffing_basis = ?, exclude_from_staffing = ?,
+                off_days_per_period = ?, night_shift_count = ?, fix_night_shift_count = ?,
+                student_labor = ?
             WHERE id = ?
             """,
             (
@@ -277,15 +368,18 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 updated["job_type"],
                 updated["position"],
                 int(updated["can_work_night"]),
+                int(updated["can_be_night_leader"]),
                 _serialize_staffing_basis(updated["staffing_basis"]),
                 int(updated["exclude_from_staffing"]),
-                None,
+                updated.get("off_days_per_period"),
                 updated["night_shift_count"],
                 int(updated["fix_night_shift_count"]),
+                _serialize_student_labor(updated["student_labor"]),
                 staff_id,
             ),
         )
         _set_floors(conn, staff_id, updated["departments"])
+        _set_floors(conn, staff_id, updated["placement_floors"], "staff_placement_floors")
         night_ids = _merge_day_into_night(
             updated["night_incompatible_ids"], updated["day_incompatible_ids"]
         )

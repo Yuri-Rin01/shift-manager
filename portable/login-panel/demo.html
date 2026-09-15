@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Panel Demo — シフト作成システム</title>
+  <link rel="stylesheet" href="/static/css/login-panel.css?v=1">
+</head>
+<body class="login-panel-demo-page">
+  <div class="login-panel-demo-layout">
+    <aside class="login-panel-demo-sidebar">
+      <h1>シフト作成システム</h1>
+      <div class="sidebar-footer">
+        <div
+          class="sidebar-login-panel"
+          data-login-implemented="false"
+          data-default-admin="管理者"
+          data-default-facility="○○病院"
+          data-default-label="病院"
+        >
+          <div class="login-panel-summary">
+            <div class="login-panel-avatar" aria-hidden="true">管</div>
+            <div class="login-panel-meta">
+              <div class="login-panel-facility">○○病院</div>
+              <div class="login-panel-user">病院 / 管理者</div>
+            </div>
+            <button
+              type="button"
+              class="login-panel-toggle"
+              aria-expanded="false"
+              aria-controls="demo-login-body"
+              aria-label="アカウントパネルを開く"
+            >
+              <span class="login-panel-toggle-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div class="login-panel-body" id="demo-login-body" hidden>
+            <p class="login-panel-badge">ログイン機能は準備中です。UIのみ表示しています。</p>
+
+            <div class="login-panel-session-view">
+              <form class="login-panel-form" novalidate>
+                <label class="login-panel-field">
+                  <span>メールアドレス</span>
+                  <input type="email" name="login_email" autocomplete="username" placeholder="admin@example.com">
+                </label>
+                <label class="login-panel-field">
+                  <span>パスワード</span>
+                  <input type="password" name="login_password" autocomplete="current-password" placeholder="••••••••">
+                </label>
+                <p class="login-panel-error" hidden></p>
+                <div class="login-panel-actions">
+                  <button type="submit" class="login-panel-btn login-panel-btn-primary login-panel-btn-login" disabled title="管理者ログイン実装後に有効化予定">ログイン</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="login-panel-logged-in" hidden>
+              <div class="login-panel-actions">
+                <button type="button" class="login-panel-btn login-panel-btn-ghost login-panel-btn-logout" disabled title="ログイン後に利用できます">ログアウト</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="login-panel-demo-main">
+      <h2>サイドバー ログインパネル（デモ）</h2>
+      <p>
+        左のサイドバー下部にあるアカウント領域をクリックして展開できます。
+        本番アプリでは <code>templates/partials/login_panel.html</code> をサイドバーに組み込んでいます。
+      </p>
+      <p>
+        ログイン API は未実装のため、ボタンは無効です。実装後は
+        <code>data-login-implemented="true"</code> に切り替えてサーバー認証と連携します。
+      </p>
+    </main>
+  </div>
+  <script src="/static/js/login-panel.js?v=1"></script>
+</body>
+</html>
