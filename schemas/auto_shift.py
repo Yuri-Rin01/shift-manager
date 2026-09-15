@@ -5,6 +5,18 @@ class ShiftGenerateRequest(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
     month: int = Field(..., ge=1, le=12)
     preview: bool = False
+    scope_start: str | None = Field(
+        default=None,
+        description="生成開始日 (YYYY-MM-DD)。未指定なら表示期間の開始日。",
+    )
+    scope_end: str | None = Field(
+        default=None,
+        description="生成終了日 (YYYY-MM-DD)。未指定なら表示期間の終了日。",
+    )
+    floors: list[str] | None = Field(
+        default=None,
+        description="対象フロア。未指定・空なら全フロア。",
+    )
 
 
 class ShiftGenerateWarning(BaseModel):
@@ -106,7 +118,11 @@ class AutoGeneratePreflightResponse(BaseModel):
     scope_label: str
     scope_start: str | None = None
     scope_end: str | None = None
+    period_start: str | None = None
+    period_end: str | None = None
     departments: list[str] = Field(default_factory=list)
+    available_floors: list[str] = Field(default_factory=list)
+    selected_floors: list[str] = Field(default_factory=list)
     staff_count: int = 0
     leave_count: int = 0
     night_capable_count: int = 0

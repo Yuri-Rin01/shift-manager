@@ -3873,6 +3873,68 @@ body.sidebar-collapsed .nav-item-glyph {
   flex: 0 0 auto;
 }
 
+
+
+.auto-generate-scope-panel {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted, #f6f7f8);
+}
+
+.auto-generate-scope-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auto-generate-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.auto-generate-scope-grid .form-field {
+  margin: 0;
+}
+
+.auto-generate-scope-grid input[type="date"],
+.auto-generate-scope-grid select {
+  width: 100%;
+}
+
+.auto-generate-floors-fieldset {
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+}
+
+.auto-generate-floors-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.auto-generate-scope-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auto-generate-scope-actions .field-hint {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .auto-generate-scope-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auto-generate-confirm-summary {
   margin-bottom: 12px;
 }
@@ -4081,7 +4143,7 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 .modal-dialog-auto-generate {
-  width: min(640px, calc(100vw - 32px));
+  width: min(720px, calc(100vw - 32px));
 }
 
 .modal-dialog-staff {

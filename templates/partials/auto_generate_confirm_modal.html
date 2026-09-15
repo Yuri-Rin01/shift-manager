@@ -9,13 +9,57 @@
       <button type="button" class="modal-close" data-close-auto-generate-confirm aria-label="閉じる">&times;</button>
     </div>
     <div class="modal-body">
+      <section class="auto-generate-scope-panel" aria-label="生成範囲の設定">
+        <h4 class="auto-generate-scope-title">生成範囲</h4>
+        <div class="auto-generate-scope-grid">
+          <label class="form-field">
+            <span class="form-label">対象年</span>
+            <select id="auto-generate-year" aria-label="対象年"></select>
+          </label>
+          <label class="form-field">
+            <span class="form-label">対象月</span>
+            <select id="auto-generate-month" aria-label="対象月">
+              <option value="1">1月</option>
+              <option value="2">2月</option>
+              <option value="3">3月</option>
+              <option value="4">4月</option>
+              <option value="5">5月</option>
+              <option value="6">6月</option>
+              <option value="7">7月</option>
+              <option value="8">8月</option>
+              <option value="9">9月</option>
+              <option value="10">10月</option>
+              <option value="11">11月</option>
+              <option value="12">12月</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span class="form-label">開始日</span>
+            <input type="date" id="auto-generate-scope-start" aria-label="生成開始日">
+          </label>
+          <label class="form-field">
+            <span class="form-label">終了日</span>
+            <input type="date" id="auto-generate-scope-end" aria-label="生成終了日">
+          </label>
+        </div>
+        <fieldset class="auto-generate-floors-fieldset">
+          <legend class="form-label">対象フロア</legend>
+          <div id="auto-generate-floors" class="auto-generate-floors-list checkbox-group"></div>
+          <p class="field-hint">未選択にすると全フロアが対象になります。選択したフロアの職員のみ生成します。</p>
+        </fieldset>
+        <div class="auto-generate-scope-actions">
+          <button type="button" class="btn btn-outline btn-sm" id="auto-generate-scope-refresh">範囲を反映して再確認</button>
+          <span class="field-hint" id="auto-generate-scope-status" aria-live="polite"></span>
+        </div>
+      </section>
+
       <div id="auto-generate-confirm-summary" class="auto-generate-confirm-summary"></div>
       <div id="auto-generate-confirm-warnings-wrap" class="auto-generate-messages-wrap hidden">
         <h4 class="auto-generate-messages-title">生成前の注意</h4>
         <ul id="auto-generate-confirm-warnings" class="auto-generate-messages"></ul>
       </div>
       <p class="field-hint" id="auto-generate-confirm-hint">
-        手動入力済みセル（赤枠）と希望休は上書きしません。続行すると表示期間の自動生成セルを置き換えます。
+        手動入力済みセル（赤枠）と希望休は上書きしません。続行すると選択した範囲の自動生成セルを置き換えます。
       </p>
     </div>
     <div class="modal-footer">

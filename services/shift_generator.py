@@ -7,6 +7,8 @@ from collections import defaultdict
 from datetime import date
 
 from data.calendar_period import (
+    clamp_scope_to_period,
+    filter_period_days,
     auto_generate_bounds,
     auto_generate_days,
     format_month_label,
@@ -210,15 +212,22 @@ def _random_pick_dates(
 
 
 class _Generator:
-    def __init__(self, year: int, month: int, settings: dict):
+    def __init__(self, year: int, month: int, settings: dict, *, scope_start=None, scope_end=None, floors=None):
         self.year = year
         self.month = month
         self.settings = settings
         self.start_day = settings.get("calendar_start_day", 1)
         self.period_start, self.period_end = period_bounds(year, month, self.start_day)
         week_start = settings.get("week_start", "sunday")
-        self.period_days = auto_generate_days(year, month, self.start_day, week_start=week_start)
+        full_days = auto_generate_days(year, month, self.start_day, week_start=week_start)
         self.full_period_days = period_day_count(year, month, self.start_day)
+        full_start, full_end = period_bounds(year, month, self.start_day)
+        resolved_start, resolved_end = clamp_scope_to_period(
+            full_start, full_end, scope_start, scope_end
+        )
+        self.period_days = filter_period_days(full_days, resolved_start, resolved_end)
+        if resolved_start and resolved_end:
+            self.period_start, self.period_end = resolved_start, resolved_end
         self.period_dates = [item["date"] for item in self.period_days]
         self.date_index = {d: i for i, d in enumerate(self.period_dates)}
 
@@ -239,7 +248,38 @@ class _Generator:
             ]
         else:
             self.assignable_work_types = []
-        self.staff_list = [s for s in list_staff() if not s.get("exclude_from_staffing")]
+        available_floors = get_floor_labels()
+        if floors:
+            wanted = {str(item).strip() for item in floors if str(item).strip()}
+            selected = [floor for floor in available_floors if floor in wanted]
+            self.floors = selected or list(available_floors)
+        else:
+            self.floors = list(available_floors)
+        if set(self.floors) != set(available_floors):
+            self.min_staff_by_floor = {
+                floor: values
+                for floor, values in self.min_staff_by_floor.items()
+                if floor in self.floors
+            }
+            self.min_staff = {
+                key: sum(int((values or {}).get(key, 0) or 0) for values in self.min_staff_by_floor.values())
+                for key in ("early", "day", "late", "night")
+            }
+        floor_set = set(self.floors)
+
+        def _floors_of(staff: dict) -> set[str]:
+            vals = staff.get("placement_floors") or staff.get("departments") or []
+            if vals:
+                return set(vals)
+            department = staff.get("department")
+            return {department} if department else set()
+
+        self.staff_list = [
+            s
+            for s in list_staff()
+            if not s.get("exclude_from_staffing")
+            and (not floor_set or _floors_of(s) & floor_set)
+        ]
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
 
         self.grid: dict[tuple[int, str], str] = {}
@@ -1708,14 +1748,29 @@ class _Generator:
         return "auto"
 
 
-def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
+def generate_shifts(
+    year: int,
+    month: int,
+    *,
+    preview: bool = False,
+    scope_start=None,
+    scope_end=None,
+    floors=None,
+) -> dict:
     settings = get_settings()
     start_day = settings.get("calendar_start_day", 1)
     week_start = settings.get("week_start", "sunday")
-    scope_start, scope_end = auto_generate_bounds(
+    period_start, period_end = auto_generate_bounds(
         year, month, start_day, week_start=week_start
     )
-    scope_days = auto_generate_days(year, month, start_day, week_start=week_start)
+    scope_start, scope_end = clamp_scope_to_period(
+        period_start, period_end, scope_start, scope_end
+    )
+    scope_days = filter_period_days(
+        auto_generate_days(year, month, start_day, week_start=week_start),
+        scope_start,
+        scope_end,
+    )
 
     if scope_start is None or scope_end is None:
         return {
@@ -1770,14 +1825,27 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
             if cell.get("source") in ("manual", "leave")
         }
 
-    engine = _Generator(year, month, settings)
+    engine = _Generator(
+        year,
+        month,
+        settings,
+        scope_start=scope_start,
+        scope_end=scope_end,
+        floors=floors,
+    )
     result = engine.run(existing)
 
     applied = False
     save_error: str | None = None
     if not preview and result["assignments"]:
         try:
-            delete_shifts_between(scope_start, scope_end)
+            staff_ids = [staff["id"] for staff in engine.staff_list]
+            available = get_floor_labels()
+            selected = list(engine.floors)
+            delete_kwargs = {}
+            if floors is not None and set(selected) != set(available):
+                delete_kwargs["staff_ids"] = staff_ids
+            delete_shifts_between(scope_start, scope_end, **delete_kwargs)
             bulk_upsert_shifts(result["assignments"])
             applied = True
         except Exception as exc:
