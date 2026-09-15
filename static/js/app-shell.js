@@ -68,14 +68,7 @@
   }
 
   function syncCollapseButton() {
-    const btn = collapseBtn();
-    if (!btn || isCompact()) return;
-    const collapsed = isDesktopCollapsed();
-    btn.setAttribute("aria-expanded", collapsed && !isPeeking() ? "false" : "true");
-    btn.setAttribute(
-      "aria-label",
-      collapsed && !isPeeking() ? "サイドバーを開く" : "サイドバーを折りたたむ"
-    );
+    // collapse toggle removed; hover peek handles expand/collapse
   }
 
   function syncMobileTab() {
@@ -232,14 +225,7 @@
     bindPeekInteractions(pane);
 
     const collapse = collapseBtn();
-    if (collapse && !collapse.dataset.bound) {
-      collapse.dataset.bound = "1";
-      collapse.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (isCompact()) return;
-        toggleDesktop();
-      });
-    }
+    if (collapse) collapse.hidden = true;
 
     const mobileTab = mobileOpenBtn();
     if (mobileTab && !mobileTab.dataset.bound) {

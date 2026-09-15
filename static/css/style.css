@@ -91,35 +91,7 @@ body {
 
 /* ---- Sidebar collapse toggle (in sidebar header) ---- */
 .sidebar-collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.sidebar-collapse-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.sidebar-collapse-icon {
-  width: 18px;
-  height: 18px;
-  transition: transform 0.2s ease;
-}
-
-body.sidebar-collapsed .sidebar-collapse-icon {
-  transform: rotate(180deg);
+  display: none !important;
 }
 
 .sidebar-close svg {
