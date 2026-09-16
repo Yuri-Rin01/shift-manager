@@ -26,6 +26,8 @@ from services.morning_off import (
     would_block_day_work_after_night,
 )
 from services.shift_generator import generate_shifts
+from schemas.generation_preview import GenerationPreviewRequest, GenerationApplyRequest
+from services.generation_preview import generation_context, create_preview, apply_preview
 
 router = APIRouter(prefix="/api/shifts", tags=["シフト"])
 
@@ -180,3 +182,25 @@ def clear_shift_schedule(data: ShiftClearRequest):
 def generate_shift_schedule(data: ShiftGenerateRequest):
     """シフト自動生成（カレンダー表示区間全体が対象）。"""
     return _to_generate_response(generate_shifts(data.year, data.month, preview=data.preview))
+
+
+
+@router.get("/generation/context")
+def get_generation_context():
+    return generation_context()
+
+
+@router.post("/generation/preview")
+def preview_generation(data: GenerationPreviewRequest):
+    try:
+        return create_preview(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/generation/apply")
+def apply_generation(data: GenerationApplyRequest):
+    try:
+        return apply_preview(data.token)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

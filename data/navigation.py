@@ -23,7 +23,7 @@ MENU = [
     {
         "label": "各種設定",
         "key": "settings",
-        "children": SETTINGS_SECTION_LINKS,
+
     },
 ]
 
@@ -54,6 +54,6 @@ def get_sidebar(active_key: str) -> list[dict]:
             else:
                 entry["active"] = any(child["active"] for child in children)
         else:
-            entry["active"] = item.get("key") == active_key
+            entry["active"] = _is_settings_group_active(active_key) if item.get("key") == "settings" else item.get("key") == active_key
         menu.append(entry)
     return menu

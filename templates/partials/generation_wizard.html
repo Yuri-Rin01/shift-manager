@@ -1,0 +1,10 @@
+<div class="modal hidden" id="generation-wizard" aria-hidden="true">
+  <div class="modal-backdrop" data-generation-close></div>
+  <section class="modal-dialog generation-dialog" role="dialog" aria-modal="true" aria-labelledby="generation-title">
+    <header class="modal-header"><div><h3 id="generation-title">シフト自動生成</h3><p class="modal-subtitle">対象を選び、条件と生成案を確認してから反映します。</p></div><button type="button" class="modal-close" data-generation-close aria-label="閉じる">×</button></header>
+    <ol class="generation-steps" aria-label="生成の手順"><li>1. 対象を選ぶ</li><li>2. 条件を確認</li><li>3. 案を確認</li></ol>
+    <div id="generation-error" class="alert alert-error hidden" role="alert"></div>
+    <div id="generation-content" class="generation-content"></div>
+    <footer class="modal-footer generation-footer"><span id="generation-status" role="status" aria-live="polite"></span><button type="button" class="btn" id="generation-back">戻る</button><button type="button" class="btn btn-primary" id="generation-next">次へ</button></footer>
+  </section>
+</div>

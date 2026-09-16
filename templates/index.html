@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=45">
+  <link rel="stylesheet" href="/static/css/style.css?v=46">
 </head>
 <body>
   <div class="app">
@@ -227,6 +227,7 @@
 
   {% include "partials/print_modal.html" %}
   {% include "partials/auto_generate_modal.html" %}
+  {% include "partials/generation_wizard.html" %}
   <div id="alert" class="alert alert-floating hidden" role="alert"></div>
   {% include "partials/staff_edit_modal.html" %}
   {% include "partials/staff_editor_config.html" %}
@@ -243,6 +244,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=13"></script>
-  <script src="/static/js/home.js?v=22"></script>
+  <script src="/static/js/home.js?v=23"></script>
+  <script src="/static/js/generation.js?v=1"></script>
 </body>
 </html>

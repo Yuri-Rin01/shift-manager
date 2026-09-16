@@ -1643,7 +1643,7 @@ async function runAutoGenerate() {
   }
 }
 
-autoGenerateButton?.addEventListener("click", runAutoGenerate);
+// The generation wizard owns this action (generation.js).
 
 const clearShiftsButton = document.getElementById("btn-clear-shifts");
 
