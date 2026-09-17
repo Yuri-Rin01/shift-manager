@@ -137,7 +137,7 @@ def _legacy_min_staff_totals(settings: dict) -> dict[str, int]:
 
 
 class _Generator:
-    def __init__(self, year: int, month: int, settings: dict):
+    def __init__(self, year: int, month: int, settings: dict, *, staff_members: list[dict] | None = None):
         self.year = year
         self.month = month
         self.settings = settings
@@ -160,7 +160,7 @@ class _Generator:
         self.assignable_work_types = (
             get_assignable_work_types(settings) if self.staffing_mode == "time_slot" else []
         )
-        self.staff_list = [s for s in list_staff() if not s.get("exclude_from_staffing")]
+        self.staff_list = [s for s in (list_staff() if staff_members is None else staff_members) if not s.get("exclude_from_staffing")]
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
         # 保存された選択は片方向でも、同じ夜勤のNGペアとして両方向に適用する。
         # 日勤相性は夜勤にも適用する既存の設定ルールを、古いデータにも反映する。
@@ -936,7 +936,7 @@ class _Generator:
         floor: str | None = None,
     ) -> tuple[int, set[int]]:
         covered: set[int] = set()
-        for staff in self.staff_list:
+        for staff in self.staff_by_id.values():
             if floor and not self._staff_on_floor(staff, floor):
                 continue
             if self._staff_covers_segment(staff["id"], calendar_date, segment, assignment_offset):

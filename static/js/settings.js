@@ -1,3 +1,4 @@
+let loadedSettings = {};
 const form = document.getElementById("settings-form");
 const alertBox = document.getElementById("settings-alert");
 const resetButton = document.getElementById("btn-reset-defaults");
@@ -190,7 +191,7 @@ function renderStaffingBasisRows(options = [], settings = null) {
   staffingBasisTbody.innerHTML = options.map((item, index) => {
     const key = item.key;
     const base = item.base_key ?? key.replace("semi_", "");
-    return `<article class="staffing-basis-table-row work-editor-card" data-key="${escapeAttr(key)}">
+    return `<details class="staffing-basis-table-row work-editor-card" data-key="${escapeAttr(key)}" ${item.label ? "" : "open"}><summary class="work-editor-summary"><span class="work-summary-symbol">${escapeAttr(symbols[key] ?? item.label?.slice(0,10) ?? "＋")}</span><span><strong class="work-summary-label">${escapeAttr(item.label || "新しい勤務")}</strong><span class="work-summary-hours">${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}</span></span><span>編集</span></summary>
       <div class="work-editor-card-head"><span>勤務 ${index + 1}</span>
         <button type="button" class="btn btn-sm" data-remove-staffing-basis aria-label="${escapeAttr(item.label || "この勤務")}を削除">削除</button></div>
       <input type="hidden" class="staffing-basis-key" value="${escapeAttr(key)}">
@@ -202,7 +203,7 @@ function renderStaffingBasisRows(options = [], settings = null) {
         <label class="form-field"><span class="form-label">終了</span><input type="time" class="staffing-basis-end" required value="${escapeAttr(item.end_time ?? "18:00")}"></label>
       </div>
       <div class="work-editor-card-foot"><label class="check-row"><input type="checkbox" class="staffing-basis-visible" ${visibility[key] !== false ? "checked" : ""}> カレンダーに表示</label><span class="staffing-basis-hours-preview"></span></div>
-    </article>`;
+    </details>`;
   }).join("");
   const registered = new Set(options.map((item) => item.key));
   form.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
@@ -257,59 +258,19 @@ function syncWorkTypeSymbolBadges() {
 }
 
 function renderWorkTypeMinStaffRows(workTypes = [], minStaffByFloor = {}) {
-  const head = document.getElementById("floor-min-staff-head");
   if (!workTypeMinStaffTbody) return;
-  const rows = workTypes.filter((item) => item.key && item.label);
+  const picker = document.getElementById("settings-staffing-floor");
+  const selected = picker?.value || FLOOR_LABELS[0];
+  if (picker) picker.innerHTML = FLOOR_LABELS.map(floor => `<option ${floor === selected ? "selected" : ""}>${escapeAttr(floor)}</option>`).join("");
+  const rows = workTypes.filter(item => item.key && item.label);
   workTypeMinStaffEmpty?.classList.toggle("hidden", rows.length > 0);
-  if (!rows.length) {
-    workTypeMinStaffTbody.innerHTML = "";
-    if (head) {
-      head.innerHTML = "<tr><th>フロア</th></tr>";
-    }
-    return;
-  }
-
-  if (head) {
-    head.innerHTML = `
-      <tr>
-        <th class="col-floor">フロア</th>
-        ${rows
-          .map(
-            (item) => `
-          <th class="col-min-staff" title="${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}">
-            <span class="floor-min-staff-work-label">${escapeAttr(item.label)}</span>
-            <span class="floor-min-staff-work-hours">${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}</span>
-          </th>`
-          )
-          .join("")}
-      </tr>`;
-  }
-
-  workTypeMinStaffTbody.innerHTML = FLOOR_LABELS.map((floor) => {
-    const floorValues = minStaffByFloor[floor] ?? {};
-    return `
-      <tr class="floor-min-staff-row" data-floor="${escapeAttr(floor)}">
-        <td class="col-floor">${escapeHtmlFloorBadge(floor)}</td>
-        ${rows
-          .map(
-            (item) => `
-          <td class="staffing-basis-min-staff-cell">
-            <input
-              type="number"
-              class="floor-min-staff input-number"
-              data-floor="${escapeAttr(floor)}"
-              data-key="${escapeAttr(item.key)}"
-              min="0"
-              max="99"
-              value="${escapeAttr(String(floorValues[item.key] ?? defaultMinStaffForKey(item.key)))}"
-              aria-label="${escapeAttr(floor)} ${escapeAttr(item.label)}の必要人数"
-            >
-          </td>`
-          )
-          .join("")}
-      </tr>`;
-  }).join("");
+  workTypeMinStaffTbody.innerHTML = FLOOR_LABELS.map(floor => `<div class="floor-min-staff-row settings-floor-counts" data-floor="${escapeAttr(floor)}" ${floor !== selected ? "hidden" : ""}>
+    ${rows.map(item => `<label class="form-field"><span class="form-label">${escapeAttr(item.label)}</span><span class="field-hint">${escapeAttr(formatWorkHoursPreview(item.start_time,item.end_time))}</span><input type="number" class="floor-min-staff input-number" data-floor="${escapeAttr(floor)}" data-key="${escapeAttr(item.key)}" min="0" max="99" required value="${minStaffByFloor[floor]?.[item.key] ?? defaultMinStaffForKey(item.key)}" aria-label="${escapeAttr(floor)} ${escapeAttr(item.label)}の必要人数"></label>`).join("")}
+  </div>`).join("");
 }
+document.getElementById("settings-staffing-floor")?.addEventListener("change", event => {
+  workTypeMinStaffTbody.querySelectorAll(".floor-min-staff-row").forEach(row => {row.hidden = row.dataset.floor !== event.target.value;});
+});
 
 function escapeHtmlFloorBadge(floor) {
   const slug = String(floor).toLowerCase();
@@ -579,6 +540,7 @@ function populateShiftSymbols(symbols = {}) {
 }
 
 function populateForm(data) {
+  loadedSettings = structuredClone(data);
   if (!form) return;
   for (const [key, value] of Object.entries(data)) {
     if (key === "shift_symbols") {
@@ -670,7 +632,7 @@ function collectShiftSymbols() {
 }
 
 function collectFormData() {
-  const data = {};
+  const data = structuredClone(loadedSettings);
   if (!form) return data;
 
   for (const element of form.elements) {
@@ -806,6 +768,12 @@ form?.addEventListener("change", (event) => {
 });
 form?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;
+  const work = event.target.closest(".work-editor-card");
+  if (work) {
+    work.querySelector(".work-summary-label").textContent = work.querySelector(".staffing-basis-label").value || "新しい勤務";
+    work.querySelector(".work-summary-symbol").textContent = work.querySelector(".staffing-basis-symbol").value || "＋";
+    work.querySelector(".work-summary-hours").textContent = formatWorkHoursPreview(work.querySelector(".staffing-basis-start").value, work.querySelector(".staffing-basis-end").value);
+  }
   if (event.target.name.startsWith(SHIFT_SYMBOL_PREFIX)) {
     syncWorkTypeSymbolBadges();
     refreshStaffingBasisSymbolPreviews();
@@ -891,6 +859,10 @@ function validateSettingsForm() {
   }
   const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
   if (!invalid) return true;
+  const requirementPanel = invalid.closest("[data-requirement-mode]");
+  if (requirementPanel) setStaffingRequirementMode(requirementPanel.dataset.requirementMode);
+  const floorRow = invalid.closest(".floor-min-staff-row");
+  if (floorRow?.hidden) { const picker=document.getElementById("settings-staffing-floor");picker.value=floorRow.dataset.floor;picker.dispatchEvent(new Event("change")); }
   const section = invalid.closest(".settings-section");
   if (section?.classList.contains("is-hidden-panel")) {
     document.querySelectorAll(".settings-section").forEach((item) => item.classList.toggle("is-hidden-panel", item !== section));

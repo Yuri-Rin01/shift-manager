@@ -74,6 +74,8 @@ def _merge_settings(data: dict | None) -> dict:
     merged["time_slot_staffing_rules"] = normalize_time_slot_staffing_rules(
         merged.get("time_slot_staffing_rules")
     )
+    merged["prioritize_leave_requests"] = True
+    merged["consider_night_eligibility"] = True
     merged["block_work_after_night"] = True
     merged["morning_off_after_night"] = True
     leave_cfg = normalize_leave_request_settings(merged)

@@ -133,7 +133,7 @@ class AppSettings(BaseModel):
     def normalize_leave_request_max_by_type_field(cls, value: dict[str, int]) -> dict[str, int]:
         return normalize_leave_request_max_by_type(value)
 
-    @field_validator("block_work_after_night", "morning_off_after_night")
+    @field_validator("block_work_after_night", "morning_off_after_night", "prioritize_leave_requests", "consider_night_eligibility")
     @classmethod
     def enforce_fixed_morning_off_rules(cls, value: bool) -> bool:
         return True
