@@ -13,7 +13,7 @@ from data.staffing_basis import get_staffing_basis_options
 from db.database import get_connection
 from db.settings_repository import get_settings
 from db.staff_repository import list_staff
-from db.shift_repository import get_shifts_between
+from db.shift_repository import get_shifts_between, get_placements_between, save_placements
 from schemas.generation_preview import GenerationPreviewRequest
 from schemas.settings import AppSettings
 from services.shift_generator import _Generator, _symbol_work_key
@@ -102,7 +102,7 @@ def create_preview(request: GenerationPreviewRequest):
             fixed[key] = {**cell, 'source': 'manual'}
         elif cell['source'] in ('manual', 'leave'):
             fixed[key] = cell
-    result = engine.run(fixed)
+    result = engine.run(fixed, get_placements_between(start, end))
     assignments = []
     for sid, day, symbol, source in result['assignments']:
         if sid not in ids:
@@ -123,7 +123,8 @@ def create_preview(request: GenerationPreviewRequest):
     protected = [cell for key, cell in existing.items() if key[0] in ids and cell['source'] in ('manual', 'leave')]
     result['stats'].update(staff_count=len(active), manual_locked=sum(c['source']=='manual' for c in protected),
                            leave_locked=sum(c['source']=='leave' for c in protected))
-    payload = {'assignments': assignments, 'ids': sorted(ids), 'start': start.isoformat(), 'end': end.isoformat(),
+    placements = [p for p in result['placements'] if p['staff_id'] in ids]
+    payload = {'assignments': assignments, 'placements': placements, 'ids': sorted(ids), 'start': start.isoformat(), 'end': end.isoformat(),
                'mode': request.mode, 'defaults': {key: settings[key] for key in supplied} if request.save_defaults else {},
                'stats': result['stats'], 'warnings': result['warnings'], 'summary': summary,
                'dates': engine.period_dates, 'conditions': {key: settings[key] for key in ('off_days_per_period','max_consecutive_days','max_night_per_week')},
@@ -154,6 +155,10 @@ def apply_preview(token: str):
         # One transaction: never clear another floor or leave an empty schedule on failure.
         conn.executemany('''INSERT INTO shift_assignments(staff_id,shift_date,symbol,source) VALUES (?,?,?,?)
             ON CONFLICT(staff_id,shift_date) DO UPDATE SET symbol=excluded.symbol, source=excluded.source''', payload['assignments'])
+        # Replace only this draft's cells, including locations cleared by a day off.
+        conn.executemany('DELETE FROM shift_placements WHERE staff_id=? AND shift_date=?',
+                         [(a[0], a[1]) for a in payload['assignments']])
+        save_placements(conn, payload.get('placements', []))
         if payload['defaults']:
             old = conn.execute('SELECT data FROM app_settings WHERE id=1').fetchone()
             settings = json.loads(old[0]) if old else {}
