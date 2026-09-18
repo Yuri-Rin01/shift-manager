@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=36">
+  <link rel="stylesheet" href="/static/css/style.css?v=47">
 </head>
 <body class="settings-screen">
   <div class="app">
@@ -168,7 +168,7 @@
               <div class="requirement-panels">
               <div id="panel-work-type-min-staff" class="requirement-panel" data-requirement-mode="work_type">
                 <h4 class="requirement-panel-title">フロア別の必要人数（勤務区分ごと）</h4>
-                <p class="field-hint requirement-panel-desc">フロアごとに、早番・日勤など区分別の1日あたり必要人数を設定します。自動生成では担当フロアの職員だけがそのフロアの必要人数にカウントされます。</p>
+                <p class="field-hint requirement-panel-desc">フロアごとに必要な担当者数を設定します。日中・通常夜勤は1人につき1フロアだけに配置します。夜勤リーダーを必須にすると、フロア担当とは別に1人を確保します（例：1Fに1人＋2Fに1人＋兼務リーダー1人＝計3人）。</p>
                 <p class="field-hint">上で勤務を追加・編集すると、この一覧も自動で更新されます。</p>
                 <label class="form-field settings-floor-picker"><span class="form-label">人数を設定するフロア</span><select id="settings-staffing-floor" aria-label="必要人数のフロア"></select></label>
                 <div id="work-type-min-staff-tbody"></div>
@@ -237,7 +237,7 @@
                 </label>
                 <label class="check-row settings-check">
                   <input type="checkbox" name="require_leader_on_night">
-                  <span>夜勤にリーダー以上を必須</span>
+                  <span>夜勤リーダーをフロア担当とは別に1人確保する（リーダー以上・担当フロア兼務）</span>
                 </label>
               </div>
 
