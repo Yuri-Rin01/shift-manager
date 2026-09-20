@@ -103,13 +103,7 @@ function applyDisplayPrefs(prefs = getPrefs()) {
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
     shiftCalendar.classList.toggle("mono-cells", !prefs.colorCells);
   }
-  if (previewBox?.querySelector(".shift-table")) {
-    previewBox.classList.toggle("hide-col-job", !prefs.showJob);
-    previewBox.classList.toggle("hide-col-dept", !prefs.showDept);
-    previewBox.classList.toggle("hide-summary", !prefs.showSummary);
-    previewBox.classList.toggle("color-cells", prefs.colorCells);
-    previewBox.classList.toggle("mono-cells", !prefs.colorCells);
-  }
+
 }
 
 function syncControlsFromPrefs(prefs) {
@@ -127,7 +121,7 @@ function updatePreviewNote() {
   if (!previewNote || !printModal) return;
   const paper = document.getElementById("print-paper")?.value ?? "A4 横";
   const scale = document.getElementById("print-scale")?.value ?? "100%";
-  const prefs = getPrefs();
+  const prefs = {showJob: printColJob?.checked, showDept: printColDept?.checked, colorCells: printColorMode?.checked};
   const cols = ["職員名"];
   if (prefs.showJob) cols.push("職種");
   if (prefs.showDept) cols.push("フロア");
@@ -543,7 +537,37 @@ function syncPreviewFromCalendar() {
   table.querySelectorAll(".staff-name-link").forEach((link) => {
     link.replaceWith(link.textContent);
   });
+  const selected = group => [...printModal.querySelectorAll(`[data-group="${group}"] input:checked`)].map(x=>x.value);
+  const floors = selected('dept'), jobs = selected('job');
+  const allFloors = floors.length === printModal.querySelectorAll('[data-group="dept"] input').length;
+  table.querySelectorAll('tbody tr').forEach(row => {
+    const eligible = (row.dataset.floors || row.dataset.dept || '').split(',').map(x=>x.trim());
+    row.hidden = false;
+    if (!eligible.some(f=>floors.includes(f)) || !jobs.includes(row.dataset.job)) row.remove();
+  });
+  const rows = [...table.querySelectorAll('tbody tr')].filter(r=>r.dataset.excludeFromStaffing!=='true');
+  table.querySelectorAll('tfoot tr').forEach(row=>{
+    [...row.querySelectorAll('.summary-count')].forEach((cell,i)=>{
+      cell.textContent = rows.filter(r=>{
+        const td=r.querySelectorAll('.shift-td')[i];
+        return td && td.dataset.symbol===row.dataset.summarySymbol && (allFloors || (td.dataset.placementRole==='floor' && floors.includes(td.dataset.placementFloor)));
+      }).length;
+    });
+  });
+  previewBox.classList.toggle('hide-col-job', !printColJob.checked);
+  previewBox.classList.toggle('hide-col-dept', !printColDept.checked);
+  previewBox.classList.remove('hide-summary');
+  previewBox.classList.toggle('color-cells', printColorMode.checked);
+  previewBox.classList.toggle('mono-cells', !printColorMode.checked);
+  const scale = parseInt(document.getElementById('print-scale').value,10)/100;
+  const paper = document.getElementById('print-paper').value;
+  const width = paper==='A4 縦'?190:paper==='A3 横'?400:277;
+  previewBox.style.setProperty('--print-scale',scale);
+  previewBox.style.setProperty('--print-width',`${width}mm`);
+  table.style.width = `${width}mm`;
+  table.style.zoom = scale;
   previewBox.replaceChildren(table);
+  updatePreviewNote();
 }
 
 function refreshDisplay() {
@@ -561,7 +585,7 @@ function openPrintModal() {
   closeCellEditor();
   printModal.classList.remove("hidden");
   printModal.setAttribute("aria-hidden", "false");
-  refreshDisplay();
+  syncPreviewFromCalendar();
 }
 
 function closePrintModal() {
@@ -617,54 +641,35 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-document.querySelectorAll("[data-select-group]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const list = printModal?.querySelector(`.print-filter-list[data-group="${button.dataset.selectGroup}"]`);
-    if (!list) return;
-    list.querySelectorAll('input[type="checkbox"]').forEach((box) => {
-      box.checked = true;
-    });
-  });
-});
-
-document.querySelectorAll("[data-clear-group]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const list = printModal?.querySelector(`.print-filter-list[data-group="${button.dataset.clearGroup}"]`);
-    if (!list) return;
-    list.querySelectorAll('input[type="checkbox"]').forEach((box) => {
-      box.checked = false;
-    });
-  });
-});
-
-document.querySelectorAll("[data-invert-group]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const list = printModal?.querySelector(`.print-filter-list[data-group="${button.dataset.invertGroup}"]`);
-    if (!list) return;
-    list.querySelectorAll('input[type="checkbox"]').forEach((box) => {
-      box.checked = !box.checked;
-    });
-  });
-});
-
-[printColJob, printColDept, printColorMode].forEach((input) => {
-  input?.addEventListener("change", refreshDisplay);
-});
-
-printModal?.querySelectorAll(".print-form-field select").forEach((select) => {
-  select.addEventListener("change", updatePreviewNote);
-});
-
-previewRefresh?.addEventListener("click", refreshDisplay);
-
-document.querySelector(".print-modal-footer-actions .btn-primary")?.addEventListener("click", () => {
-  document.body.classList.add("print-preview-active");
+for (const [attr, choose] of [['selectGroup',()=>true],['clearGroup',()=>false],['invertGroup',box=>!box.checked]]) {
+  const selector = attr.replace(/[A-Z]/g,c=>'-'+c.toLowerCase());
+  document.querySelectorAll(`[data-${selector}]`).forEach(button=>button.addEventListener('click',()=>{
+    printModal.querySelectorAll(`[data-group="${button.dataset[attr]}"] input`).forEach(box=>box.checked=choose(box));
+    syncPreviewFromCalendar();
+  }));
+}
+printModal?.addEventListener('change', syncPreviewFromCalendar);
+previewRefresh?.addEventListener('click', syncPreviewFromCalendar);
+function preparePrintOutput() {
+  syncPreviewFromCalendar();
+  document.getElementById('print-output')?.remove();
+  document.getElementById('print-page-style')?.remove();
+  const style=document.createElement('style');style.id='print-page-style';
+  const paper=document.getElementById('print-paper').value;
+  style.textContent=`@page {size: ${paper==='A3 横'?'A3 landscape':paper==='A4 縦'?'A4 portrait':'A4 landscape'}; margin:10mm;}`;
+  document.head.appendChild(style);
+  const output=previewBox.cloneNode(true);output.id='print-output';
+  const title=document.createElement('h2');title.textContent=`${document.title} / ${document.getElementById('home-period-label')?.textContent.trim() || ''}`;
+  output.prepend(title); document.body.appendChild(output);
+  document.body.classList.add('print-preview-active');
+}
+document.querySelector('.print-modal-footer-actions .btn-primary')?.addEventListener('click',()=>{
+  preparePrintOutput();
+  window.addEventListener('afterprint',()=>{
+    document.body.classList.remove('print-preview-active');document.getElementById('print-output')?.remove();
+    document.getElementById('print-page-style')?.remove();
+  },{once:true});
   window.print();
-  window.addEventListener(
-    "afterprint",
-    () => document.body.classList.remove("print-preview-active"),
-    { once: true }
-  );
 });
 
 const shiftOptions = window.SHIFT_OPTIONS ?? [];
@@ -917,7 +922,8 @@ function captureCellState(td) {
     month: Number(td.dataset.month),
     day: Number(td.dataset.day),
     symbol: td.dataset.symbol ?? "",
-    source: td.dataset.source ?? "",
+    source: td.dataset.symbol ? td.dataset.source ?? "" : "",
+    placement: td.dataset.placementRole ? {floor: td.dataset.placementFloor || '', role: td.dataset.placementRole} : null,
   };
 }
 
@@ -932,6 +938,16 @@ function applyCellState(state) {
   const td = findCellTd(state);
   if (!td || !state) return;
   applyCellSymbol(td, state.symbol, { source: state.source || "" });
+  td.querySelector('.placement-badge')?.remove();
+  delete td.dataset.placementFloor;
+  delete td.dataset.placementRole;
+  if (state.placement) {
+    td.dataset.placementFloor = state.placement.floor;
+    td.dataset.placementRole = state.placement.role;
+    const badge = document.createElement('small'); badge.className = 'placement-badge';
+    badge.textContent = state.placement.role === 'night_leader' ? 'L' : state.placement.floor;
+    td.appendChild(badge);
+  }
 }
 
 function statesSnapshotEqual(beforeStates, afterStates) {
@@ -971,67 +987,31 @@ function relatedToState(related) {
     month: m,
     day: d,
     symbol: related.symbol ?? "",
-    source: related.source ?? "",
+    source: related.symbol ? related.source ?? "" : "",
+    placement: related.placement ?? null,
   };
 }
 
-async function persistCellState(state, options = {}) {
-  const response = await fetch("/api/shifts/cell", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      staff_id: state.staffId,
-      year: state.year,
-      month: state.month,
-      day: state.day,
-      symbol: state.symbol,
-    }),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(formatCellErrorDetail(error.detail));
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!options.deferDomApply) {
-    applyCellState(state);
-    if (!options.skipRelatedFromApi) {
-      for (const related of data.related ?? []) {
-        const relatedState = relatedToState(related);
-        if (relatedState) applyCellState(relatedState);
-      }
-    }
-  }
-  return data;
-}
-
-async function restoreHistoryStates(states) {
+async function restoreHistoryStates(states, expected) {
   historyApplying = true;
+  const wire = state => ({staff_id: state.staffId,
+    shift_date: `${state.year}-${String(state.month).padStart(2, '0')}-${String(state.day).padStart(2, '0')}`,
+    symbol: state.symbol, source: state.symbol ? state.source : '', placement: state.placement || null});
   try {
-    const uniqueStates = [];
-    const seen = new Set();
-    for (const state of states) {
-      const key = `${state.staffId}-${state.year}-${state.month}-${state.day}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      uniqueStates.push(state);
-    }
-    for (const state of uniqueStates) {
-      await persistCellState(state, { deferDomApply: true, skipRelatedFromApi: true });
-    }
-    for (const state of uniqueStates) {
-      applyCellState(state);
-    }
+    const response = await fetch('/api/shifts/history/restore', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({states: states.map(wire), expected: expected.map(wire)})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(formatCellErrorDetail(data.detail));
+    data.cells.map(relatedToState).forEach(applyCellState);
     refreshSummaryCounts();
-  } finally {
-    historyApplying = false;
-  }
+  } finally { historyApplying = false; }
 }
 
 async function undoShiftEdit() {
-  if (!undoStack.length) return;
+  if (historyApplying || !undoStack.length) return;
   const entry = undoStack.pop();
   try {
-    await restoreHistoryStates(entry.before);
+    await restoreHistoryStates(entry.before, entry.after);
     redoStack.push(entry);
   } catch (error) {
     undoStack.push(entry);
@@ -1041,10 +1021,10 @@ async function undoShiftEdit() {
 }
 
 async function redoShiftEdit() {
-  if (!redoStack.length) return;
+  if (historyApplying || !redoStack.length) return;
   const entry = redoStack.pop();
   try {
-    await restoreHistoryStates(entry.after);
+    await restoreHistoryStates(entry.after, entry.before);
     undoStack.push(entry);
   } catch (error) {
     redoStack.push(entry);
@@ -1189,7 +1169,8 @@ async function saveCellSymbol(td, symbol, options = {}) {
     for (const { relatedTd } of relatedUpdates) {
       afterStates.push(captureCellState(relatedTd));
     }
-    pushShiftHistory(beforeStates, afterStates);
+    pushShiftHistory(data.history_before?.length ? data.history_before.map(relatedToState) : beforeStates,
+      data.history_after?.length ? data.history_after.map(relatedToState) : afterStates);
   }
 
   refreshSummaryCounts();
@@ -1243,7 +1224,8 @@ async function unlockManualCell(td) {
   for (const { relatedTd } of relatedUpdates) {
     afterStates.push(captureCellState(relatedTd));
   }
-  pushShiftHistory(beforeStates, afterStates);
+  pushShiftHistory(data.history_before?.length ? data.history_before.map(relatedToState) : beforeStates,
+      data.history_after?.length ? data.history_after.map(relatedToState) : afterStates);
 }
 
 let cellClickTimer = null;

@@ -3,7 +3,7 @@ import json
 from db.database import get_connection
 from data.settings_defaults import DEFAULT_SETTINGS
 from data.staffing_basis import validate_staffing_basis_options
-from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, validate_shift_symbols
+from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, validate_shift_symbols, get_shift_symbols, symbol_to_key
 from data.placement_rules import (
     normalize_min_staff_by_floor,
     normalize_min_staff_by_work_type,
@@ -102,6 +102,23 @@ def save_settings(data: dict) -> dict:
     validate_min_staff_by_floor(merged)
     validate_time_slot_staffing_rules(merged)
     with get_connection() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT data FROM app_settings WHERE id = ?', (SETTINGS_ID,)).fetchone()
+        old = _merge_settings(json.loads(row['data']) if row else {})
+        new_symbols = get_shift_symbols(merged)
+        # Resolve using the old settings before changing any rows (including swaps).
+        changes = []
+        for cell in conn.execute('SELECT staff_id, shift_date, symbol FROM shift_assignments').fetchall():
+            key = symbol_to_key(cell['symbol'], old)
+            if key and key not in new_symbols:
+                raise ValueError('使用中の勤務区分は削除できません。先に勤務表の割り当てを変更してください。')
+            if key and new_symbols[key] != cell['symbol']:
+                changes.append((new_symbols[key], cell['staff_id'], cell['shift_date']))
+        placements = conn.execute('SELECT staff_id, shift_date, floor, role FROM shift_placements').fetchall() if changes else []
+        conn.executemany('UPDATE shift_assignments SET symbol = ? WHERE staff_id = ? AND shift_date = ?', changes)
+        # The symbol-change trigger clears placements; cosmetic renames retain them.
+        conn.executemany('INSERT OR REPLACE INTO shift_placements(staff_id, shift_date, floor, role) VALUES (?, ?, ?, ?)',
+                         [tuple(r) for r in placements])
         conn.execute(
             """
             INSERT INTO app_settings (id, data) VALUES (?, ?)

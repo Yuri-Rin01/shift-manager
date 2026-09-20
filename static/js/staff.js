@@ -948,6 +948,8 @@ function applyStaffingBasisRatios(ratios) {
           ? `上限${ceiling}%（固定時の割合まで調整できます）`
           : "";
     }
+    const number = row.querySelector('.staffing-basis-number');
+    if (number && slider) { number.value=active?String(ratio):'';number.max=slider.max;number.disabled=slider.disabled; }
     if (valueEl) {
       valueEl.innerHTML = active ? formatStaffingBasisValue(ratio, undefined, key) : "—";
     }
@@ -1898,3 +1900,7 @@ if (IS_STAFF_LIST_PAGE) {
   syncEditorSurface();
   ensureStaffList().catch(() => {});
 }
+
+staffingBasisPicker?.addEventListener('change', event=>{
+  if(event.target.matches('.staffing-basis-number')) balanceStaffingBasisFromSlider(event.target.dataset.key,event.target.value);
+});
