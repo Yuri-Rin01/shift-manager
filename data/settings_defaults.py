@@ -3,6 +3,12 @@ DEFAULT_SETTINGS: dict = {
     "facility_name": "○○病院",
     "facility_type": "all",
     "admin_name": "管理者",
+    "floors": [
+        {"id": "1f", "label": "1F"},
+        {"id": "2f", "label": "2F"},
+        {"id": "3f", "label": "3F"},
+        {"id": "4f", "label": "4F"},
+    ],
     # 表示ルール
     "calendar_sort_mode": "dept",
     "default_color_cells": True,

@@ -12,12 +12,19 @@ from data.placement_rules import (
     normalize_time_slot_staffing_rules,
 )
 from data.staffing_basis import normalize_staffing_basis_options
+from data.floors import normalize_floors, validate_floors
 
 
 class AppSettings(BaseModel):
     facility_name: str = Field(default="○○病院", max_length=100)
     facility_type: str = Field(default="all")
     admin_name: str = Field(default="管理者", max_length=50)
+    floors: list[dict] = Field(default_factory=lambda: [
+        {"id": "1f", "label": "1F"},
+        {"id": "2f", "label": "2F"},
+        {"id": "3f", "label": "3F"},
+        {"id": "4f", "label": "4F"},
+    ])
 
     default_color_cells: bool = True
     default_show_job_column: bool = True
@@ -105,6 +112,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_staffing_basis(cls, value: list[dict]) -> list[dict]:
         return normalize_staffing_basis_options(value)
+
+    @field_validator("floors")
+    @classmethod
+    def normalize_floors_field(cls, value: list[dict]) -> list[dict]:
+        return validate_floors(value)
 
     @field_validator("min_staff_by_work_type")
     @classmethod

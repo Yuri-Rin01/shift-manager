@@ -4778,8 +4778,12 @@ body.period-locked .shift-td-editable {
 .labor-hours-table .labor-week-cell { white-space:normal; min-width:160px; }
 .labor-status.is-incomplete { color:#a15c00; font-weight:600; }
 .labor-status.is-complete { color:#1f6b3a; }
+.floors-editor { display:grid; gap:8px; margin-bottom:8px; }
+.floor-editor-row { display:grid; grid-template-columns:minmax(120px,220px) auto auto; gap:8px; align-items:end; }
+.floor-id-hint { align-self:center; color:#667; font-size:12px; }
 @media (max-width:760px) {
   .labor-hours-scroll { max-height:220px; }
+  .floor-editor-row { grid-template-columns:1fr; }
 }
 .home-bottom-status { flex:1; }
 .home-other-actions { position:relative; }

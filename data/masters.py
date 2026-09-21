@@ -7,6 +7,9 @@ def _active_facility_type() -> str:
     return get_settings().get("facility_type", FACILITY_TYPE)
 
 
+from data.floors import get_floors, normalize_floors
+
+
 FLOOR_DEPARTMENTS = [
     {"id": "1f", "label": "1F"},
     {"id": "2f", "label": "2F"},
@@ -106,7 +109,10 @@ def _merge_by_label(items: list[dict]) -> list[dict]:
 
 
 def get_departments() -> list[dict]:
-    return list(FLOOR_DEPARTMENTS)
+    try:
+        return get_floors()
+    except Exception:
+        return list(FLOOR_DEPARTMENTS)
 
 
 def get_staffing_basis_options() -> list[dict]:

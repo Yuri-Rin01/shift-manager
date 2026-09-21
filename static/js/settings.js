@@ -54,7 +54,63 @@ const timeSlotStaffingPanel = document.getElementById("panel-time-slot-staffing"
 const workTypeTemplateSelect = document.getElementById("work-type-template-select");
 const applyWorkTypeTemplateButton = document.getElementById("btn-apply-work-type-template");
 const WORK_TYPE_TEMPLATES = window.WORK_TYPE_TEMPLATES ?? [];
-const FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
+let FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
+const floorsEditor = document.getElementById("floors-editor");
+const addFloorButton = document.getElementById("btn-add-floor");
+
+function allocateFloorId(existingIds) {
+  const used = new Set(existingIds);
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = `f${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `f_${Date.now().toString(36)}`;
+}
+
+function collectFloors() {
+  if (!floorsEditor) {
+    return (window.FLOOR_LABELS ?? FLOOR_LABELS).map((label, index) => ({
+      id: ["1f", "2f", "3f", "4f"][index] || allocateFloorId([]),
+      label,
+    }));
+  }
+  return [...floorsEditor.querySelectorAll(".floor-editor-row")]
+    .map((row) => ({
+      id: row.querySelector(".floor-id")?.value.trim() || "",
+      label: row.querySelector(".floor-label")?.value.trim() || "",
+    }))
+    .filter((item) => item.id && item.label);
+}
+
+function syncFloorLabelsFromEditor() {
+  FLOOR_LABELS = collectFloors().map((item) => item.label);
+  window.FLOOR_LABELS = FLOOR_LABELS;
+  renderWorkTypeMinStaffRows(collectRegisteredWorkTypes(), collectMinStaffByFloor());
+}
+
+function renderFloorsEditor(floors = []) {
+  if (!floorsEditor) return;
+  const rows = Array.isArray(floors) && floors.length ? floors : [
+    { id: "1f", label: "1F" },
+    { id: "2f", label: "2F" },
+    { id: "3f", label: "3F" },
+    { id: "4f", label: "4F" },
+  ];
+  floorsEditor.innerHTML = rows
+    .map(
+      (item, index) => `<div class="floor-editor-row" data-floor-id="${escapeAttr(item.id)}">
+      <input type="hidden" class="floor-id" value="${escapeAttr(item.id)}">
+      <label class="form-field"><span class="form-label">表示名</span>
+        <input type="text" class="floor-label input-text" maxlength="20" required value="${escapeAttr(item.label || "")}" aria-label="フロア${index + 1}の表示名">
+      </label>
+      <span class="field-hint floor-id-hint">ID: ${escapeAttr(item.id)}</span>
+      <button type="button" class="btn btn-sm" data-remove-floor>削除</button>
+    </div>`
+    )
+    .join("");
+  FLOOR_LABELS = rows.map((item) => item.label);
+  window.FLOOR_LABELS = FLOOR_LABELS;
+}
 
 const INT_FIELDS = new Set([
   "max_consecutive_days",
@@ -557,6 +613,10 @@ function populateForm(data) {
       populateVisibleWorkTypes(value);
       continue;
     }
+    if (key === "floors") {
+      renderFloorsEditor(Array.isArray(value) ? value : []);
+      continue;
+    }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : [], data);
       renderWorkTypeMinStaffRows(
@@ -672,6 +732,7 @@ function collectFormData() {
   data.shift_symbols = collectShiftSymbols();
   data.visible_work_types = collectVisibleWorkTypes();
   data.staffing_basis_options = collectStaffingBasisOptions();
+  data.floors = collectFloors();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();
@@ -803,6 +864,27 @@ addStaffingBasisButton?.addEventListener("click", () => {
   syncWorkTypeMinStaffFromBasis();
   staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
   markDirty();
+});
+addFloorButton?.addEventListener("click", () => {
+  const current = collectFloors();
+  const id = allocateFloorId(current.map((item) => item.id));
+  renderFloorsEditor([...current, { id, label: "" }]);
+  syncFloorLabelsFromEditor();
+  floorsEditor?.querySelector(".floor-editor-row:last-child .floor-label")?.focus();
+  markDirty();
+});
+floorsEditor?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-floor]");
+  if (!button) return;
+  const row = button.closest(".floor-editor-row");
+  row?.remove();
+  syncFloorLabelsFromEditor();
+  markDirty();
+});
+floorsEditor?.addEventListener("input", (event) => {
+  if (event.target.classList?.contains("floor-label")) {
+    syncFloorLabelsFromEditor();
+  }
 });
 staffingBasisTbody?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;

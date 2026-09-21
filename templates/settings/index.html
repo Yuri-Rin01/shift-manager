@@ -411,6 +411,12 @@
                   <span class="field-hint">例: 16日 → 当月16日〜翌月15日を1ヶ月として表示します。1日は暦月（1日〜月末）です。</span>
                 </label>
             </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">フロア</h3>
+              <p class="field-hint">施設のフロア名を追加・変更できます。内部IDは変えず、職員・配置・人数設定の関連を保ったまま名前だけ変えられます。使用中のフロアは削除できません。</p>
+              <div id="floors-editor" class="floors-editor"></div>
+              <button type="button" class="btn btn-sm" id="btn-add-floor">＋ フロアを追加</button>
+            </div>
           </section>
 
           <section class="card settings-section{% if settings_panel != 'data' %} is-hidden-panel{% endif %}" id="section-data" data-panel="data">
