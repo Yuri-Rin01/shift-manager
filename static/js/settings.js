@@ -739,16 +739,16 @@ function getFlickSymbolChoices() {
     choices.push({ symbol, label: `${symbol}（${label}）` });
   }
 
+  staffingBasisTbody?.querySelectorAll(".staffing-basis-table-row").forEach((row) => {
+    const key = row.querySelector(".staffing-basis-key")?.value.trim() ?? row.dataset.key ?? "";
+    const label = row.querySelector(".staffing-basis-label")?.value.trim() || key;
+    addChoice(key, label);
+  });
+
   document.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
     if (row.hidden) return;
     const key = row.dataset.workTypeKey ?? "";
     const label = row.querySelector(".work-type-name")?.textContent?.trim() || key;
-    addChoice(key, label);
-  });
-
-  staffingBasisTbody?.querySelectorAll(".staffing-basis-table-row").forEach((row) => {
-    const key = row.querySelector(".staffing-basis-key")?.value.trim() ?? row.dataset.key ?? "";
-    const label = row.querySelector(".staffing-basis-label")?.value.trim() || key;
     addChoice(key, label);
   });
 
@@ -972,6 +972,17 @@ form?.addEventListener("input", (event) => {
     rebuildFlickDirectionOptions(collectFlickDirections());
   }
 });
+const flickDetailsPanel = document.getElementById("flick-details-panel");
+const flickDetailsToggle = document.getElementById("btn-toggle-flick-details");
+function setFlickDetailsOpen(open) {
+  if (!flickDetailsPanel || !flickDetailsToggle) return;
+  flickDetailsPanel.hidden = !open;
+  flickDetailsToggle.setAttribute("aria-expanded", String(open));
+  flickDetailsToggle.classList.toggle("is-open", open);
+}
+flickDetailsToggle?.addEventListener("click", () => {
+  setFlickDetailsOpen(Boolean(flickDetailsPanel?.hidden));
+});
 document.getElementById("btn-flick-auto-fill")?.addEventListener("click", () => {
   autoFillFlickDirections();
   markDirty();
@@ -1094,6 +1105,7 @@ function validateSettingsForm() {
   for (let parent = invalid.parentElement; parent; parent = parent.parentElement) {
     if (parent instanceof HTMLDetailsElement) parent.open = true;
   }
+  if (invalid.closest("#flick-details-panel")) setFlickDetailsOpen(true);
   invalid.reportValidity();
   invalid.focus();
   return false;

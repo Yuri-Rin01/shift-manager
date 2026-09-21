@@ -5246,9 +5246,8 @@ input[type="checkbox"]:focus-visible {
   min-width: 160px;
 }
 
-.flick-details {
-  flex: 1 1 220px;
-  min-width: 0;
+.flick-time-field input[type="number"] {
+  min-height: 36px;
 }
 
 .flick-details-summary {
@@ -5263,11 +5262,6 @@ input[type="checkbox"]:focus-visible {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  list-style: none;
-}
-
-.flick-details-summary::-webkit-details-marker {
-  display: none;
 }
 
 .flick-details-summary::after {
@@ -5280,23 +5274,20 @@ input[type="checkbox"]:focus-visible {
   transform: rotate(45deg) translateY(-2px);
 }
 
-.flick-details[open] {
-  flex-basis: 100%;
-}
-
-.flick-details[open] > .flick-details-summary {
-  margin-bottom: 10px;
-}
-
-.flick-details[open] > .flick-details-summary::after {
+.flick-details-summary.is-open::after {
   transform: rotate(-135deg) translateY(-1px);
 }
 
 .flick-details-body {
+  margin-top: 10px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
+}
+
+.flick-details-body[hidden] {
+  display: none;
 }
 
 .flick-assign-toolbar {

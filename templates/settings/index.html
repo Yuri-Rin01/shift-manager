@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=49">
+  <link rel="stylesheet" href="/static/css/style.css?v=51">
 </head>
 <body class="settings-screen">
   <div class="app">
@@ -325,27 +325,6 @@
                 {% endfor %}
               </div>
 
-              <details class="settings-advanced"><summary>日付・入力操作の細かい調整</summary>
-              <div class="settings-form-grid settings-form-grid-compact">
-
-                <label class="form-field">
-                  <span class="form-label">週の始まり</span>
-                  <select name="week_start">
-                    {% for opt in week_start_options %}
-                      <option value="{{ opt.value }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                  <span class="field-hint">週番号行の区切りに使用します。</span>
-                </label>
-
-              </div>
-              <div class="settings-checkbox-grid">
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="show_week_number">
-                  <span>週番号行を表示</span>
-                </label>
-              </div>
-
               <h3 class="settings-subtitle">シフト入力</h3>
               <div class="settings-checkbox-grid">
                 <label class="check-row settings-check">
@@ -365,46 +344,71 @@
                       step="50"
                     >
                   </label>
-                  <details class="flick-details" id="flick-details">
-                    <summary class="flick-details-summary">詳細設定</summary>
-                    <div class="flick-details-body">
-                      <p class="field-hint">
-                        長押し後に指を動かした方向へ割り当てる勤務区分です。空欄の方向は使いません。
-                        すべて空のときは、表示中の勤務区分から最大8つを自動割り当てします。
-                      </p>
-                      <div class="flick-assign-toolbar">
-                        <button type="button" class="btn btn-sm" id="btn-flick-auto-fill">表示区分で自動配置</button>
-                        <button type="button" class="btn btn-sm" id="btn-flick-clear">すべて空にする</button>
-                      </div>
-                      <div class="flick-assign-grid" id="flick-assign-grid" role="group" aria-label="フリック方向の割り当て">
-                        {% for dir_index in flick_grid_order %}
-                          {% if dir_index is none %}
-                            <div class="flick-assign-cell flick-assign-center" aria-hidden="true">
-                              <span class="flick-assign-center-mark">長押し</span>
-                            </div>
-                          {% else %}
-                            {% set direction = flick_directions[dir_index] %}
-                            <label class="flick-assign-cell">
-                              <span class="flick-assign-dir">
-                                <span class="flick-assign-arrow" aria-hidden="true">{{ direction.arrow }}</span>
-                                <span class="flick-assign-dir-label">{{ direction.label }}</span>
-                              </span>
-                              <select
-                                class="input-select flick-assign-select"
-                                name="cell_flick_direction__{{ dir_index }}"
-                                data-flick-index="{{ dir_index }}"
-                                aria-label="{{ direction.label }}方向の勤務区分"
-                              >
-                                <option value="">（なし）</option>
-                              </select>
-                            </label>
-                          {% endif %}
-                        {% endfor %}
-                      </div>
-                    </div>
-                  </details>
+                  <button
+                    type="button"
+                    class="flick-details-summary"
+                    id="btn-toggle-flick-details"
+                    aria-expanded="false"
+                    aria-controls="flick-details-panel"
+                  >詳細設定</button>
+                </div>
+                <div id="flick-details-panel" class="flick-details-body" hidden>
+                  <p class="field-hint">
+                    長押し後に指を動かした方向へ割り当てる勤務区分です。空欄の方向は使いません。
+                    すべて空のときは、表示中の勤務区分から最大8つを自動割り当てします。
+                  </p>
+                  <div class="flick-assign-toolbar">
+                    <button type="button" class="btn btn-sm" id="btn-flick-auto-fill">表示区分で自動配置</button>
+                    <button type="button" class="btn btn-sm" id="btn-flick-clear">すべて空にする</button>
+                  </div>
+                  <div class="flick-assign-grid" id="flick-assign-grid" role="group" aria-label="フリック方向の割り当て">
+                    {% for dir_index in flick_grid_order %}
+                      {% if dir_index is none %}
+                        <div class="flick-assign-cell flick-assign-center" aria-hidden="true">
+                          <span class="flick-assign-center-mark">長押し</span>
+                        </div>
+                      {% else %}
+                        {% set direction = flick_directions[dir_index] %}
+                        <label class="flick-assign-cell">
+                          <span class="flick-assign-dir">
+                            <span class="flick-assign-arrow" aria-hidden="true">{{ direction.arrow }}</span>
+                            <span class="flick-assign-dir-label">{{ direction.label }}</span>
+                          </span>
+                          <select
+                            class="input-select flick-assign-select"
+                            name="cell_flick_direction__{{ dir_index }}"
+                            data-flick-index="{{ dir_index }}"
+                            aria-label="{{ direction.label }}方向の勤務区分"
+                          >
+                            <option value="">（なし）</option>
+                          </select>
+                        </label>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
                 </div>
                 <span class="field-hint">セルを長押しすると方向フリックでシフトを選べます。短くタップすると従来の一覧から選択します。</span>
+              </div>
+
+              <details class="settings-advanced"><summary>日付・入力操作の細かい調整</summary>
+              <div class="settings-form-grid settings-form-grid-compact">
+
+                <label class="form-field">
+                  <span class="form-label">週の始まり</span>
+                  <select name="week_start">
+                    {% for opt in week_start_options %}
+                      <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <span class="field-hint">週番号行の区切りに使用します。</span>
+                </label>
+
+              </div>
+              <div class="settings-checkbox-grid">
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="show_week_number">
+                  <span>週番号行を表示</span>
+                </label>
               </div>
 
               </details>
@@ -526,6 +530,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=13"></script>
+  <script src="/static/js/settings.js?v=14"></script>
 </body>
 </html>
