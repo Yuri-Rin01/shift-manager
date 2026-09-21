@@ -1453,6 +1453,16 @@ function openModal(mode, staff = null) {
   setSelectValue(document.getElementById("field-position"), staff?.position ?? "");
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
+  const weeklyLimitInput = document.getElementById("field-weekly-hour-limit");
+  const monthlyLimitInput = document.getElementById("field-monthly-hour-limit");
+  if (weeklyLimitInput) {
+    weeklyLimitInput.value =
+      staff?.weekly_hour_limit != null ? String(staff.weekly_hour_limit) : "";
+  }
+  if (monthlyLimitInput) {
+    monthlyLimitInput.value =
+      staff?.monthly_hour_limit != null ? String(staff.monthly_hour_limit) : "";
+  }
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) {
@@ -1665,6 +1675,14 @@ async function saveStaff(event) {
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
     fix_night_shift_count: fixNightCount,
     night_shift_count: fixNightCount ? nightCount : null,
+    weekly_hour_limit: (() => {
+      const raw = document.getElementById("field-weekly-hour-limit")?.value.trim() ?? "";
+      return raw === "" ? null : Number.parseFloat(raw);
+    })(),
+    monthly_hour_limit: (() => {
+      const raw = document.getElementById("field-monthly-hour-limit")?.value.trim() ?? "";
+      return raw === "" ? null : Number.parseFloat(raw);
+    })(),
     day_incompatible_ids: [...selectedDayIncompatibilities],
     night_incompatible_ids: mergeNightIncompatibilities(),
   };

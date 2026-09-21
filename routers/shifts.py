@@ -237,6 +237,16 @@ def validate_shift_period(year: int, month: int, focus_date: str | None = None):
         raise HTTPException(status_code=500, detail=f"検証に失敗しました: {exc}") from exc
 
 
+@router.get("/labor-hours")
+def get_labor_hours(year: int, month: int):
+    from services.labor_hours import summarize_labor_hours
+
+    try:
+        return summarize_labor_hours(year, month)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"労働時間の集計に失敗しました: {exc}") from exc
+
+
 @router.get("/period-lock")
 def get_period_lock_status(year: int, month: int):
     from services.period_lock import period_status

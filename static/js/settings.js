@@ -201,6 +201,7 @@ function renderStaffingBasisRows(options = [], settings = null) {
         <label class="form-field"><span class="form-label">種類</span><select class="staffing-basis-base" ${FIXED_WORK_KEYS.has(key) ? "disabled" : ""}>${Object.entries(BASE_LABELS).map(([value,label]) => `<option value="${value}" ${base === value || (!BASE_LABELS[base] && value === "day") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
         <label class="form-field"><span class="form-label">開始</span><input type="time" class="staffing-basis-start" required value="${escapeAttr(item.start_time ?? "09:00")}"></label>
         <label class="form-field"><span class="form-label">終了</span><input type="time" class="staffing-basis-end" required value="${escapeAttr(item.end_time ?? "18:00")}"></label>
+        <label class="form-field"><span class="form-label">休憩（分）</span><input type="number" class="staffing-basis-break" min="0" max="720" step="1" placeholder="未設定" value="${item.break_minutes != null && item.break_minutes !== "" ? escapeAttr(String(item.break_minutes)) : ""}"><span class="field-hint">実働集計に必要。空欄のままでは確定値を出しません。</span></label>
       </div>
       <div class="work-editor-card-foot"><label class="check-row"><input type="checkbox" class="staffing-basis-visible" ${visibility[key] !== false ? "checked" : ""}> カレンダーに表示</label><span class="staffing-basis-hours-preview"></span></div>
     </details>`;
@@ -456,13 +457,18 @@ function escapeAttr(value) {
 function collectStaffingBasisOptions() {
   if (!staffingBasisTbody) return [];
   return [...staffingBasisTbody.querySelectorAll(".staffing-basis-table-row")]
-    .map((row) => ({
-      key: row.querySelector(".staffing-basis-key")?.value.trim() ?? "",
-      label: row.querySelector(".staffing-basis-label")?.value.trim() ?? "",
-      start_time: row.querySelector(".staffing-basis-start")?.value.trim() ?? "",
-      end_time: row.querySelector(".staffing-basis-end")?.value.trim() ?? "",
-      ...(!FIXED_WORK_KEYS.has(row.dataset.key) ? {base_key: row.querySelector(".staffing-basis-base")?.value ?? "day"} : {}),
-    }))
+    .map((row) => {
+      const breakRaw = row.querySelector(".staffing-basis-break")?.value.trim() ?? "";
+      const breakMinutes = breakRaw === "" ? null : Number(breakRaw);
+      return {
+        key: row.querySelector(".staffing-basis-key")?.value.trim() ?? "",
+        label: row.querySelector(".staffing-basis-label")?.value.trim() ?? "",
+        start_time: row.querySelector(".staffing-basis-start")?.value.trim() ?? "",
+        end_time: row.querySelector(".staffing-basis-end")?.value.trim() ?? "",
+        ...(Number.isFinite(breakMinutes) ? { break_minutes: breakMinutes } : {}),
+        ...(!FIXED_WORK_KEYS.has(row.dataset.key) ? {base_key: row.querySelector(".staffing-basis-base")?.value ?? "day"} : {}),
+      };
+    })
     .filter((item) => item.key || item.label);
 }
 
@@ -577,7 +583,7 @@ function populateForm(data) {
       setStaffingRequirementMode(value);
       continue;
     }
-    if (key === "off_days_per_period") {
+    if (key === "off_days_per_period" || key === "default_weekly_hour_limit" || key === "default_monthly_hour_limit") {
       const field = form.elements.namedItem(key);
       if (field && "value" in field) {
         field.value = value == null ? "" : String(value);
@@ -653,6 +659,9 @@ function collectFormData() {
     } else if (element.name === "off_days_per_period") {
       const raw = element.value.trim();
       data[element.name] = raw === "" ? null : Number.parseInt(raw, 10);
+    } else if (element.name === "default_weekly_hour_limit" || element.name === "default_monthly_hour_limit") {
+      const raw = element.value.trim();
+      data[element.name] = raw === "" ? null : Number.parseFloat(raw);
     } else if (INT_FIELDS.has(element.name)) {
       data[element.name] = Number.parseInt(element.value, 10);
     } else {

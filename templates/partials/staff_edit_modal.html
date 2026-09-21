@@ -184,6 +184,20 @@
           </label>
           </div>
         </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-labor-limits-wrap">
+          <span class="form-label">労働時間の個別上限（業務設定）</span>
+          <p class="field-hint">空欄のときは施設の既定上限を使います。法令判定ではありません。留学生・短時間勤務などに使います。</p>
+          <div class="settings-form-grid settings-form-grid-compact">
+            <label class="form-field">
+              <span class="form-label">週の上限（時間）</span>
+              <input type="number" id="field-weekly-hour-limit" class="input-number" min="0" max="168" step="0.5" placeholder="施設の既定">
+            </label>
+            <label class="form-field">
+              <span class="form-label">期間の上限（時間）</span>
+              <input type="number" id="field-monthly-hour-limit" class="input-number" min="0" max="744" step="0.5" placeholder="施設の既定">
+            </label>
+          </div>
+        </div>
         <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
           <div class="picker-head">
             <span class="form-label">日勤相性</span>

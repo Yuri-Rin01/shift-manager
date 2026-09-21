@@ -56,6 +56,9 @@ DEFAULT_SETTINGS: dict = {
     "max_consecutive_days": 5,
     "max_night_per_week": 2,
     "require_leader_on_night": True,
+    # 労働時間の業務上の上限（法令値の固定ではない。未設定は上限比較なし）
+    "default_weekly_hour_limit": None,
+    "default_monthly_hour_limit": None,
     # アラート
     "leave_alert_threshold": 72,
     "leave_fulfill_target": 90,

@@ -9,7 +9,8 @@ from schemas.staff import StaffBulkUpdate, StaffCreate, StaffUpdate
 STAFF_COLUMNS = (
     "id, name, department, job_type, position, can_work_night, "
     "staffing_basis, exclude_from_staffing, off_days_per_period, "
-    "night_shift_count, fix_night_shift_count"
+    "night_shift_count, fix_night_shift_count, "
+    "weekly_hour_limit, monthly_hour_limit"
 )
 
 NIGHT_INCOMPAT_TABLE = "staff_night_incompatibilities"
@@ -138,6 +139,16 @@ def _row_to_dict(
             else None
         ),
         "fix_night_shift_count": bool(row["fix_night_shift_count"]),
+        "weekly_hour_limit": (
+            float(row["weekly_hour_limit"])
+            if "weekly_hour_limit" in row.keys() and row["weekly_hour_limit"] is not None
+            else None
+        ),
+        "monthly_hour_limit": (
+            float(row["monthly_hour_limit"])
+            if "monthly_hour_limit" in row.keys() and row["monthly_hour_limit"] is not None
+            else None
+        ),
         "night_incompatible_ids": night_incompatible_ids or [],
         "day_incompatible_ids": day_incompatible_ids or [],
     }
@@ -185,9 +196,10 @@ def create_staff(data: StaffCreate) -> dict:
             INSERT INTO staff (
                 name, department, job_type, position, can_work_night,
                 staffing_basis, exclude_from_staffing, off_days_per_period,
-                night_shift_count, fix_night_shift_count
+                night_shift_count, fix_night_shift_count,
+                weekly_hour_limit, monthly_hour_limit
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.name,
@@ -200,6 +212,8 @@ def create_staff(data: StaffCreate) -> dict:
                 None,
                 data.night_shift_count if data.fix_night_shift_count else None,
                 int(data.fix_night_shift_count),
+                data.weekly_hour_limit,
+                data.monthly_hour_limit,
             ),
         )
         staff_id = cursor.lastrowid
@@ -247,6 +261,16 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             if "fix_night_shift_count" in fields_set
             else current["fix_night_shift_count"]
         ),
+        "weekly_hour_limit": (
+            data.weekly_hour_limit
+            if "weekly_hour_limit" in fields_set
+            else current.get("weekly_hour_limit")
+        ),
+        "monthly_hour_limit": (
+            data.monthly_hour_limit
+            if "monthly_hour_limit" in fields_set
+            else current.get("monthly_hour_limit")
+        ),
         "night_incompatible_ids": (
             data.night_incompatible_ids
             if data.night_incompatible_ids is not None
@@ -268,7 +292,8 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             UPDATE staff
             SET name = ?, department = ?, job_type = ?, position = ?, can_work_night = ?,
                 staffing_basis = ?, exclude_from_staffing = ?, off_days_per_period = ?,
-                night_shift_count = ?, fix_night_shift_count = ?
+                night_shift_count = ?, fix_night_shift_count = ?,
+                weekly_hour_limit = ?, monthly_hour_limit = ?
             WHERE id = ?
             """,
             (
@@ -282,6 +307,8 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 None,
                 updated["night_shift_count"],
                 int(updated["fix_night_shift_count"]),
+                updated["weekly_hour_limit"],
+                updated["monthly_hour_limit"],
                 staff_id,
             ),
         )

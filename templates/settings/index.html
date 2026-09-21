@@ -230,6 +230,19 @@
                   <input type="number" name="max_night_per_week" min="0" max="7">
                 </label>
               </div>
+              <details class="settings-advanced"><summary>労働時間の上限（業務設定）</summary>
+                <p class="field-hint">開始・終了・休憩から実働を集計し、ここで設定した上限との差を表示します。法令の上限を自動判定するものではありません。空欄のときは上限比較をしません。留学生・短時間勤務などは職員ごとに個別上限を設定できます。</p>
+                <div class="settings-form-grid settings-form-grid-compact">
+                  <label class="form-field">
+                    <span class="form-label">週の上限（時間）</span>
+                    <input type="number" name="default_weekly_hour_limit" min="0" max="168" step="0.5" placeholder="未設定">
+                  </label>
+                  <label class="form-field">
+                    <span class="form-label">期間の上限（時間）</span>
+                    <input type="number" name="default_monthly_hour_limit" min="0" max="744" step="0.5" placeholder="未設定">
+                  </label>
+                </div>
+              </details>
               <details class="settings-advanced"><summary>詳しい夜勤ルール</summary><div class="settings-checkbox-grid">
                 <label class="check-row settings-check">
                   <input type="checkbox" name="night_shift_counts_as_two_days">

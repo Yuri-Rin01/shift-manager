@@ -4769,6 +4769,18 @@ body.period-locked .shift-td-editable {
   .staffing-basis-value { grid-column:2 / -1; }
 }
 .home-view-options > summary, .home-other-actions > summary, .home-bottom-status > summary { padding:8px; cursor:pointer; }
+.labor-hours-panel { margin-top:12px; border:1px solid #d8dee6; border-radius:8px; padding:8px 12px; background:#fafbfd; }
+.labor-hours-panel > summary { cursor:pointer; font-weight:600; }
+.labor-hours-table-wrap { margin-top:8px; }
+.labor-hours-scroll { max-height:280px; overflow:auto; }
+.labor-hours-table { width:100%; border-collapse:collapse; font-size:13px; }
+.labor-hours-table th, .labor-hours-table td { border-bottom:1px solid #e5e9ef; padding:6px 8px; text-align:left; white-space:nowrap; }
+.labor-hours-table .labor-week-cell { white-space:normal; min-width:160px; }
+.labor-status.is-incomplete { color:#a15c00; font-weight:600; }
+.labor-status.is-complete { color:#1f6b3a; }
+@media (max-width:760px) {
+  .labor-hours-scroll { max-height:220px; }
+}
 .home-bottom-status { flex:1; }
 .home-other-actions { position:relative; }
 .home-other-actions[open] > button { position:absolute; right:0; top:100%; z-index:20; white-space:nowrap; }

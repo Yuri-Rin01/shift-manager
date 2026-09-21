@@ -1249,6 +1249,64 @@ document.getElementById("btn-validate-period")?.addEventListener("click", async 
   }
 });
 
+function formatLaborHours(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${Number(value).toFixed(1)}h`;
+}
+
+function renderLaborHours(data) {
+  const note = document.getElementById("labor-hours-note");
+  const wrap = document.getElementById("labor-hours-table-wrap");
+  if (!wrap) return;
+  if (note) note.textContent = data.note || "";
+  const rows = data.staff || [];
+  if (!rows.length) {
+    wrap.innerHTML = "<p class=\"field-hint\">職員がいません。</p>";
+    return;
+  }
+  const body = rows
+    .map((row) => {
+      const status =
+        row.period_status === "incomplete"
+          ? `<span class="labor-status is-incomplete">未確定</span>`
+          : `<span class="labor-status is-complete">確定</span>`;
+      const diff =
+        row.period_diff_hours == null
+          ? "—"
+          : `${row.period_diff_hours > 0 ? "+" : ""}${Number(row.period_diff_hours).toFixed(1)}h`;
+      const weekBits = (row.weekly || [])
+        .map((week) => {
+          if (week.status === "incomplete") return `W${week.week}:未確定`;
+          const weekDiff =
+            week.diff_hours == null
+              ? ""
+              : ` (${week.diff_hours > 0 ? "+" : ""}${Number(week.diff_hours).toFixed(1)})`;
+          return `W${week.week}:${formatLaborHours(week.hours)}${weekDiff}`;
+        })
+        .join(" / ");
+      return `<tr data-staff-id="${row.staff_id}"><td>${escapeValidationText(row.name || "")}</td><td>${formatLaborHours(row.period_hours)}</td><td>${formatLaborHours(row.monthly_limit_hours)}</td><td>${diff}</td><td>${status}</td><td class="labor-week-cell">${escapeValidationText(weekBits)}</td></tr>`;
+    })
+    .join("");
+  wrap.innerHTML = `<div class="table-wrap labor-hours-scroll"><table class="labor-hours-table"><thead><tr><th>職員</th><th>期間合計</th><th>期間上限</th><th>差</th><th>状態</th><th>週ごと</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+document.getElementById("btn-labor-hours-refresh")?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const wrap = document.getElementById("labor-hours-table-wrap");
+  if (wrap) wrap.innerHTML = "<p class=\"field-hint\">集計中…</p>";
+  try {
+    const response = await fetch(`/api/shifts/labor-hours?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "集計に失敗しました");
+    renderLaborHours(data);
+  } catch (error) {
+    if (wrap) wrap.innerHTML = "";
+    window.alert(error.message || "集計に失敗しました");
+  }
+});
+
 async function unlockManualCell(td) {
   const staffId = Number(td.dataset.staffId);
   const year = Number(td.dataset.year);

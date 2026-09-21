@@ -200,6 +200,12 @@
                 </div>
                 <ul id="shift-validation-list" class="shift-validation-list"></ul>
               </div>
+              <details class="labor-hours-panel" id="labor-hours-panel">
+                <summary>労働時間の集計</summary>
+                <p class="field-hint" id="labor-hours-note">開始・終了・休憩から実働を集計します。休憩が未設定の勤務は確定値を出しません。上限は業務設定であり、法令適合の判定ではありません。</p>
+                <button type="button" class="btn btn-sm" id="btn-labor-hours-refresh">この期間を集計</button>
+                <div id="labor-hours-table-wrap" class="labor-hours-table-wrap"></div>
+              </details>
               {% if app_settings.show_shift_legend %}
               <div class="legend"><span class="legend-item">勤務下：配置先 / L：夜勤リーダー（担当フロア兼務・別枠）</span>
                 {% for item in legend %}

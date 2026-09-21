@@ -61,6 +61,9 @@ class AppSettings(BaseModel):
     max_consecutive_days: int = Field(default=5, ge=1, le=14)
     max_night_per_week: int = Field(default=2, ge=0, le=7)
     require_leader_on_night: bool = True
+    # 業務上の労働時間上限（時間）。未設定は比較しない。法令適合判定ではない。
+    default_weekly_hour_limit: float | None = Field(default=None, ge=0, le=168)
+    default_monthly_hour_limit: float | None = Field(default=None, ge=0, le=744)
 
     leave_alert_threshold: int = Field(default=72, ge=0, le=168)
     leave_fulfill_target: int = Field(default=90, ge=0, le=100)
