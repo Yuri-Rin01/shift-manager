@@ -574,7 +574,6 @@ function initSheetTabDrag() {
       if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
       drag.active = true;
       sheetTabSuppressClick = true;
-      hideSheetGaugePopover();
       drag.tab.classList.add("is-dragging");
       list.classList.add("is-reordering");
       try {
@@ -723,7 +722,6 @@ function openSheetAddPopover() {
   popover.querySelectorAll(".sheet-add-job-input").forEach((input) => {
     input.checked = false;
   });
-  hideSheetGaugePopover();
   popover.classList.remove("hidden");
   popover.setAttribute("aria-hidden", "false");
   placeSheetAddPopover();
@@ -1015,7 +1013,6 @@ function laborAudience(view = getCurrentSheetView()) {
 }
 
 const laborSummaryCache = { key: "", student: null, partTime: null };
-let sheetGaugeHideTimer = null;
 
 function currentLaborKey() {
   return `${getCalendarYear()}-${getCalendarMonth()}`;
@@ -1036,7 +1033,16 @@ function rememberLaborCache(kind, data) {
   laborSummaryCache[kind] = data;
 }
 
-function syncStudentLaborPanelVisibility() {
+function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
+  const panel = document.getElementById("student-labor-panel");
+  if (!panel) return;
+  const audience = laborAudience(view);
+  const show = audience.students || audience.partTime;
+  panel.classList.toggle("hidden", !show);
+  panel.classList.toggle("is-split", audience.students && audience.partTime);
+  panel.closest(".shift-workspace")?.classList.toggle("has-student-labor-panel", show);
+  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
+  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
   loadStudentLaborSummary();
   loadPartTimeHours();
 }
@@ -1047,14 +1053,6 @@ function refreshLaborPanels() {
   laborSummaryCache.partTime = null;
   loadStudentLaborSummary({ refresh: true });
   loadPartTimeHours({ refresh: true });
-}
-
-function hideSheetGaugePopover() {
-  const panel = document.getElementById("student-labor-panel");
-  if (!panel) return;
-  panel.classList.add("hidden");
-  panel.setAttribute("aria-hidden", "true");
-  delete panel.dataset.hoverSheet;
 }
 
 let staffGaugeHoverId = null;
@@ -1116,7 +1114,6 @@ async function showStaffGaugePopover(link) {
   const staffId = String(link.closest("tr")?.dataset.staffId || "");
   if (!staffId) return;
   staffGaugeHoverId = staffId;
-  hideSheetGaugePopover();
   if (readLaborCache("student") && readLaborCache("partTime")) {
     renderStaffGaugePopover(link, staffId);
     return;
@@ -1161,86 +1158,6 @@ function initStaffGaugeHover() {
   pop.addEventListener("pointerenter", cancelHide);
   pop.addEventListener("pointerleave", scheduleHide);
   document.getElementById("sheet-main-scroll")?.addEventListener("scroll", () => hideStaffGaugePopover(), { passive: true });
-}
-
-function placeSheetGaugePopover(tab) {
-  const panel = document.getElementById("student-labor-panel");
-  const stage = document.querySelector(".shift-sheet-stage");
-  if (!panel || !stage || !tab) return;
-  const stageRect = stage.getBoundingClientRect();
-  const tabRect = tab.getBoundingClientRect();
-  const width = Math.min(880, Math.max(280, stageRect.width - 16));
-  panel.style.width = `${width}px`;
-  const maxLeft = Math.max(8, stageRect.width - width - 8);
-  const left = Math.min(Math.max(8, tabRect.left - stageRect.left), maxLeft);
-  panel.style.left = `${left}px`;
-  panel.style.top = `${tabRect.bottom - stageRect.top + 6}px`;
-}
-
-function showSheetGaugePopover(tab) {
-  const panel = document.getElementById("student-labor-panel");
-  const list = document.querySelector(".sheet-tabs");
-  if (!panel || !tab) return;
-  hideStaffGaugePopover();
-  if (list?.classList.contains("is-reordering")) {
-    hideSheetGaugePopover();
-    return;
-  }
-  const view = tab.dataset.sheetView || "all";
-  const audience = laborAudience(view);
-  if (!audience.students && !audience.partTime) {
-    hideSheetGaugePopover();
-    return;
-  }
-  panel.dataset.hoverSheet = view;
-  panel.classList.toggle("is-split", audience.students && audience.partTime);
-  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
-  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
-  panel.classList.remove("hidden");
-  panel.setAttribute("aria-hidden", "false");
-  if (audience.students) loadStudentLaborSummary();
-  if (audience.partTime) loadPartTimeHours();
-  placeSheetGaugePopover(tab);
-}
-
-function initSheetGaugeHover() {
-  const list = document.querySelector(".sheet-tabs");
-  const panel = document.getElementById("student-labor-panel");
-  if (!list || !panel || list.dataset.gaugeHoverReady) return;
-  list.dataset.gaugeHoverReady = "1";
-
-  const cancelHide = () => {
-    if (sheetGaugeHideTimer) {
-      window.clearTimeout(sheetGaugeHideTimer);
-      sheetGaugeHideTimer = null;
-    }
-  };
-  const scheduleHide = () => {
-    cancelHide();
-    sheetGaugeHideTimer = window.setTimeout(() => hideSheetGaugePopover(), 140);
-  };
-
-  list.addEventListener("pointerover", (event) => {
-    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
-    if (!tab || !list.contains(tab)) {
-      if (event.target.closest("#btn-add-sheet-tab")) scheduleHide();
-      return;
-    }
-    cancelHide();
-    showSheetGaugePopover(tab);
-  });
-  list.addEventListener("pointerleave", scheduleHide);
-  panel.addEventListener("pointerenter", cancelHide);
-  panel.addEventListener("pointerleave", scheduleHide);
-  list.addEventListener("focusin", (event) => {
-    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
-    if (!tab || !list.contains(tab)) return;
-    showSheetGaugePopover(tab);
-  });
-  list.addEventListener("focusout", (event) => {
-    if (list.contains(event.relatedTarget)) return;
-    scheduleHide();
-  });
 }
 
 function formatStudentLaborDateRange(startIso, endIso) {
@@ -1596,7 +1513,6 @@ function initSheetViews() {
   installCustomSheetTabs();
   syncSheetTabColors();
   initSheetAddPopover();
-  initSheetGaugeHover();
   initStaffGaugeHover();
 
   initSheetTabDrag();
