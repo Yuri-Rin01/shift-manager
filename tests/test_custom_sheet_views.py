@@ -66,3 +66,9 @@ def test_display_settings_page_has_custom_sheet_editor():
             assert 'id="custom-sheet-list"' in html
             assert 'id="btn-add-custom-sheet"' in html
             assert "JOB_TYPES" in html
+            home = client.get("/")
+            assert home.status_code == 200
+            home_html = home.text
+            assert 'id="btn-add-sheet-tab"' in home_html
+            assert home_html.index('data-sheet-view="foreign-students"') < home_html.index("btn-add-sheet-tab")
+            assert 'id="sheet-add-popover"' in home_html

@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=114">
+  <link rel="stylesheet" href="/static/css/style.css?v=115">
 </head>
 <body>
   <div class="app">
@@ -205,6 +205,27 @@
                     <span class="sheet-tab-label">留学生用</span>
                     <span class="sheet-tab-count" aria-hidden="true">0</span>
                   </button>
+                  <button type="button" class="sheet-tab-add" id="btn-add-sheet-tab" aria-haspopup="dialog" aria-controls="sheet-add-popover" aria-label="シートを追加" title="シートを追加">＋</button>
+                </div>
+                <div id="sheet-add-popover" class="sheet-add-popover hidden" role="dialog" aria-labelledby="sheet-add-title" aria-hidden="true">
+                  <h3 id="sheet-add-title" class="sheet-add-title">シートを追加</h3>
+                  <div class="sheet-add-fields">
+                    <label class="form-field">
+                      <span class="form-label">シート名</span>
+                      <input type="text" id="sheet-add-label" class="input-text" maxlength="20" placeholder="例: 看護" autocomplete="off">
+                    </label>
+                    <label class="form-field sheet-add-color-field">
+                      <span class="form-label">色</span>
+                      <input type="color" id="sheet-add-color" class="sheet-add-color" value="#64748b" aria-label="シートの色">
+                    </label>
+                  </div>
+                  <p class="field-hint">表示する職種を選びます。</p>
+                  <div id="sheet-add-jobs" class="sheet-add-jobs" role="group" aria-label="表示する職種"></div>
+                  <p id="sheet-add-error" class="field-hint sheet-add-error hidden" role="alert"></p>
+                  <div class="sheet-add-actions">
+                    <button type="button" class="btn btn-sm" id="btn-sheet-add-cancel">キャンセル</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-sheet-add-save">追加</button>
+                  </div>
                 </div>
                 <div class="sheet-flip-viewport" id="sheet-flip-viewport">
                   <div class="sheet-flip-page" id="sheet-flip-page">
@@ -286,7 +307,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=70"></script>
+  <script src="/static/js/home.js?v=71"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

@@ -475,6 +475,7 @@ function fixedJobsForSheet(view) {
 function installCustomSheetTabs() {
   const list = document.querySelector(".sheet-tabs");
   if (!list) return;
+  const addButton = document.getElementById("btn-add-sheet-tab");
   list.querySelectorAll(".sheet-tab.is-custom").forEach((el) => el.remove());
   for (const sheet of customSheetViews) {
     const button = document.createElement("button");
@@ -485,8 +486,168 @@ function installCustomSheetTabs() {
     button.setAttribute("aria-selected", "false");
     button.innerHTML = `<span class="sheet-tab-label"></span><span class="sheet-tab-count" aria-hidden="true">0</span>`;
     button.querySelector(".sheet-tab-label").textContent = sheet.label;
-    list.appendChild(button);
+    if (addButton) list.insertBefore(button, addButton);
+    else list.appendChild(button);
   }
+  syncSheetAddButton();
+}
+
+const MAX_CUSTOM_SHEETS = 8;
+const CUSTOM_SHEET_COLORS = ["#64748b", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0369a1", "#4d7c0f", "#9a3412"];
+
+function syncSheetAddButton() {
+  const button = document.getElementById("btn-add-sheet-tab");
+  if (!button) return;
+  const full = customSheetViews.length >= MAX_CUSTOM_SHEETS;
+  button.disabled = full;
+  button.title = full ? "追加シートは8件までです" : "シートを追加";
+}
+
+function allocateCustomSheetId(existingIds) {
+  const used = new Set(existingIds);
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = `custom-${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `custom-${Date.now().toString(36)}`;
+}
+
+function sheetAddError(message) {
+  const error = document.getElementById("sheet-add-error");
+  if (!error) return;
+  error.textContent = message || "";
+  error.classList.toggle("hidden", !message);
+}
+
+function renderSheetAddJobs() {
+  const box = document.getElementById("sheet-add-jobs");
+  if (!box || box.childElementCount) return;
+  const jobs = Array.isArray(window.JOB_ORDER) ? window.JOB_ORDER : [];
+  box.innerHTML = jobs
+    .map(
+      (label) => `<label class="check-row sheet-add-job">
+        <input type="checkbox" class="sheet-add-job-input" value="${escapeHtml(label)}">
+        <span>${escapeHtml(label)}</span>
+      </label>`
+    )
+    .join("");
+}
+
+function openSheetAddPopover() {
+  if (customSheetViews.length >= MAX_CUSTOM_SHEETS) return;
+  const popover = document.getElementById("sheet-add-popover");
+  const label = document.getElementById("sheet-add-label");
+  const color = document.getElementById("sheet-add-color");
+  if (!popover) return;
+  renderSheetAddJobs();
+  sheetAddError("");
+  if (label) label.value = "";
+  if (color) {
+    color.value = CUSTOM_SHEET_COLORS[customSheetViews.length % CUSTOM_SHEET_COLORS.length];
+  }
+  popover.querySelectorAll(".sheet-add-job-input").forEach((input) => {
+    input.checked = false;
+  });
+  popover.classList.remove("hidden");
+  popover.setAttribute("aria-hidden", "false");
+  label?.focus();
+}
+
+function closeSheetAddPopover() {
+  const popover = document.getElementById("sheet-add-popover");
+  if (!popover) return;
+  popover.classList.add("hidden");
+  popover.setAttribute("aria-hidden", "true");
+  sheetAddError("");
+}
+
+function refreshSheetCatalog() {
+  loadCustomSheetViews();
+  loadSheetViewColors();
+  installCustomSheetTabs();
+  syncSheetTabColors();
+  updateSheetTabCounts();
+}
+
+async function saveSheetFromHome() {
+  const labelInput = document.getElementById("sheet-add-label");
+  const colorInput = document.getElementById("sheet-add-color");
+  const saveButton = document.getElementById("btn-sheet-add-save");
+  const label = labelInput?.value.trim() ?? "";
+  const jobs = [...document.querySelectorAll(".sheet-add-job-input:checked")].map((input) => input.value);
+  if (!label) {
+    sheetAddError("シート名を入力してください。");
+    labelInput?.focus();
+    return;
+  }
+  if (!jobs.length) {
+    sheetAddError("職種を1つ以上選んでください。");
+    return;
+  }
+  if (saveButton) saveButton.disabled = true;
+  try {
+    const loaded = await fetch("/api/settings");
+    if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+    const settings = await loaded.json();
+    const sheets = Array.isArray(settings.custom_sheet_views) ? settings.custom_sheet_views.slice() : [];
+    if (sheets.length >= MAX_CUSTOM_SHEETS) {
+      sheetAddError("追加シートは8件までです。");
+      syncSheetAddButton();
+      return;
+    }
+    const id = allocateCustomSheetId(sheets.map((item) => item.id));
+    sheets.push({
+      id,
+      label,
+      job_types: jobs,
+      color: colorInput?.value || CUSTOM_SHEET_COLORS[0],
+    });
+    settings.custom_sheet_views = sheets;
+    const savedResponse = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    if (!savedResponse.ok) {
+      const error = await savedResponse.json().catch(() => ({}));
+      throw new Error(typeof error.detail === "string" ? error.detail : "シートを追加できませんでした。");
+    }
+    const saved = await savedResponse.json();
+    serverDefaults.custom_sheet_views = Array.isArray(saved.custom_sheet_views) ? saved.custom_sheet_views : sheets;
+    const created = serverDefaults.custom_sheet_views.find((item) => item.label === label) || serverDefaults.custom_sheet_views.at(-1);
+    closeSheetAddPopover();
+    refreshSheetCatalog();
+    if (created?.id) setSheetView(created.id);
+  } catch (error) {
+    sheetAddError(error.message || "シートを追加できませんでした。");
+  } finally {
+    if (saveButton) saveButton.disabled = false;
+  }
+}
+
+function initSheetAddPopover() {
+  const popover = document.getElementById("sheet-add-popover");
+  document.getElementById("btn-add-sheet-tab")?.addEventListener("click", () => {
+    const open = popover && !popover.classList.contains("hidden");
+    if (open) closeSheetAddPopover();
+    else openSheetAddPopover();
+  });
+  document.getElementById("btn-sheet-add-cancel")?.addEventListener("click", closeSheetAddPopover);
+  document.getElementById("btn-sheet-add-save")?.addEventListener("click", saveSheetFromHome);
+  document.getElementById("sheet-add-label")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveSheetFromHome();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!popover || popover.classList.contains("hidden")) return;
+    if (event.target.closest("#sheet-add-popover, #btn-add-sheet-tab")) return;
+    closeSheetAddPopover();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSheetAddPopover();
+  });
 }
 
 function loadSheetViewColors() {
@@ -890,15 +1051,17 @@ function updateSheetTabCounts() {
 
 function initSheetViews() {
   const saved = loadPrefs();
+  const tabList = document.querySelector(".sheet-tabs");
   loadCustomSheetViews();
   loadSheetViewColors();
   installCustomSheetTabs();
   syncSheetTabColors();
+  initSheetAddPopover();
 
-  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
-    el.addEventListener("click", () => {
-      setSheetView(el.dataset.sheetView || "all");
-    });
+  tabList?.addEventListener("click", (event) => {
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !tabList.contains(tab)) return;
+    setSheetView(tab.dataset.sheetView || "all");
   });
 
   const initial = SHEET_VIEW_META[saved.sheetView] ? saved.sheetView : "all";
