@@ -24,6 +24,8 @@ DEFAULT_SETTINGS: dict = {
     "default_show_dept_column": True,
     "default_show_summary": True,
     "show_shift_legend": True,
+    # ホームの職種絞り込みに表示する候補。未登録の職種は表示扱い。
+    "job_filter_visibility": {},
     "default_table_zoom": 100,
     "week_start": "sunday",
     "calendar_start_day": 1,

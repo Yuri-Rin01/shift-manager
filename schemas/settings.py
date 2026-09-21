@@ -37,6 +37,7 @@ class AppSettings(BaseModel):
     default_show_dept_column: bool = True
     default_show_summary: bool = True
     show_shift_legend: bool = True
+    job_filter_visibility: dict[str, bool] = Field(default_factory=dict)
     default_table_zoom: int = Field(default=100, ge=50, le=200)
     calendar_sort_mode: str = "dept"
     week_start: str = "sunday"

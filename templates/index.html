@@ -157,7 +157,7 @@
                       </div>
                       <p class="home-check-panel-lock-note hidden" id="home-filter-job-lock-note">留学生用シートでは職種「留学生」のみ表示します</p>
                       <div class="home-chip-grid" data-filter-group="job">
-                        {% for job in job_types %}
+                        {% for job in job_filter_types %}
                           <label class="home-chip">
                             <input type="checkbox" class="filter-job-cb" value="{{ job.label }}" checked>
                             <span class="home-chip-face">{{ job.label }}</span>
@@ -279,11 +279,12 @@
     window.CALENDAR_MONTH = {{ month }};
     window.DEPT_ORDER = {{ departments | map(attribute='label') | list | tojson }};
     window.JOB_ORDER = {{ job_types | map(attribute='label') | list | tojson }};
+    window.JOB_FILTER_TYPES = {{ job_filter_types | map(attribute='label') | list | tojson }};
     window.STAFF_POSITION_ORDER = {{ positions | map(attribute='label') | list | tojson }};
     window.PERIOD_LABEL = {{ period_label | tojson }};
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=67"></script>
+  <script src="/static/js/home.js?v=68"></script>
 </body>
 </html>

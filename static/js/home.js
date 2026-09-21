@@ -831,6 +831,11 @@ function initSheetViews() {
 function applyRowFilters() {
   const selectedDepts = getSelectedFilterValues("dept");
   const selectedJobs = getSelectedFilterValues("job");
+  const filterableJobs = Array.isArray(window.JOB_FILTER_TYPES) ? window.JOB_FILTER_TYPES : [];
+  const jobFilterActive =
+    filterableJobs.length > 0 &&
+    selectedJobs.length > 0 &&
+    selectedJobs.length < filterableJobs.length;
   const selectedPositions = getSelectedFilterValues("position");
   const sheetView = getCurrentSheetView();
   const tbody = shiftCalendar?.querySelector("tbody");
@@ -844,7 +849,7 @@ function applyRowFilters() {
     const matchJob =
       sheetView === "foreign-students"
         ? job === FOREIGN_STUDENT_JOB
-        : selectedJobs.length === 0 || selectedJobs.includes(job);
+        : !jobFilterActive || selectedJobs.includes(job);
     const rowPosition = row.dataset.position ?? "";
     const matchPosition =
       selectedPositions.length === 0 || selectedPositions.includes(rowPosition);

@@ -57,6 +57,22 @@ const WORK_TYPE_TEMPLATES = window.WORK_TYPE_TEMPLATES ?? [];
 let FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
 const floorsEditor = document.getElementById("floors-editor");
 const addFloorButton = document.getElementById("btn-add-floor");
+const jobFilterVisibilityInputs = [
+  ...document.querySelectorAll(".job-filter-visibility-input"),
+];
+
+function populateJobFilterVisibility(visibility = {}) {
+  const values = visibility && typeof visibility === "object" ? visibility : {};
+  jobFilterVisibilityInputs.forEach((input) => {
+    input.checked = values[input.dataset.jobLabel] !== false;
+  });
+}
+
+function collectJobFilterVisibility() {
+  return Object.fromEntries(
+    jobFilterVisibilityInputs.map((input) => [input.dataset.jobLabel, input.checked])
+  );
+}
 
 function allocateFloorId(existingIds) {
   const used = new Set(existingIds);
@@ -617,6 +633,10 @@ function populateForm(data) {
       renderFloorsEditor(Array.isArray(value) ? value : []);
       continue;
     }
+    if (key === "job_filter_visibility") {
+      populateJobFilterVisibility(value);
+      continue;
+    }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : [], data);
       renderWorkTypeMinStaffRows(
@@ -733,6 +753,7 @@ function collectFormData() {
   data.visible_work_types = collectVisibleWorkTypes();
   data.staffing_basis_options = collectStaffingBasisOptions();
   data.floors = collectFloors();
+  data.job_filter_visibility = collectJobFilterVisibility();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();

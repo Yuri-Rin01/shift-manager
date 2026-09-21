@@ -140,6 +140,22 @@ def get_job_types() -> list[dict]:
     return _merge_by_label(CARE_JOB_TYPES + HOSPITAL_JOB_TYPES)
 
 
+def get_job_filter_types(settings: dict | None = None) -> list[dict]:
+    """ホームの職種絞り込みに表示する候補だけを返す。"""
+    if settings is None:
+        from db.settings_repository import get_settings
+
+        settings = get_settings()
+    visibility = settings.get("job_filter_visibility")
+    if not isinstance(visibility, dict):
+        visibility = {}
+    return [
+        item
+        for item in get_job_types()
+        if visibility.get(item["label"], True) is not False
+    ]
+
+
 def get_positions() -> list[dict]:
     facility_type = _active_facility_type()
     if facility_type == "care":

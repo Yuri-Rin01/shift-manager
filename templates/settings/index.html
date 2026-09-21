@@ -309,6 +309,22 @@
                 </label>
               </div>
 
+              <h3 class="settings-subtitle">職種の絞り込み候補</h3>
+              <p class="field-hint">ホームの「職種」絞り込みに表示する候補を選びます。職員情報や通常のカレンダー表示から職種が削除されることはありません。</p>
+              <div class="settings-checkbox-grid" id="job-filter-visibility">
+                {% for job in job_types %}
+                  <label class="check-row settings-check">
+                    <input
+                      type="checkbox"
+                      class="job-filter-visibility-input"
+                      data-job-label="{{ job.label }}"
+                      checked
+                    >
+                    <span>{{ job.label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+
               <details class="settings-advanced"><summary>日付・入力操作の細かい調整</summary>
               <div class="settings-form-grid settings-form-grid-compact">
 
@@ -470,6 +486,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=11"></script>
+  <script src="/static/js/settings.js?v=12"></script>
 </body>
 </html>
