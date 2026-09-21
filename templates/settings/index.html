@@ -400,6 +400,38 @@
             </div>
           </section>
 
+          <section class="card settings-section{% if settings_panel != 'data' %} is-hidden-panel{% endif %}" id="section-data" data-panel="data">
+            <div class="card-header">
+              <h2>データの保存と復元</h2>
+              <p class="card-header-note">職員・勤務表・配置・設定・希望休をまとめて保存／復元します。故障や入れ替えの前に保存しておくと安心です。</p>
+            </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">いまの状態を保存</h3>
+              <p class="field-hint">日時付きのファイル名で保存されます。ダウンロードしてUSBなどへ保管できます。</p>
+              <div class="backup-create-row">
+                <label class="form-field">
+                  <span class="form-label">メモ（任意）</span>
+                  <input type="text" id="backup-note" maxlength="100" placeholder="例: 9月確定前">
+                </label>
+                <button type="button" class="btn btn-primary" id="btn-backup-create">バックアップを作成</button>
+              </div>
+
+              <h3 class="settings-subtitle">保存済み一覧</h3>
+              <div id="backup-list" class="backup-list" aria-live="polite">
+                <p class="field-hint">読み込み中…</p>
+              </div>
+
+              <h3 class="settings-subtitle">ファイルから復元</h3>
+              <p class="field-hint">復元すると今のデータは置き換わります。実行前に内容確認があり、直前の状態は自動で退避します。</p>
+              <div class="backup-restore-row">
+                <input type="file" id="backup-file" accept=".zip,application/zip">
+                <button type="button" class="btn" id="btn-backup-validate">内容を確認</button>
+              </div>
+              <div id="backup-validate-result" class="backup-validate-result hidden"></div>
+              <button type="button" class="btn btn-danger hidden" id="btn-backup-restore" disabled>確認して復元する</button>
+            </div>
+          </section>
+
         </form>
           </div>
         </div>
@@ -419,6 +451,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=10"></script>
+  <script src="/static/js/settings.js?v=11"></script>
 </body>
 </html>

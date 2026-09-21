@@ -876,3 +876,190 @@ function validateSettingsForm() {
 }
 form.noValidate = true;
 loadSettings();
+
+/* ---- バックアップ / 復元 ---- */
+const backupListEl = document.getElementById("backup-list");
+const backupNoteEl = document.getElementById("backup-note");
+const backupFileEl = document.getElementById("backup-file");
+const backupValidateResult = document.getElementById("backup-validate-result");
+const btnBackupCreate = document.getElementById("btn-backup-create");
+const btnBackupValidate = document.getElementById("btn-backup-validate");
+const btnBackupRestore = document.getElementById("btn-backup-restore");
+
+let pendingRestoreFilename = null;
+
+function formatBackupWhen(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ja-JP", { hour12: false });
+}
+
+function renderBackupList(items) {
+  if (!backupListEl) return;
+  if (!items.length) {
+    backupListEl.innerHTML = "<p class=\"field-hint\">まだバックアップはありません。</p>";
+    return;
+  }
+  const rows = items
+    .map((item) => {
+      const note = item.note ? `<span class="backup-note">${escapeHtml(item.note)}</span>` : "";
+      const invalid = item.invalid ? "<span class=\"backup-invalid\">破損の可能性</span>" : "";
+      return `<div class="backup-list-item">
+        <div class="backup-list-main">
+          <strong>${escapeHtml(item.filename)}</strong>
+          <span class="backup-list-meta">${escapeHtml(formatBackupWhen(item.created_at || item.modified_at))}${note ? " · " : ""}${note}${invalid}</span>
+        </div>
+        <div class="backup-list-actions">
+          <a class="btn btn-sm" href="/api/backup/download/${encodeURIComponent(item.filename)}">ダウンロード</a>
+          <button type="button" class="btn btn-sm" data-backup-inspect="${escapeAttr(item.filename)}">内容確認</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+  backupListEl.innerHTML = rows;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
+}
+
+async function refreshBackupList() {
+  if (!backupListEl) return;
+  try {
+    const response = await fetch("/api/backup");
+    if (!response.ok) throw new Error("list failed");
+    const data = await response.json();
+    renderBackupList(data.items || []);
+  } catch (error) {
+    backupListEl.innerHTML = "<p class=\"field-hint\">一覧を読み込めませんでした。</p>";
+  }
+}
+
+function renderValidateSummary(summary) {
+  if (!backupValidateResult) return;
+  const rows = Object.entries(summary.overwrite_summary || {})
+    .map(([key, value]) => {
+      const labels = {
+        staff: "職員",
+        shift_assignments: "勤務セル",
+        shift_placements: "配置先",
+        leave_requests: "希望休",
+        app_settings: "設定",
+      };
+      return `<tr><th>${labels[key] || key}</th><td>いま ${value.current} → バックアップ ${value.backup}</td></tr>`;
+    })
+    .join("");
+  backupValidateResult.classList.remove("hidden");
+  backupValidateResult.innerHTML = `
+    <div class="backup-summary-card">
+      <p><strong>復元内容の確認</strong></p>
+      <p>作成日時: ${escapeHtml(formatBackupWhen(summary.created_at))}</p>
+      <p>${escapeHtml(summary.warning || "")}</p>
+      <table class="backup-summary-table">${rows}</table>
+    </div>`;
+  pendingRestoreFilename = summary.pending_filename || summary.filename || null;
+  if (btnBackupRestore) {
+    btnBackupRestore.classList.remove("hidden");
+    btnBackupRestore.disabled = !pendingRestoreFilename;
+  }
+}
+
+btnBackupCreate?.addEventListener("click", async () => {
+  btnBackupCreate.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("note", backupNoteEl?.value?.trim() || "");
+    const response = await fetch("/api/backup/create", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "作成に失敗しました");
+    showAlert(`バックアップを作成しました: ${data.filename}`, "info");
+    if (backupNoteEl) backupNoteEl.value = "";
+    await refreshBackupList();
+  } catch (error) {
+    showAlert(error.message || "バックアップに失敗しました", "error");
+  } finally {
+    btnBackupCreate.disabled = false;
+  }
+});
+
+btnBackupValidate?.addEventListener("click", async () => {
+  const file = backupFileEl?.files?.[0];
+  if (!file) {
+    showAlert("復元するZIPファイルを選んでください。", "error");
+    return;
+  }
+  btnBackupValidate.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("file", file);
+    const response = await fetch("/api/backup/validate", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "検証に失敗しました");
+    renderValidateSummary(data);
+    showAlert("内容を確認しました。問題なければ「確認して復元する」を押してください。", "info");
+  } catch (error) {
+    pendingRestoreFilename = null;
+    btnBackupRestore?.classList.add("hidden");
+    if (backupValidateResult) {
+      backupValidateResult.classList.add("hidden");
+      backupValidateResult.innerHTML = "";
+    }
+    showAlert(error.message || "検証に失敗しました", "error");
+  } finally {
+    btnBackupValidate.disabled = false;
+  }
+});
+
+btnBackupRestore?.addEventListener("click", async () => {
+  if (!pendingRestoreFilename) return;
+  const ok = window.confirm(
+    "いまの職員・勤務表・設定などをバックアップの内容で置き換えます。\n" +
+      "復元直前の状態は自動バックアップされます。実行しますか？"
+  );
+  if (!ok) return;
+  btnBackupRestore.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("filename", pendingRestoreFilename);
+    body.set("confirm", "true");
+    const response = await fetch("/api/backup/restore", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "復元に失敗しました");
+    showAlert(data.message || "復元が完了しました。ページを再読み込みします。", "info");
+    window.setTimeout(() => window.location.reload(), 1200);
+  } catch (error) {
+    showAlert(error.message || "復元に失敗しました", "error");
+    btnBackupRestore.disabled = false;
+  }
+});
+
+backupListEl?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-backup-inspect]");
+  if (!button) return;
+  const filename = button.getAttribute("data-backup-inspect");
+  try {
+    const response = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
+    if (!response.ok) throw new Error("取得に失敗しました");
+    const blob = await response.blob();
+    const file = new File([blob], filename, { type: "application/zip" });
+    const body = new FormData();
+    body.set("file", file);
+    const validate = await fetch("/api/backup/validate", { method: "POST", body });
+    const data = await validate.json().catch(() => ({}));
+    if (!validate.ok) throw new Error(data.detail || "検証に失敗しました");
+    renderValidateSummary(data);
+  } catch (error) {
+    showAlert(error.message || "内容確認に失敗しました", "error");
+  }
+});
+
+refreshBackupList();

@@ -44,6 +44,8 @@ from routers.leave_requests import router as leave_requests_router
 from routers.settings import router as settings_router
 from routers.shifts import router as shifts_router
 from routers.staff import router as staff_router
+from routers.backup import router as backup_router
+from services.backup import is_write_blocked
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -59,9 +61,27 @@ app = FastAPI(
     description="病院・介護施設向けシフト管理",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def block_writes_during_restore(request: Request, call_next):
+    if is_write_blocked() and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        path = request.url.path or ""
+        # 復元 API 自体と静的ファイル以外は拒否
+        if not path.startswith("/api/backup/restore") and not path.startswith("/static"):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "復元処理中のため、いまは変更できません。完了までお待ちください。"},
+            )
+    return await call_next(request)
+
+
 app.include_router(staff_router)
 app.include_router(settings_router)
 app.include_router(shifts_router)
+app.include_router(backup_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
