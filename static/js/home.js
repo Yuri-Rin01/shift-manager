@@ -390,15 +390,17 @@ function invertFilterGroupChecked(group) {
 }
 
 const FOREIGN_STUDENT_JOB = "留学生";
-const SHEET_VIEW_ORDER = ["all", "foreign-students"];
+const BUILTIN_SHEET_ORDER = ["all", "foreign-students"];
+let sheetViewOrder = [...BUILTIN_SHEET_ORDER];
 const DEFAULT_SHEET_VIEW_COLORS = {
   all: "#3B82F6",
   "foreign-students": "#217346",
 };
 const SHEET_VIEW_META = {
-  all: { title: "全体シフト表.xlsx", foreign: false },
-  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
+  all: { title: "全体シフト表.xlsx", foreign: false, jobs: null },
+  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true, jobs: [FOREIGN_STUDENT_JOB] },
 };
+let customSheetViews = [];
 const SHEET_FLIP_MS = 480;
 
 let currentSheetView = "all";
@@ -442,16 +444,65 @@ function mixHex(hex, target, ratio) {
   return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
 }
 
+function loadCustomSheetViews() {
+  const raw = Array.isArray(serverDefaults.custom_sheet_views) ? serverDefaults.custom_sheet_views : [];
+  customSheetViews = raw.filter(
+    (item) => item && item.id && item.label && Array.isArray(item.job_types) && item.job_types.length
+  );
+  for (const key of Object.keys(SHEET_VIEW_META)) {
+    if (!BUILTIN_SHEET_ORDER.includes(key)) delete SHEET_VIEW_META[key];
+  }
+  sheetViewOrder = [...BUILTIN_SHEET_ORDER];
+  for (const sheet of customSheetViews) {
+    const jobs = sheet.job_types.map((job) => String(job));
+    SHEET_VIEW_META[sheet.id] = {
+      title: `${sheet.label}シフト表.xlsx`,
+      foreign: false,
+      jobs,
+      custom: true,
+      label: sheet.label,
+    };
+    sheetViewColors[sheet.id] = normalizeSheetHex(sheet.color, "#64748B");
+    sheetViewOrder.push(sheet.id);
+  }
+}
+
+function fixedJobsForSheet(view) {
+  const jobs = SHEET_VIEW_META[view]?.jobs;
+  return Array.isArray(jobs) && jobs.length ? jobs : null;
+}
+
+function installCustomSheetTabs() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list) return;
+  list.querySelectorAll(".sheet-tab.is-custom").forEach((el) => el.remove());
+  for (const sheet of customSheetViews) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sheet-tab is-custom";
+    button.dataset.sheetView = sheet.id;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", "false");
+    button.innerHTML = `<span class="sheet-tab-label"></span><span class="sheet-tab-count" aria-hidden="true">0</span>`;
+    button.querySelector(".sheet-tab-label").textContent = sheet.label;
+    list.appendChild(button);
+  }
+}
+
 function loadSheetViewColors() {
   const fromSettings = serverDefaults.sheet_view_colors;
+  const customColors = Object.fromEntries(
+    customSheetViews.map((sheet) => [sheet.id, normalizeSheetHex(sheet.color, "#64748B")])
+  );
   sheetViewColors = {
     ...DEFAULT_SHEET_VIEW_COLORS,
     ...(fromSettings && typeof fromSettings === "object" ? fromSettings : {}),
+    ...customColors,
   };
-  for (const key of SHEET_VIEW_ORDER) {
+  for (const key of sheetViewOrder) {
     sheetViewColors[key] = normalizeSheetHex(
       sheetViewColors[key],
-      DEFAULT_SHEET_VIEW_COLORS[key]
+      DEFAULT_SHEET_VIEW_COLORS[key] || "#64748B"
     );
   }
   return sheetViewColors;
@@ -505,9 +556,15 @@ function syncSheetTabColors() {
 function syncJobFilterPanelForSheet(view = getCurrentSheetView()) {
   const panel = document.getElementById("home-filter-panel-job");
   const note = document.getElementById("home-filter-job-lock-note");
-  const locked = view === "foreign-students";
+  const locked = Boolean(fixedJobsForSheet(view));
   panel?.classList.toggle("is-sheet-locked", locked);
   note?.classList.toggle("hidden", !locked);
+  if (note && locked) {
+    const jobs = fixedJobsForSheet(view) || [];
+    note.textContent = view === "foreign-students"
+      ? "留学生用シートでは職種「留学生」のみ表示します"
+      : `このシートでは職種「${jobs.join("」「")}」のみ表示します`;
+  }
   panel?.querySelectorAll(".home-filter-action").forEach((button) => {
     if (!(button instanceof HTMLButtonElement)) return;
     button.disabled = locked;
@@ -524,9 +581,22 @@ function updateSheetEmptyState() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!empty || !tbody) return;
 
-  const isForeign = getCurrentSheetView() === "foreign-students";
+  const view = getCurrentSheetView();
+  const fixed = fixedJobsForSheet(view);
   const visibleCount = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden).length;
-  const showEmpty = isForeign && visibleCount === 0;
+  const showEmpty = Boolean(fixed) && visibleCount === 0;
+  const title = empty.querySelector(".sheet-empty-title");
+  const body = empty.querySelector(".sheet-empty-body");
+  if (showEmpty && title && body) {
+    if (view === "foreign-students") {
+      title.textContent = "表示できる留学生がいません";
+      body.textContent = "職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。";
+    } else {
+      const label = SHEET_VIEW_META[view]?.label || "このシート";
+      title.textContent = `${label}に表示できる職員がいません`;
+      body.textContent = `職種が「${fixed.join("」「")}」の職員を登録すると、ここに表が表示されます。`;
+    }
+  }
   empty.classList.toggle("hidden", !showEmpty);
   shiftCalendar?.classList.toggle("hidden", showEmpty);
   legend?.classList.toggle("hidden", showEmpty);
@@ -562,13 +632,17 @@ function applySheetViewContent(next, prev) {
   syncJobFilterPanelForSheet(next);
   syncStudentLaborPanelVisibility(next);
 
-  if (next === "foreign-students" && prev !== "foreign-students") {
+  const nextJobs = fixedJobsForSheet(next);
+  const prevJobs = fixedJobsForSheet(prev);
+  if (nextJobs && !prevJobs) {
     savedJobFilterBeforeSheet = getSelectedFilterValues("job");
-    const jobBoxes = document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]');
-    jobBoxes.forEach((box) => {
-      box.checked = box.value === FOREIGN_STUDENT_JOB;
+  }
+  if (nextJobs) {
+    const allowed = new Set(nextJobs);
+    document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]').forEach((box) => {
+      box.checked = allowed.has(box.value);
     });
-  } else if (next === "all" && prev === "foreign-students") {
+  } else if (prevJobs) {
     const jobBoxes = [...document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]')];
     if (Array.isArray(savedJobFilterBeforeSheet)) {
       jobBoxes.forEach((box) => {
@@ -766,8 +840,8 @@ function setSheetView(view, opts = {}) {
     return;
   }
 
-  const prevIndex = SHEET_VIEW_ORDER.indexOf(prev);
-  const nextIndex = SHEET_VIEW_ORDER.indexOf(next);
+  const prevIndex = sheetViewOrder.indexOf(prev);
+  const nextIndex = sheetViewOrder.indexOf(next);
   const forward = nextIndex >= prevIndex;
   sheetFlipBusy = true;
   clearSheetFlipClasses(viewport);
@@ -802,20 +876,23 @@ function updateSheetTabCounts() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
   const rows = [...tbody.querySelectorAll("tr")];
-  const allCount = rows.length;
-  const foreignCount = rows.filter((row) => (row.dataset.job ?? "") === FOREIGN_STUDENT_JOB).length;
 
-  document.querySelectorAll('.sheet-tab[data-sheet-view="all"] .sheet-tab-count').forEach((el) => {
-    el.textContent = String(allCount);
-  });
-  document.querySelectorAll('.sheet-tab[data-sheet-view="foreign-students"] .sheet-tab-count').forEach((el) => {
-    el.textContent = String(foreignCount);
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    const view = el.dataset.sheetView || "all";
+    const fixed = fixedJobsForSheet(view);
+    const count = fixed
+      ? rows.filter((row) => fixed.includes(row.dataset.job ?? "")).length
+      : rows.length;
+    const badge = el.querySelector(".sheet-tab-count");
+    if (badge) badge.textContent = String(count);
   });
 }
 
 function initSheetViews() {
   const saved = loadPrefs();
+  loadCustomSheetViews();
   loadSheetViewColors();
+  installCustomSheetTabs();
   syncSheetTabColors();
 
   document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
@@ -846,10 +923,10 @@ function applyRowFilters() {
     const matchDept =
       selectedDepts.length === 0 || floors.some((floor) => selectedDepts.includes(floor));
     const job = row.dataset.job ?? "";
-    const matchJob =
-      sheetView === "foreign-students"
-        ? job === FOREIGN_STUDENT_JOB
-        : !jobFilterActive || selectedJobs.includes(job);
+    const fixedJobs = fixedJobsForSheet(sheetView);
+    const matchJob = fixedJobs
+      ? fixedJobs.includes(job)
+      : !jobFilterActive || selectedJobs.includes(job);
     const rowPosition = row.dataset.position ?? "";
     const matchPosition =
       selectedPositions.length === 0 || selectedPositions.includes(rowPosition);

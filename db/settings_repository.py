@@ -93,6 +93,10 @@ def _merge_settings(data: dict | None) -> dict:
             from data.sheet_view_colors import normalize_sheet_view_colors
 
             merged[key] = normalize_sheet_view_colors(value)
+        elif key == "custom_sheet_views" and isinstance(value, list):
+            from data.sheet_views import normalize_custom_sheet_views
+
+            merged[key] = normalize_custom_sheet_views(value)
         elif key == "student_labor_limits" and isinstance(value, dict):
             from data.student_labor_limits import normalize_student_labor_limits
 
@@ -114,6 +118,11 @@ def _merge_settings(data: dict | None) -> dict:
 
     merged["cell_flick_directions"] = normalize_cell_flick_directions(
         merged.get("cell_flick_directions")
+    )
+    from data.sheet_views import normalize_custom_sheet_views
+
+    merged["custom_sheet_views"] = normalize_custom_sheet_views(
+        merged.get("custom_sheet_views")
     )
     merged["floors"] = normalize_floors(merged.get("floors"))
     merged["staffing_requirement_mode"] = normalize_staffing_requirement_mode(

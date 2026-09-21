@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=48">
+  <link rel="stylesheet" href="/static/css/style.css?v=49">
 </head>
 <body class="settings-screen">
   <div class="app">
@@ -325,6 +325,12 @@
                 {% endfor %}
               </div>
 
+              <h3 class="settings-subtitle">追加シート</h3>
+              <p class="field-hint">ホームの「全体」「留学生用」の横に、選んだ職種だけのシートを追加できます。最大8件です。保存後にカレンダーを再読み込みすると反映されます。</p>
+              <div id="custom-sheet-list" class="custom-sheet-list"></div>
+              <p id="custom-sheet-empty" class="field-hint">追加シートはまだありません。</p>
+              <button type="button" class="btn btn-sm" id="btn-add-custom-sheet">シートを追加</button>
+
               <details class="settings-advanced"><summary>日付・入力操作の細かい調整</summary>
               <div class="settings-form-grid settings-form-grid-compact">
 
@@ -485,7 +491,8 @@
   <script>
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
+    window.JOB_TYPES = {{ job_types | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=12"></script>
+  <script src="/static/js/settings.js?v=13"></script>
 </body>
 </html>

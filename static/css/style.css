@@ -5297,6 +5297,61 @@ input[type="checkbox"]:focus-visible {
   }
 }
 
+.custom-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.custom-sheet-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.custom-sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.custom-sheet-head .form-field {
+  flex: 1 1 180px;
+  margin: 0;
+}
+
+.custom-sheet-color-field {
+  flex: 0 0 88px;
+}
+
+.custom-sheet-color {
+  width: 100%;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.custom-sheet-jobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.custom-sheet-job {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
 .settings-subtitle:first-child {
   margin-top: 0;
 }
@@ -6752,6 +6807,7 @@ input[type="checkbox"]:focus-visible {
   border-bottom: 1px solid #b8c2d0;
   flex-shrink: 0;
   min-height: 32px;
+  overflow-x: auto;
 }
 
 .sheet-tab {
@@ -6764,6 +6820,7 @@ input[type="checkbox"]:focus-visible {
   --sheet-tab-border: #aeb8c6;
   appearance: none;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 6px;
   border: 1px solid var(--sheet-tab-border);
