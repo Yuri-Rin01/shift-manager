@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -10,6 +10,7 @@ from data.navigation import get_sidebar
 from data.facility import get_facility_context
 from schemas.leave_request import LeaveRequestResponse
 from services import leave_request_admin_service as admin_service
+from services.auth import admin_login_redirect, require_admin
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -46,6 +47,9 @@ def leave_requests_page(
     year: int | None = None,
     month: int | None = None,
 ):
+    redirect = admin_login_redirect(request)
+    if redirect:
+        return redirect
     today = date.today()
     resolved_year = year or today.year
     resolved_month = month or today.month
@@ -68,7 +72,11 @@ def leave_requests_page(
 
 
 @router.get("/api/leave-requests/overview")
-def get_leave_requests_overview(year: int | None = None, month: int | None = None):
+def get_leave_requests_overview(
+    year: int | None = None,
+    month: int | None = None,
+    _admin=Depends(require_admin),
+):
     today = date.today()
     resolved_year = year or today.year
     resolved_month = month or today.month
@@ -78,7 +86,10 @@ def get_leave_requests_overview(year: int | None = None, month: int | None = Non
 
 
 @router.put("/api/leave-requests/settings")
-def update_leave_request_settings(data: LeaveRequestSettingsUpdate):
+def update_leave_request_settings(
+    data: LeaveRequestSettingsUpdate,
+    _admin=Depends(require_admin),
+):
     payload = data.model_dump(exclude_unset=True)
     if not payload:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="更新項目がありません。")
@@ -86,7 +97,7 @@ def update_leave_request_settings(data: LeaveRequestSettingsUpdate):
 
 
 @router.post("/api/leave-requests/{request_id}/approve", response_model=LeaveRequestResponse)
-def approve_leave_request(request_id: int):
+def approve_leave_request(request_id: int, _admin=Depends(require_admin)):
     try:
         return admin_service.approve_request(request_id)
     except ValueError as exc:
@@ -94,7 +105,7 @@ def approve_leave_request(request_id: int):
 
 
 @router.post("/api/leave-requests/{request_id}/reject", response_model=LeaveRequestResponse)
-def reject_leave_request(request_id: int):
+def reject_leave_request(request_id: int, _admin=Depends(require_admin)):
     try:
         return admin_service.reject_request(request_id)
     except ValueError as exc:
@@ -102,7 +113,7 @@ def reject_leave_request(request_id: int):
 
 
 @router.post("/api/leave-requests/bulk")
-def bulk_leave_request_action(data: LeaveRequestBulkAction):
+def bulk_leave_request_action(data: LeaveRequestBulkAction, _admin=Depends(require_admin)):
     try:
         return admin_service.bulk_update_requests(data.ids, data.action)
     except ValueError as exc:

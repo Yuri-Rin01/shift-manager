@@ -20,8 +20,8 @@
     <div id="portal-alert" class="portal-alert hidden" role="alert"></div>
 
     <section class="portal-panel" id="staff-select-panel">
-      <h2 class="portal-panel-title">職員を選択</h2>
-      <p class="portal-panel-desc">端末ごとに一度名前を選ぶと、次回から自動で表示されます。ログインはありません（管理者向けは別途予定）。</p>
+      <h2 class="portal-panel-title">職員ログイン</h2>
+      <p class="portal-panel-desc">名前を選び、管理者が伝えたPIN（4〜8桁）を入力してください。他人の希望は見られません。</p>
       <label class="portal-field portal-staff-field">
         <span class="portal-field-label">あなたの名前</span>
         <div class="portal-staff-picker" id="staff-picker">
@@ -48,6 +48,10 @@
           ></ul>
         </div>
         <p class="portal-staff-hint" id="staff-match-hint">名前の一部を入力すると候補が絞り込まれます。</p>
+      </label>
+      <label class="portal-field">
+        <span class="portal-field-label">ポータルPIN</span>
+        <input type="password" id="staff-pin" class="portal-staff-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="4〜8桁">
       </label>
       <button type="button" class="portal-btn portal-btn-primary" id="btn-start-portal" disabled>入力を開始</button>
     </section>

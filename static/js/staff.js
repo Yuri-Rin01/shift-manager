@@ -1463,6 +1463,8 @@ function openModal(mode, staff = null) {
     monthlyLimitInput.value =
       staff?.monthly_hour_limit != null ? String(staff.monthly_hour_limit) : "";
   }
+  const portalPinInput = document.getElementById("field-portal-pin");
+  if (portalPinInput) portalPinInput.value = "";
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) {
@@ -1707,6 +1709,21 @@ async function saveStaff(event) {
     return;
   }
 
+  const saved = await response.json().catch(() => ({}));
+  const pinValue = document.getElementById("field-portal-pin")?.value.trim() ?? "";
+  const targetId = isEdit ? Number(id) : Number(saved.id);
+  if (pinValue && Number.isFinite(targetId)) {
+    const pinResponse = await fetch(`${API_BASE}/${targetId}/portal-pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: pinValue }),
+    });
+    if (!pinResponse.ok) {
+      const error = await pinResponse.json().catch(() => ({}));
+      showAlert(error.detail || "職員は保存しましたが、PINの設定に失敗しました。", "error");
+    }
+  }
+
   closeModal();
   staffList = [];
   if (tbody) {
@@ -1794,6 +1811,27 @@ document.getElementById("field-night-shift-count")?.addEventListener("input", ()
     syncNonNightRatioCeilings();
   }
   refreshStaffingBasisDisplay();
+});
+document.getElementById("btn-clear-portal-pin")?.addEventListener("click", async () => {
+  const id = document.getElementById("staff-id")?.value;
+  if (!id) {
+    showAlert("先に職員を保存してください。", "error");
+    return;
+  }
+  if (!window.confirm("この職員のポータルPINを解除しますか？")) return;
+  const response = await fetch(`${API_BASE}/${id}/portal-pin`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin: null }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    showAlert(error.detail || "PINの解除に失敗しました。", "error");
+    return;
+  }
+  const pinInput = document.getElementById("field-portal-pin");
+  if (pinInput) pinInput.value = "";
+  showAlert("ポータルPINを解除しました。");
 });
 
 form?.addEventListener("submit", saveStaff);

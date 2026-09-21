@@ -4,8 +4,8 @@ from __future__ import annotations
 
 # 現状ポリシー
 AUTH_STATUS = {
-    "login_implemented": False,
-    "portal_login_planned": False,
+    "login_implemented": True,
+    "portal_login_planned": True,
     "admin_login_planned": True,
     "subscription_scope": "admin_only",
 }
@@ -56,6 +56,6 @@ def get_account_plan_context() -> dict:
         "subscription_status_labels": SUBSCRIPTION_STATUS_LABELS,
         "admin_plan_catalog": ADMIN_PLAN_CATALOG,
         "current_admin_plan": current,
-        "portal_auth_note": "職員向け休み希望ポータルはログインなし（名前入力で本人確認）。",
-        "admin_auth_note": "管理者向けログイン・サブスクリプションは今後、管理アカウントのみに追加予定。",
+        "portal_auth_note": "職員向け休み希望ポータルはPINログイン（本人の職員IDのみ操作可）。",
+        "admin_auth_note": "管理者ログイン実装済み。初期管理者は /setup で作成します。",
     }

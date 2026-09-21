@@ -45,7 +45,9 @@ from routers.settings import router as settings_router
 from routers.shifts import router as shifts_router
 from routers.staff import router as staff_router
 from routers.backup import router as backup_router
+from routers.auth import router as auth_router
 from services.backup import is_write_blocked
+from services.auth import admin_login_redirect, setup_needed
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -82,8 +84,17 @@ app.include_router(staff_router)
 app.include_router(settings_router)
 app.include_router(shifts_router)
 app.include_router(backup_router)
+app.include_router(auth_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+def _require_admin_page(request: Request):
+    if setup_needed() and request.url.path not in {"/setup", "/login"}:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url="/setup", status_code=303)
+    return admin_login_redirect(request)
 
 
 def _base_context(**extra) -> dict:
@@ -132,6 +143,9 @@ async def home(
     month: int | None = None,
     display: str | None = None,
 ):
+    redirect = _require_admin_page(request)
+    if redirect:
+        return redirect
     today = date.today()
     resolved_year = year or today.year
     resolved_month = month or today.month
@@ -162,6 +176,9 @@ async def dashboard_page(
     year: int | None = None,
     month: int | None = None,
 ):
+    redirect = _require_admin_page(request)
+    if redirect:
+        return redirect
     today = date.today()
     resolved_year = year or today.year
     resolved_month = month or today.month
@@ -183,6 +200,9 @@ async def dashboard_page(
 
 @app.get("/staff", response_class=HTMLResponse)
 async def staff_page(request: Request):
+    redirect = _require_admin_page(request)
+    if redirect:
+        return redirect
     context = _page_context(
         "staff",
         **_staff_editor_context(),
@@ -193,6 +213,9 @@ async def staff_page(request: Request):
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request, panel: str | None = None):
+    redirect = _require_admin_page(request)
+    if redirect:
+        return redirect
     current_panel = resolve_settings_panel(panel)
     context = _page_context(
         current_panel["key"],
@@ -245,3 +268,12 @@ def _register_stub_pages() -> None:
 
 _register_stub_pages()
 app.include_router(leave_requests_router)
+
+
+@app.get("/docs/local-auth", response_class=HTMLResponse)
+async def local_auth_guide(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "auth/local_guide.html",
+        get_facility_context(),
+    )

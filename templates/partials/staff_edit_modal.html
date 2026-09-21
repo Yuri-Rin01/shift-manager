@@ -198,6 +198,17 @@
             </label>
           </div>
         </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-portal-pin-wrap">
+          <span class="form-label">休み希望ポータルのPIN</span>
+          <p class="field-hint">職員がポータルに入るための4〜8桁の数字です。空欄のまま保存するとPINは変更しません。解除する場合は「PINを解除」を使います。</p>
+          <div class="settings-form-grid settings-form-grid-compact">
+            <label class="form-field">
+              <span class="form-label">新しいPIN</span>
+              <input type="password" id="field-portal-pin" class="input-text" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="変更しない">
+            </label>
+            <button type="button" class="btn btn-sm" id="btn-clear-portal-pin">PINを解除</button>
+          </div>
+        </div>
         <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
           <div class="picker-head">
             <span class="form-label">日勤相性</span>

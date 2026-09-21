@@ -10,6 +10,10 @@ __pycache__/
 shift.db
 .env
 *.local
+.auth_secret
+backups/
+*.bak
+restore_staging/
 
 # OS / editor
 .DS_Store

@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from data.masters import validate_staff_for_facility, validate_staffing_basis
 from db import staff_repository as repo
 from schemas.staff import StaffBulkUpdate, StaffBulkUpdateResponse, StaffCreate, StaffResponse, StaffUpdate
+from services.auth import require_admin, set_staff_portal_pin
 
-router = APIRouter(prefix="/api/staff", tags=["職員マスタ"])
+router = APIRouter(prefix="/api/staff", tags=["職員マスタ"], dependencies=[Depends(require_admin)])
 
 
 def _validate_staff(job_type: str, departments: list[str], staffing_basis: dict[str, int]) -> None:
@@ -132,3 +134,18 @@ def delete_staff(staff_id: int):
     deleted = repo.delete_staff(staff_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="職員が見つかりません")
+
+
+class PortalPinUpdate(BaseModel):
+    pin: str | None = Field(default=None, max_length=8, description="4〜8桁。空またはnullで解除")
+
+
+@router.put("/{staff_id}/portal-pin")
+def update_portal_pin(staff_id: int, data: PortalPinUpdate):
+    if repo.get_staff(staff_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="職員が見つかりません")
+    try:
+        set_staff_portal_pin(staff_id, data.pin)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {"ok": True, "has_portal_pin": bool(data.pin and str(data.pin).strip())}

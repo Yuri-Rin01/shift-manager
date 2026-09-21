@@ -153,6 +153,9 @@ def init_db() -> None:
         from services.period_lock import ensure_lock_table
 
         ensure_lock_table(conn)
+        from services.auth import ensure_auth_tables
+
+        ensure_auth_tables(conn)
         conn.executemany(
             "UPDATE staff SET job_type = ? WHERE job_type = ?",
             [

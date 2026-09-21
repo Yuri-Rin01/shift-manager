@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>初期管理者の作成 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <h1>最初の管理者を作成</h1>
+    <p class="field-hint">このPCで初めて使うとき、管理者アカウントを1つ作ります。パスワードはソースに書かず、この画面で決めた内容だけがこのPCのデータベースに保存されます。</p>
+    <div id="auth-alert" class="alert alert-error hidden" role="alert"></div>
+    <form id="setup-form" class="auth-form">
+      <label class="form-field">
+        <span class="form-label">表示名</span>
+        <input type="text" name="display_name" maxlength="50" placeholder="例: 施設長">
+      </label>
+      <label class="form-field">
+        <span class="form-label">ユーザー名</span>
+        <input type="text" name="username" required autocomplete="username" maxlength="40" minlength="2">
+      </label>
+      <label class="form-field">
+        <span class="form-label">パスワード（8文字以上）</span>
+        <input type="password" name="password" required autocomplete="new-password" minlength="8" maxlength="200">
+      </label>
+      <label class="form-field">
+        <span class="form-label">パスワード（確認）</span>
+        <input type="password" name="password_confirm" required autocomplete="new-password" minlength="8" maxlength="200">
+      </label>
+      <button type="submit" class="btn btn-primary">作成して始める</button>
+    </form>
+    <p class="field-hint"><a href="/docs/local-auth">導入の流れを見る</a></p>
+  </main>
+  <script>
+    document.getElementById("setup-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const alertBox = document.getElementById("auth-alert");
+      alertBox.classList.add("hidden");
+      if (form.password.value !== form.password_confirm.value) {
+        alertBox.textContent = "確認用パスワードが一致しません。";
+        alertBox.classList.remove("hidden");
+        return;
+      }
+      const response = await fetch("/api/auth/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: form.username.value.trim(),
+          password: form.password.value,
+          display_name: form.display_name.value.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alertBox.textContent = data.detail || "作成に失敗しました。";
+        alertBox.classList.remove("hidden");
+        return;
+      }
+      location.href = "/";
+    });
+  </script>
+</body>
+</html>

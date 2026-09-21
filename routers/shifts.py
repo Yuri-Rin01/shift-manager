@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.calendar_period import period_bounds
 from data.shift_symbols import get_valid_symbols, normalize_symbol
@@ -21,6 +21,7 @@ from schemas.shift import (
     ShiftClearRequest,
     ShiftClearResponse,
 )
+from services.auth import require_admin
 from services.morning_off import (
     would_block_day_work_after_night,
 )
@@ -28,7 +29,7 @@ from services.shift_generator import generate_shifts
 from schemas.generation_preview import GenerationPreviewRequest, GenerationApplyRequest
 from services.generation_preview import generation_context, create_preview, apply_preview
 
-router = APIRouter(prefix="/api/shifts", tags=["シフト"])
+router = APIRouter(prefix="/api/shifts", tags=["シフト"], dependencies=[Depends(require_admin)])
 
 
 def _valid_symbols() -> set[str]:

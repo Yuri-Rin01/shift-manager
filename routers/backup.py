@@ -6,12 +6,13 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
 from services import backup as backup_service
+from services.auth import require_admin
 
-router = APIRouter(prefix="/api/backup", tags=["バックアップ"])
+router = APIRouter(prefix="/api/backup", tags=["バックアップ"], dependencies=[Depends(require_admin)])
 
 
 @router.get("")

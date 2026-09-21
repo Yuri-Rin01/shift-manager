@@ -4768,7 +4768,24 @@ body.period-locked .shift-td-editable {
   .staffing-basis-list .staffing-basis-row, .staffing-basis-list .staffing-basis-row[data-key="night"] { grid-template-columns:90px minmax(40px,1fr) 76px; gap:6px; }
   .staffing-basis-value { grid-column:2 / -1; }
 }
-.home-view-options > summary, .home-other-actions > summary, .home-bottom-status > summary { padding:8px; cursor:pointer; }
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(160deg, #eef3f8 0%, #f7fafc 45%, #e8eef5 100%);
+}
+.auth-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #d7dee8;
+  border-radius: 12px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(20, 40, 70, 0.08);
+}
+.auth-card-wide { width: min(640px, 100%); }
+.auth-form { display: grid; gap: 12px; margin-top: 16px; }
+.auth-steps { margin: 16px 0; padding-left: 1.2em; display: grid; gap: 10px; line-height: 1.5; }
 .labor-hours-panel { margin-top:12px; border:1px solid #d8dee6; border-radius:8px; padding:8px 12px; background:#fafbfd; }
 .labor-hours-panel > summary { cursor:pointer; font-weight:600; }
 .labor-hours-table-wrap { margin-top:8px; }
