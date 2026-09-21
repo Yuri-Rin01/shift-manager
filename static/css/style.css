@@ -7094,15 +7094,23 @@ input[type="checkbox"]:focus-visible {
   }
 }
 
-/* 留学生労働時間パネル（表の下） */
+/* シート名に合わせると出る労働時間ゲージ */
 .student-labor-panel {
-  flex: 0 0 auto;
-  margin: 8px 0 0;
+  position: absolute;
+  z-index: 24;
+  box-sizing: border-box;
+  margin: 0;
   padding: 10px;
-  overflow: visible;
+  overflow: auto;
+  max-height: min(420px, 62vh);
   background: #f8fafc;
   border: 1px solid #d8dee8;
   border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.student-labor-panel .student-labor-gauge-list {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
 .student-labor-panel.hidden,

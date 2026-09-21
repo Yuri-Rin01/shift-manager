@@ -574,6 +574,7 @@ function initSheetTabDrag() {
       if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
       drag.active = true;
       sheetTabSuppressClick = true;
+      hideSheetGaugePopover();
       drag.tab.classList.add("is-dragging");
       list.classList.add("is-reordering");
       try {
@@ -722,6 +723,7 @@ function openSheetAddPopover() {
   popover.querySelectorAll(".sheet-add-job-input").forEach((input) => {
     input.checked = false;
   });
+  hideSheetGaugePopover();
   popover.classList.remove("hidden");
   popover.setAttribute("aria-hidden", "false");
   placeSheetAddPopover();
@@ -1012,24 +1014,126 @@ function laborAudience(view = getCurrentSheetView()) {
   };
 }
 
-function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
-  const panel = document.getElementById("student-labor-panel");
-  if (!panel) return;
-  const audience = laborAudience(view);
-  const show = audience.students || audience.partTime;
-  panel.classList.toggle("hidden", !show);
-  panel.classList.toggle("is-split", audience.students && audience.partTime);
-  panel.closest(".shift-workspace")?.classList.toggle("has-student-labor-panel", show);
-  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
-  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
-  if (audience.students) loadStudentLaborSummary();
-  if (audience.partTime) loadPartTimeHours();
+const laborSummaryCache = { key: "", student: null, partTime: null };
+let sheetGaugeHideTimer = null;
+
+function currentLaborKey() {
+  return `${getCalendarYear()}-${getCalendarMonth()}`;
+}
+
+function readLaborCache(kind) {
+  if (laborSummaryCache.key !== currentLaborKey()) return null;
+  return laborSummaryCache[kind];
+}
+
+function rememberLaborCache(kind, data) {
+  const key = currentLaborKey();
+  if (laborSummaryCache.key !== key) {
+    laborSummaryCache.key = key;
+    laborSummaryCache.student = null;
+    laborSummaryCache.partTime = null;
+  }
+  laborSummaryCache[kind] = data;
+}
+
+function syncStudentLaborPanelVisibility() {
+  loadStudentLaborSummary();
+  loadPartTimeHours();
 }
 
 function refreshLaborPanels() {
-  const audience = laborAudience();
+  laborSummaryCache.key = "";
+  laborSummaryCache.student = null;
+  laborSummaryCache.partTime = null;
+  loadStudentLaborSummary({ refresh: true });
+  loadPartTimeHours({ refresh: true });
+}
+
+function hideSheetGaugePopover() {
+  const panel = document.getElementById("student-labor-panel");
+  if (!panel) return;
+  panel.classList.add("hidden");
+  panel.setAttribute("aria-hidden", "true");
+  delete panel.dataset.hoverSheet;
+}
+
+function placeSheetGaugePopover(tab) {
+  const panel = document.getElementById("student-labor-panel");
+  const stage = document.querySelector(".shift-sheet-stage");
+  if (!panel || !stage || !tab) return;
+  const stageRect = stage.getBoundingClientRect();
+  const tabRect = tab.getBoundingClientRect();
+  const width = Math.min(880, Math.max(280, stageRect.width - 16));
+  panel.style.width = `${width}px`;
+  const maxLeft = Math.max(8, stageRect.width - width - 8);
+  const left = Math.min(Math.max(8, tabRect.left - stageRect.left), maxLeft);
+  panel.style.left = `${left}px`;
+  panel.style.top = `${tabRect.bottom - stageRect.top + 6}px`;
+}
+
+function showSheetGaugePopover(tab) {
+  const panel = document.getElementById("student-labor-panel");
+  const list = document.querySelector(".sheet-tabs");
+  if (!panel || !tab) return;
+  if (list?.classList.contains("is-reordering")) {
+    hideSheetGaugePopover();
+    return;
+  }
+  const view = tab.dataset.sheetView || "all";
+  const audience = laborAudience(view);
+  if (!audience.students && !audience.partTime) {
+    hideSheetGaugePopover();
+    return;
+  }
+  panel.dataset.hoverSheet = view;
+  panel.classList.toggle("is-split", audience.students && audience.partTime);
+  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
+  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
+  panel.classList.remove("hidden");
+  panel.setAttribute("aria-hidden", "false");
   if (audience.students) loadStudentLaborSummary();
   if (audience.partTime) loadPartTimeHours();
+  placeSheetGaugePopover(tab);
+}
+
+function initSheetGaugeHover() {
+  const list = document.querySelector(".sheet-tabs");
+  const panel = document.getElementById("student-labor-panel");
+  if (!list || !panel || list.dataset.gaugeHoverReady) return;
+  list.dataset.gaugeHoverReady = "1";
+
+  const cancelHide = () => {
+    if (sheetGaugeHideTimer) {
+      window.clearTimeout(sheetGaugeHideTimer);
+      sheetGaugeHideTimer = null;
+    }
+  };
+  const scheduleHide = () => {
+    cancelHide();
+    sheetGaugeHideTimer = window.setTimeout(() => hideSheetGaugePopover(), 140);
+  };
+
+  list.addEventListener("pointerover", (event) => {
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !list.contains(tab)) {
+      if (event.target.closest("#btn-add-sheet-tab")) scheduleHide();
+      return;
+    }
+    cancelHide();
+    showSheetGaugePopover(tab);
+  });
+  list.addEventListener("pointerleave", scheduleHide);
+  panel.addEventListener("pointerenter", cancelHide);
+  panel.addEventListener("pointerleave", scheduleHide);
+  list.addEventListener("focusin", (event) => {
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !list.contains(tab)) return;
+    showSheetGaugePopover(tab);
+  });
+  list.addEventListener("focusout", (event) => {
+    if (list.contains(event.relatedTarget)) return;
+    scheduleHide();
+  });
 }
 
 function formatStudentLaborDateRange(startIso, endIso) {
@@ -1041,16 +1145,36 @@ function formatStudentLaborDateRange(startIso, endIso) {
   return `${fmt(startIso)}～${fmt(endIso)}`;
 }
 
-async function loadStudentLaborSummary() {
+function applyStudentLaborSummary(weekData) {
   const list = document.getElementById("student-labor-gauge-list");
   const rangeEl = document.getElementById("student-labor-week-range");
+  if (!list || !weekData) return;
+  if (rangeEl) {
+    rangeEl.textContent = formatStudentLaborDateRange(
+      weekData.period_start || weekData.week_start,
+      weekData.period_end || weekData.week_end
+    );
+  }
+  renderStudentLaborGaugeCards(list, weekData.rows || []);
+}
+
+async function loadStudentLaborSummary(options = {}) {
+  const list = document.getElementById("student-labor-gauge-list");
   if (!list) return;
 
   const year = getCalendarYear();
   const month = getCalendarMonth();
   if (!year || !month) return;
 
-  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  const cached = options.refresh ? null : readLaborCache("student");
+  if (cached) {
+    applyStudentLaborSummary(cached);
+    return;
+  }
+
+  if (!list.querySelector(".student-labor-gauge-card")) {
+    list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  }
 
   try {
     const weekRes = await fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`);
@@ -1059,13 +1183,8 @@ async function loadStudentLaborSummary() {
       return;
     }
     const weekData = await weekRes.json();
-    if (rangeEl) {
-      rangeEl.textContent = formatStudentLaborDateRange(
-        weekData.period_start || weekData.week_start,
-        weekData.period_end || weekData.week_end
-      );
-    }
-    renderStudentLaborGaugeCards(list, weekData.rows || []);
+    rememberLaborCache("student", weekData);
+    applyStudentLaborSummary(weekData);
   } catch {
     list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
   }
@@ -1165,16 +1284,33 @@ function renderStudentLaborGaugeRow({ label, used, limit, pct, tone }) {
   </div>`;
 }
 
-async function loadPartTimeHours() {
+function applyPartTimeHours(data) {
   const list = document.getElementById("part-time-gauge-list");
   const rangeEl = document.getElementById("part-time-week-range");
+  if (!list || !data) return;
+  if (rangeEl) {
+    rangeEl.textContent = formatStudentLaborDateRange(data.period_start, data.period_end);
+  }
+  renderPartTimeGaugeCards(list, data.rows || [], data);
+}
+
+async function loadPartTimeHours(options = {}) {
+  const list = document.getElementById("part-time-gauge-list");
   if (!list) return;
 
   const year = getCalendarYear();
   const month = getCalendarMonth();
   if (!year || !month) return;
 
-  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  const cached = options.refresh ? null : readLaborCache("partTime");
+  if (cached) {
+    applyPartTimeHours(cached);
+    return;
+  }
+
+  if (!list.querySelector(".student-labor-gauge-card")) {
+    list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  }
 
   try {
     const response = await fetch(`/api/shifts/part-time-hours?year=${year}&month=${month}`);
@@ -1183,10 +1319,8 @@ async function loadPartTimeHours() {
       return;
     }
     const data = await response.json();
-    if (rangeEl) {
-      rangeEl.textContent = formatStudentLaborDateRange(data.period_start, data.period_end);
-    }
-    renderPartTimeGaugeCards(list, data.rows || [], data);
+    rememberLaborCache("partTime", data);
+    applyPartTimeHours(data);
   } catch {
     list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
   }
@@ -1355,6 +1489,7 @@ function initSheetViews() {
   installCustomSheetTabs();
   syncSheetTabColors();
   initSheetAddPopover();
+  initSheetGaugeHover();
 
   initSheetTabDrag();
 

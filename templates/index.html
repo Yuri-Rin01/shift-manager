@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=120">
+  <link rel="stylesheet" href="/static/css/style.css?v=121">
 </head>
 <body>
   <div class="app">
@@ -227,6 +227,39 @@
                     <button type="button" class="btn btn-sm btn-primary" id="btn-sheet-add-save">追加</button>
                   </div>
                 </div>
+                <div id="student-labor-panel" class="student-labor-panel hidden" role="tooltip" aria-hidden="true">
+                  <section id="student-labor-section" class="labor-panel-section">
+                    <div class="student-labor-panel-head">
+                      <div class="student-labor-panel-titles">
+                        <p class="student-labor-kicker">留学生</p>
+                        <h3 class="student-labor-title">週区間ごとの労働時間</h3>
+                      </div>
+                      <span class="student-labor-panel-range" id="student-labor-week-range"></span>
+                    </div>
+                    <div id="student-labor-gauge-list" class="student-labor-gauge-list">
+                      <p class="student-labor-empty">読み込み中…</p>
+                    </div>
+                  </section>
+                  <section id="part-time-labor-section" class="labor-panel-section hidden">
+                    <div class="student-labor-panel-head">
+                      <div class="student-labor-panel-titles">
+                        <p class="student-labor-kicker">パート</p>
+                        <h3 class="student-labor-title">週の法定労働時間</h3>
+                      </div>
+                      <span class="student-labor-panel-range" id="part-time-week-range"></span>
+                    </div>
+                    <p class="labor-panel-note">満量は週40時間です。中央の線は週20時間（雇用保険・社会保険の加入目安）で、超えても違反にはなりません。1日8時間を超えた日数を週ごとに示します。</p>
+                    <p class="part-time-legend">
+                      <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-within"></span>20時間未満</span>
+                      <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-statutory"></span>法定内</span>
+                      <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-overtime"></span>法定超</span>
+                      <span class="part-time-legend-item"><span class="part-time-legend-tick"></span>20時間</span>
+                    </p>
+                    <div id="part-time-gauge-list" class="student-labor-gauge-list">
+                      <p class="student-labor-empty">読み込み中…</p>
+                    </div>
+                  </section>
+                </div>
                 <div class="sheet-flip-viewport" id="sheet-flip-viewport">
                   <div class="sheet-flip-page" id="sheet-flip-page">
                     <div class="shift-calendar-shell">
@@ -243,39 +276,6 @@
                         <p class="sheet-empty-title">表示できる留学生がいません</p>
                         <p class="sheet-empty-body">職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。</p>
                         <a class="btn btn-primary btn-sm" href="/staff">職員管理を開く</a>
-                      </div>
-                      <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
-                        <section id="student-labor-section" class="labor-panel-section">
-                          <div class="student-labor-panel-head">
-                            <div class="student-labor-panel-titles">
-                              <p class="student-labor-kicker">留学生</p>
-                              <h3 class="student-labor-title">週区間ごとの労働時間</h3>
-                            </div>
-                            <span class="student-labor-panel-range" id="student-labor-week-range"></span>
-                          </div>
-                          <div id="student-labor-gauge-list" class="student-labor-gauge-list">
-                            <p class="student-labor-empty">読み込み中…</p>
-                          </div>
-                        </section>
-                        <section id="part-time-labor-section" class="labor-panel-section hidden">
-                          <div class="student-labor-panel-head">
-                            <div class="student-labor-panel-titles">
-                              <p class="student-labor-kicker">パート</p>
-                              <h3 class="student-labor-title">週の法定労働時間</h3>
-                            </div>
-                            <span class="student-labor-panel-range" id="part-time-week-range"></span>
-                          </div>
-                          <p class="labor-panel-note">満量は週40時間です。中央の線は週20時間（雇用保険・社会保険の加入目安）で、超えても違反にはなりません。1日8時間を超えた日数を週ごとに示します。</p>
-                          <p class="part-time-legend">
-                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-within"></span>20時間未満</span>
-                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-statutory"></span>法定内</span>
-                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-overtime"></span>法定超</span>
-                            <span class="part-time-legend-item"><span class="part-time-legend-tick"></span>20時間</span>
-                          </p>
-                          <div id="part-time-gauge-list" class="student-labor-gauge-list">
-                            <p class="student-labor-empty">読み込み中…</p>
-                          </div>
-                        </section>
                       </div>
                       </div>
                       {% if app_settings.show_shift_legend %}
@@ -328,7 +328,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=76"></script>
+  <script src="/static/js/home.js?v=77"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>
