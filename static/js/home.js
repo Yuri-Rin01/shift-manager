@@ -533,6 +533,21 @@ function renderSheetAddJobs() {
     .join("");
 }
 
+function placeSheetAddPopover() {
+  const button = document.getElementById("btn-add-sheet-tab");
+  const popover = document.getElementById("sheet-add-popover");
+  const stage = document.querySelector(".shift-sheet-stage");
+  if (!button || !popover || !stage) return;
+  const stageRect = stage.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const width = popover.getBoundingClientRect().width || 440;
+  let left = buttonRect.left - stageRect.left;
+  const maxLeft = Math.max(8, stageRect.width - width - 8);
+  if (left > maxLeft) left = maxLeft;
+  popover.style.left = `${Math.max(8, left)}px`;
+  popover.style.top = `${buttonRect.bottom - stageRect.top + 6}px`;
+}
+
 function openSheetAddPopover() {
   if (customSheetViews.length >= MAX_CUSTOM_SHEETS) return;
   const popover = document.getElementById("sheet-add-popover");
@@ -550,6 +565,7 @@ function openSheetAddPopover() {
   });
   popover.classList.remove("hidden");
   popover.setAttribute("aria-hidden", "false");
+  placeSheetAddPopover();
   label?.focus();
 }
 

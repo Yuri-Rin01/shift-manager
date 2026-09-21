@@ -6813,10 +6813,6 @@ input[type="checkbox"]:focus-visible {
 }
 
 .sheet-tab-add {
-  margin-left: auto;
-  position: sticky;
-  right: 8px;
-  z-index: 2;
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -6848,7 +6844,7 @@ input[type="checkbox"]:focus-visible {
 .sheet-add-popover {
   position: absolute;
   top: 40px;
-  right: 8px;
+  left: 8px;
   z-index: 20;
   width: min(440px, calc(100% - 16px));
   padding: 12px;
