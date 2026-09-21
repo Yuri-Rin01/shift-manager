@@ -74,6 +74,20 @@
           </div>
           </div>
         </div>
+        <div class="bulk-field-group" data-bulk-group="can_work_night">
+          <label class="bulk-only check-row bulk-apply-toggle">
+            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="can_work_night">
+            <span>夜勤可否を変更する</span>
+          </label>
+          <div class="form-field bulk-field" data-bulk-field="can_work_night">
+          <span class="form-label">夜勤可</span>
+          <label class="check-row" for="field-can-work-night">
+            <input type="checkbox" id="field-can-work-night">
+            <span>夜勤に入れる</span>
+          </label>
+          </div>
+        </div>
+        <details class="staff-details form-field-full" open><summary>勤務の種類・割合・夜勤回数</summary>
         <div class="bulk-field-group form-field-full" data-bulk-group="staffing">
           <label class="bulk-only check-row bulk-apply-toggle">
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="staffing">
@@ -88,8 +102,11 @@
               <button type="button" class="btn-link" data-invert-all="staffing-basis">反転</button>
             </span>
           </div>
-          <p class="field-hint staffing-basis-long-hint">区分を選び、スライダーで割合を調整します。日勤・準日を選ぶと、それぞれ夜勤・準夜も自動で選ばれます。夜勤を「固定」すると回数指定が有効になり、他区分は固定時の割合が上限になります（上限までは上下可能、超えると夜勤から調整）。勤務時間・配置ルール（夜勤換算など）は各種設定の配置ルールで変更できます。</p>
+          <p class="field-hint">勤務できる種類を選び、割合を数値またはスライダーで調整します。夜勤回数を指定したい場合は「固定」を選択してください。</p>
+          <details class="staff-ratio-help"><summary>割合・回数の計算方法</summary>
+          <p class="field-hint staffing-basis-long-hint">勤務できる種類を選択し、割合を調整してください。「均等に配分」で選んだ勤務の割合を揃えられます。日勤・準日を選ぶと、それぞれ夜勤・準夜も自動で選ばれます。夜勤を「固定」すると回数指定が有効になり、他区分は固定時の割合が上限になります（上限までは上下可能、超えると夜勤から調整）。勤務時間・配置ルール（夜勤換算など）は各種設定の配置ルールで変更できます。</p>
           <p class="field-hint staffing-basis-period">基準期間（本日を基準とした暦月）: {{ staffing_period_label | default('') }} / 全{{ staffing_period_days | default(30) }}日・休み{{ staffing_period_off_days | default(0) }}日・勤務{{ staffing_period_working_days | default(30) }}日（休み日数は各種設定で変更）</p>
+          </details>
           <div class="staffing-basis-bar" id="staffing-basis-bar" aria-label="割合の内訳"></div>
           <div class="staffing-basis-list" id="field-staffing-basis">
             {% for item in staffing_basis_options %}
@@ -115,6 +132,7 @@
                     aria-label="{{ item.label }}の割合"
                   >
                 </div>
+                <label class="staffing-ratio-number"><input type="number" class="staffing-basis-number" data-key="{{ item.key }}" min="1" max="100" disabled aria-label="{{ item.label }}の割合（数値）">%</label>
                 <span class="staffing-basis-value" data-key="{{ item.key }}">—</span>
                 {% if item.key == 'night' %}
                   <div class="staffing-basis-night-controls">
@@ -151,6 +169,8 @@
           </div>
           </div>
         </div>
+        </details>
+        <details class="staff-details form-field-full"><summary>相性・人員カウントの詳細設定</summary>
         <div class="bulk-field-group form-field-full staff-editor-optional" data-bulk-group="exclude_from_staffing">
           <label class="bulk-only check-row bulk-apply-toggle">
             <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="exclude_from_staffing">
@@ -164,19 +184,6 @@
           </label>
           </div>
         </div>
-        <div class="bulk-field-group" data-bulk-group="can_work_night">
-          <label class="bulk-only check-row bulk-apply-toggle">
-            <input type="checkbox" class="bulk-apply-checkbox" data-bulk-group="can_work_night">
-            <span>夜勤可否を変更する</span>
-          </label>
-          <div class="form-field bulk-field" data-bulk-field="can_work_night">
-          <span class="form-label">夜勤可</span>
-          <label class="check-row" for="field-can-work-night">
-            <input type="checkbox" id="field-can-work-night">
-            <span>夜勤に入れる</span>
-          </label>
-          </div>
-        </div>
         <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
           <div class="picker-head">
             <span class="form-label">日勤相性</span>
@@ -186,7 +193,7 @@
               <button type="button" class="btn-link" data-invert-all="day-incompatible">反転</button>
             </span>
           </div>
-          <p class="field-hint">同じ日勤（早番・日勤・遅出）に組ませたくない職員を選択します。シフト自動生成で同日の日勤配置を避けます。追加すると夜勤相性にも自動で入ります。</p>
+          <p class="field-hint">同じ日勤（早番・日勤・遅出）に組ませたくない職員を選択します。片方の設定だけで双方に適用され、同日の日勤配置を避けます。追加すると夜勤相性にも自動で入ります。</p>
           <input
             type="search"
             id="field-day-incompatibility-search"
@@ -213,6 +220,7 @@
           >
           <div class="incompatibility-picker" id="field-night-incompatibilities"></div>
         </div>
+        </details>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn" data-close-modal>キャンセル</button>

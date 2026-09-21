@@ -11,6 +11,8 @@ class ShiftGenerateWarning(BaseModel):
     level: str = Field(description="info | warn | error")
     code: str
     message: str
+    staff_ids: list[int] = Field(default_factory=list)
+    dates: list[str] = Field(default_factory=list)
 
 
 class ShiftGenerateStats(BaseModel):

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=47">
+  <link rel="stylesheet" href="/static/css/style.css?v=48">
 </head>
 <body>
   <div class="app">
@@ -45,6 +45,7 @@
                     </div>
                   </section>
 
+                  <details class="home-extra-filters"><summary>職種・役職で絞り込む</summary>
                   <section class="home-check-panel">
                     <div class="home-check-panel-head">
                       <span class="home-toolbar-label">職種</span>
@@ -86,6 +87,7 @@
                       {% endfor %}
                     </div>
                   </section>
+                  </details>
                 </div>
               </div>
 
@@ -108,7 +110,7 @@
                     {"value": "name", "label": "名前順"}
                   ] %}
                   {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
-                  <div class="home-toolbar-inline-tools">
+                  <details class="home-view-options"><summary>表示・並び順</summary><div class="home-toolbar-inline-tools">
                     <div class="home-toolbar-block">
                       <span class="home-toolbar-label">並び順</span>
                       <div class="home-segment" role="group" aria-label="並び順">
@@ -162,12 +164,13 @@
                     </div>
                   </div>
 
+                  </details>
                   <span class="home-toolbar-note">セル編集は自動保存されます</span>
                 </div>
                 <div class="home-toolbar-actions">
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
-                  <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
+                  <details class="home-other-actions"><summary>その他</summary><button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button></details>
                   <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
                 </div>
               </div>
@@ -209,14 +212,14 @@
 
       <footer class="home-bottom-bar">
         {% if app_settings.show_status_bar %}
-        <div class="home-bottom-bar-status">
+        <details class="home-bottom-status"><summary>入力・配置状況</summary><div class="home-bottom-bar-status">
           {% for item in status_summary %}
             <div class="status-item">
               <span class="label">{{ item.label }}</span>
               <span class="value {{ item.status }}">{{ item.value }}</span>
             </div>
           {% endfor %}
-        </div>
+        </div></details>
         {% endif %}
         <button class="btn btn-primary home-bottom-print-btn" type="button" id="btn-print-settings" aria-label="印刷">
           <span class="home-bottom-print-icon" aria-hidden="true">🖨</span>
@@ -244,8 +247,8 @@
     window.PERIOD_LABEL = {{ period_label | tojson }};
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
-  <script src="/static/js/staff.js?v=13"></script>
-  <script src="/static/js/home.js?v=24"></script>
-  <script src="/static/js/generation.js?v=2"></script>
+  <script src="/static/js/staff.js?v=30"></script>
+  <script src="/static/js/home.js?v=25"></script>
+  <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

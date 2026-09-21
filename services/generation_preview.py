@@ -1,7 +1,7 @@
 """Persist the exact proposed assignments; reject applying an outdated preview."""
 from collections import Counter
 from copy import deepcopy
-from datetime import date
+from datetime import date, timedelta
 import hashlib
 import json
 import secrets
@@ -102,7 +102,8 @@ def create_preview(request: GenerationPreviewRequest):
             fixed[key] = {**cell, 'source': 'manual'}
         elif cell['source'] in ('manual', 'leave'):
             fixed[key] = cell
-    result = engine.run(fixed, get_placements_between(start, end))
+    result = engine.run(fixed, get_placements_between(start, end),
+                        get_shifts_between(start - timedelta(days=14), end + timedelta(days=14)))
     assignments = []
     for sid, day, symbol, source in result['assignments']:
         if sid not in ids:

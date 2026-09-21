@@ -39,6 +39,16 @@
     }
     return labels.join('<br>')||'登録なし';
   }
+  function warningCategory(w) {
+    if(w.code.includes('understaffed') || w.code==='leader_on_night_missing')return '不足';
+    if(w.code.startsWith('off_count'))return '公休';
+    if(w.code.startsWith('night_count'))return '夜勤回数';
+    return 'その他';
+  }
+  function warningList() {
+    if(!draft.warnings.length)return '<p>公休・夜勤回数・配置についての警告はありません。</p>';
+    return `<details class="generation-warnings" open><summary>確認事項 ${draft.warnings.length}件</summary><div class="generation-warning-tabs" role="group" aria-label="確認事項の種類">${['すべて','不足','公休','夜勤回数','その他'].map(c=>`<button type="button" class="btn" data-warning-category="${c}" aria-pressed="${c==='すべて'}">${c} ${draft.warnings.filter(w=>c==='すべて'||warningCategory(w)===c).length}</button>`).join('')}</div><ul>${draft.warnings.map(w=>`<li data-warning-kind="${warningCategory(w)}"><p>${esc(w.message)}</p>${(w.staff_ids||[]).map(id=>`<button type="button" class="btn-link" data-jump-staff="${id}" data-jump-date="${esc(w.dates?.[0]||'')}">${esc(draft.summary.find(s=>s.id===id)?.name||'職員')}を確認</button>`).join(' ')}${(w.dates||[]).map(d=>`<button type="button" class="btn-link" data-jump-date="${esc(d)}">${esc(d.slice(5))}</button>`).join(' ')}</li>`).join('')}</ul></details>`;
+  }
   function render() {
     errorBox.classList.add('hidden');
     modal.querySelectorAll('.generation-steps li').forEach((item,i)=>{if(i+1===step)item.setAttribute('aria-current','step');else item.removeAttribute('aria-current');});
@@ -52,7 +62,7 @@
     } else {
       const cells=new Map(draft.assignments.map(a=>[`${a[0]}:${a[1]}`,a]));
       const placements=new Map((draft.placements||[]).map(p=>[`${p.staff_id}:${p.date}`,p]));
-      content.innerHTML=`<h4>反映する前に確認</h4><p>${esc(draft.start)}〜${esc(draft.end)} / ${esc(draft.scope)} / ${draft.summary.length}人</p><p class="generation-note">手動入力 ${draft.stats.manual_locked}件・希望休 ${draft.stats.leave_locked}件を保持します。案の有効期限は1時間です。</p><p class="field-hint">勤務の下に配置先を表示します。L＝夜勤リーダー（担当フロア兼務・フロア必要人数には含めません）。</p>${draft.warnings.length?`<details class="generation-warnings" open><summary>確認事項 ${draft.warnings.length}件</summary><ul>${draft.warnings.map(w=>`<li>${esc(w.message)}</li>`).join('')}</ul></details>`:'<p>公休・夜勤回数・配置についての警告はありません。</p>'}<div class="generation-table-wrap" tabindex="0" role="region" aria-label="生成案のカレンダー。横方向にスクロールできます"><table class="data-table generation-calendar"><thead><tr><th>職員</th>${draft.dates.map(d=>`<th>${Number(d.slice(5,7))}/${Number(d.slice(8))}</th>`).join('')}</tr></thead><tbody>${draft.summary.map(s=>`<tr><th>${esc(s.name)}</th>${draft.dates.map(d=>{const a=cells.get(`${s.id}:${d}`),p=placements.get(`${s.id}:${d}`);const badge=p?.role==='night_leader'?'L':p?.floor||'';return `<td class="${esc(window.SYMBOL_CLASS_MAP?.[a?.[2]]||'')}" title="${a?.[3]==='manual'?'手動入力を保持':a?.[3]==='leave'?'希望休を保持':'自動生成'}">${esc(a?.[2]||'')}${badge?`<small class="placement-badge" aria-label="${p.role==='night_leader'?'夜勤リーダー（担当フロア兼務）':esc(badge)}">${esc(badge)}</small>`:''}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div><details class="settings-advanced" open><summary>公休・夜勤回数の集計</summary><div class="generation-table-wrap"><table class="data-table"><thead><tr><th>職員</th><th>公休／目標</th><th>夜勤／設定</th></tr></thead><tbody>${draft.summary.map(s=>`<tr><td>${esc(s.name)}</td><td>${s.off}日／${s.off_target}日</td><td>${s.nights}回／${s.night_target===null?'勤務割合':s.night_target+'回'}</td></tr>`).join('')}</tbody></table></div></details>`;
+      content.innerHTML=`<h4>反映する前に確認</h4><p>${esc(draft.start)}〜${esc(draft.end)} / ${esc(draft.scope)} / ${draft.summary.length}人</p><p class="generation-note">手動入力 ${draft.stats.manual_locked}件・希望休 ${draft.stats.leave_locked}件を保持します。案の有効期限は1時間です。</p><p class="field-hint">前後期間の保存済み勤務も判定に使います。期間外は変更せず、翌期間が未入力の場合は次回の生成時に明け・休みを引き継ぎます。</p><p class="field-hint">勤務の下に配置先を表示します。L＝夜勤リーダー（担当フロア兼務・フロア必要人数には含めません）。</p>${warningList()}<div class="generation-table-wrap" tabindex="0" role="region" aria-label="生成案のカレンダー。横方向にスクロールできます"><table class="data-table generation-calendar"><thead><tr><th>職員</th>${draft.dates.map(d=>`<th>${Number(d.slice(5,7))}/${Number(d.slice(8))}</th>`).join('')}</tr></thead><tbody>${draft.summary.map(s=>`<tr data-result-staff="${s.id}"><th tabindex="-1">${esc(s.name)}</th>${draft.dates.map(d=>{const a=cells.get(`${s.id}:${d}`),p=placements.get(`${s.id}:${d}`);const badge=p?.role==='night_leader'?'L':p?.floor||'';return `<td tabindex="-1" data-result-date="${esc(d)}" class="${esc(window.SYMBOL_CLASS_MAP?.[a?.[2]]||'')}" title="${a?.[3]==='manual'?'手動入力を保持':a?.[3]==='leave'?'希望休を保持':'自動生成'}">${esc(a?.[2]||'')}${badge?`<small class="placement-badge" aria-label="${p.role==='night_leader'?'夜勤リーダー（担当フロア兼務）':esc(badge)}">${esc(badge)}</small>`:''}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div><details class="settings-advanced" open><summary>公休・夜勤回数の集計</summary><div class="generation-table-wrap"><table class="data-table"><thead><tr><th>職員</th><th>公休／目標</th><th>夜勤／設定</th></tr></thead><tbody>${draft.summary.map(s=>`<tr><td><button type="button" class="btn-link" data-jump-staff="${s.id}">${esc(s.name)}</button></td><td>${s.off}日／${s.off_target}日</td><td>${s.nights}回／${s.night_target===null?'勤務割合':s.night_target+'回'}</td></tr>`).join('')}</tbody></table></div></details>`;
       if(draft.warnings.some(w=>w.level==='error')) {next.disabled=true;status.textContent='条件を見直して案を作り直してください。';}
     }
   }
@@ -63,6 +73,21 @@
       context=await api('context');conditions={off_days_per_period:context.settings.off_days_per_period,max_consecutive_days:context.settings.max_consecutive_days,max_night_per_week:context.settings.max_night_per_week,min_staff_by_floor:structuredClone(context.settings.min_staff_by_floor),time_slot_staffing_rules:structuredClone(context.settings.time_slot_staffing_rules)};
       nightCounts={};scope='';month=`${window.CALENDAR_YEAR}-${String(window.CALENDAR_MONTH).padStart(2,'0')}`;mode='auto';floor=context.floors[0];step=1;draft=null;saveDefaults=false;render();
     }catch(e){fail(e.message);next.disabled=true;}finally{busy=false;content.querySelectorAll('input,select').forEach(input=>input.disabled=false);back.disabled=false;modal.querySelectorAll('[data-generation-close]').forEach(b=>b.disabled=false);back.focus();}
+  });
+  content.addEventListener('click', e=>{
+    const category=e.target.closest('[data-warning-category]');
+    if(category) {
+      content.querySelectorAll('[data-warning-category]').forEach(b=>b.setAttribute('aria-pressed', String(b===category)));
+      content.querySelectorAll('[data-warning-kind]').forEach(li=>li.hidden=category.dataset.warningCategory!=='すべて'&&li.dataset.warningKind!==category.dataset.warningCategory);
+    }
+    const jump=e.target.closest('[data-jump-staff],[data-jump-date]');
+    if(!jump)return;
+    content.querySelectorAll('.generation-focus').forEach(x=>x.classList.remove('generation-focus'));
+    const row=jump.dataset.jumpStaff ? `.generation-calendar [data-result-staff="${jump.dataset.jumpStaff}"]` : '.generation-calendar tbody tr';
+    const selector=jump.dataset.jumpDate ? `${row} [data-result-date="${jump.dataset.jumpDate}"]` : `${row} th`;
+    const targets=[...content.querySelectorAll(selector)];
+    targets.forEach(x=>x.classList.add('generation-focus'));
+    targets[0]?.scrollIntoView({block:'center',inline:'center'});targets[0]?.focus({preventScroll:true});
   });
   content.addEventListener('change',e=>{
     const t=e.target;

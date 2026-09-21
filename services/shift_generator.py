@@ -6,7 +6,7 @@ from data.staffing_basis import base_work_key as resolve_base_work_key
 
 import random
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from data.calendar_period import (
     auto_generate_bounds,
@@ -74,8 +74,8 @@ LEADER_OR_ABOVE_POSITIONS = frozenset(
 )
 
 
-def _warning(level: str, code: str, message: str) -> dict:
-    return {"level": level, "code": code, "message": message}
+def _warning(level: str, code: str, message: str, *, staff_ids=None, dates=None) -> dict:
+    return {"level": level, "code": code, "message": message, "staff_ids": staff_ids or [], "dates": dates or []}
 
 
 def _base_work_key(key: str, settings: dict | None = None) -> str:
@@ -164,9 +164,14 @@ class _Generator:
         self.staff_by_id = {s["id"]: s for s in self.staff_list}
         # 保存された選択は片方向でも、同じ夜勤のNGペアとして両方向に適用する。
         # 日勤相性は夜勤にも適用する既存の設定ルールを、古いデータにも反映する。
+        self.day_incompatible_by_staff: dict[int, set[int]] = defaultdict(set)
         self.night_incompatible_by_staff: dict[int, set[int]] = defaultdict(set)
         for staff in self.staff_list:
             sid = staff["id"]
+            for other_id in staff.get('day_incompatible_ids') or []:
+                if other_id != sid and other_id in self.staff_by_id:
+                    self.day_incompatible_by_staff[sid].add(other_id)
+                    self.day_incompatible_by_staff[other_id].add(sid)
             selected = set(staff.get("night_incompatible_ids") or []) | set(staff.get("day_incompatible_ids") or [])
             for other_id in selected:
                 if other_id == sid or other_id not in self.staff_by_id:
@@ -174,6 +179,7 @@ class _Generator:
                 self.night_incompatible_by_staff[sid].add(other_id)
                 self.night_incompatible_by_staff[other_id].add(sid)
 
+        self.boundary: dict[tuple[int, str], dict] = {}
         self.grid: dict[tuple[int, str], str] = {}
         # Eligibility (staff_floors) is distinct from a single assignment's location.
         self.placements: dict[tuple[int, str], dict] = {}
@@ -194,7 +200,7 @@ class _Generator:
         return self._cell_key(staff_id, shift_date) in self.locks
 
     def _get_symbol(self, staff_id: int, shift_date: str) -> str | None:
-        return self.grid.get(self._cell_key(staff_id, shift_date))
+        return self.grid.get(self._cell_key(staff_id, shift_date), self.boundary.get((staff_id, shift_date), {}).get("symbol"))
 
     def _adjust_counts_for_symbol(
         self,
@@ -311,16 +317,11 @@ class _Generator:
         return _base_work_key(key, self.settings) in WORK_KEYS
 
     def _consecutive_work_days_before(self, staff_id: int, shift_date: str) -> int:
-        idx = self.date_index.get(shift_date)
-        if idx is None or idx == 0:
-            return 0
         count = 0
-        for day_index in range(idx - 1, -1, -1):
-            previous_date = self.period_dates[day_index]
-            symbol = self._get_symbol(staff_id, previous_date)
-            if not symbol or not self._is_work_day_symbol(symbol):
-                break
+        day = date.fromisoformat(shift_date) - timedelta(days=1)
+        while self._is_work_day_symbol(self._get_symbol(staff_id, day.isoformat()) or ""):
             count += 1
+            day -= timedelta(days=1)
         return count
 
     def _would_exceed_consecutive(self, staff_id: int, shift_date: str) -> bool:
@@ -328,11 +329,10 @@ class _Generator:
         if max_days <= 0:
             return False
         count = self._consecutive_work_days_before(staff_id, shift_date) + 1
-        for next_date in self.period_dates[self.date_index[shift_date] + 1:]:
-            symbol = self._get_symbol(staff_id, next_date)
-            if not symbol or not self._is_work_day_symbol(symbol):
-                break
+        day = date.fromisoformat(shift_date) + timedelta(days=1)
+        while self._is_work_day_symbol(self._get_symbol(staff_id, day.isoformat()) or ""):
             count += 1
+            day += timedelta(days=1)
         return count > max_days
 
     def _is_leader_or_above(self, staff: dict) -> bool:
@@ -497,18 +497,14 @@ class _Generator:
             if d == shift_date and other_id != staff_id
             and _symbol_work_key(symbol, self.settings) in DAY_WORK_KEYS
         }
-        staff = self.staff_by_id[staff_id]
-        bad = set(staff.get("day_incompatible_ids") or [])
+        bad = self.day_incompatible_by_staff[staff_id]
         return bool(assigned & bad)
 
     def _blocked_after_night(self, staff_id: int, shift_date: str) -> bool:
         """明け（morning_off）の翌日は日勤系を入れない。"""
         if not block_work_after_night_enabled(self.settings):
             return False
-        idx = self.date_index.get(shift_date)
-        if idx is None or idx == 0:
-            return False
-        prev_date = self.period_dates[idx - 1]
+        prev_date = (date.fromisoformat(shift_date) - timedelta(days=1)).isoformat()
         prev_symbol = self._get_symbol(staff_id, prev_date) or ""
         return is_morning_off_symbol(prev_symbol, self.settings)
 
@@ -545,8 +541,8 @@ class _Generator:
             if self.week_nights[(sid, week)] >= max_week:
                 return False
             idx = self.date_index.get(shift_date)
-            if idx is not None and idx > 0:
-                prev_date = self.period_dates[idx - 1]
+            if idx is not None:
+                prev_date = (date.fromisoformat(shift_date) - timedelta(days=1)).isoformat()
                 prev_symbol = self._get_symbol(sid, prev_date)
                 if _symbol_work_key(prev_symbol or "", self.settings) == "night":
                     return False
@@ -555,9 +551,8 @@ class _Generator:
             # 翌日の明け・翌々日の公休まで確保できる夜勤だけを追加する。
             if idx is not None:
                 for offset in (1, 2):
-                    if idx + offset >= len(self.period_dates):
-                        continue
-                    following = self._get_symbol(sid, self.period_dates[idx + offset])
+                    following_date = (date.fromisoformat(shift_date) + timedelta(days=offset)).isoformat()
+                    following = self._get_symbol(sid, following_date)
                     if not following:
                         continue
                     following_key = symbol_to_key(following, self.settings)
@@ -1160,7 +1155,7 @@ class _Generator:
                     _warning(
                         "warn",
                         "time_slot_understaffed",
-                        f"{floor_label}「{slot_name}（{time_label}）」が必要人数 {sample_required} 人に足りない日があります（{len(rows)} 日: {dates}{suffix}）。",
+                        f"{floor_label}「{slot_name}（{time_label}）」が必要人数 {sample_required} 人に足りない日があります（{len(rows)} 日: {dates}{suffix}）。", dates=[r[0] for r in rows],
                     )
                 )
             return
@@ -1182,7 +1177,7 @@ class _Generator:
                 _warning(
                     "warn",
                     "understaffed",
-                    f"{floor_label}{label}が必要人数 {sample_required} 人に足りない日があります（{len(rows)} 日: {dates}{suffix}）。",
+                    f"{floor_label}{label}が必要人数 {sample_required} 人に足りない日があります（{len(rows)} 日: {dates}{suffix}）。", dates=[r[0] for r in rows],
                 )
             )
 
@@ -1374,7 +1369,7 @@ class _Generator:
             max_days = int(self.settings.get("max_consecutive_days", 0))
             # 状態 = (追加公休数, 連勤長)。区間ごとの連勤長の二乗和を最小化し、
             # 希望休や夜勤明けの近くに公休が固まることを避ける。
-            states: dict[tuple[int, int], tuple[float, list[str]]] = {(0, 0): (0.0, [])}
+            states: dict[tuple[int, int], tuple[float, list[str]]] = {(0, self._consecutive_work_days_before(sid, self.period_dates[0])): (0.0, [])}
             for day in self.period_dates:
                 symbol = self._get_symbol(sid, day)
                 following: dict[tuple[int, int], tuple[float, list[str]]] = {}
@@ -1457,7 +1452,7 @@ class _Generator:
                     _warning(
                         "warn",
                         "off_count_shortfall",
-                        f"{staff['name']} の休みは目標 {target} 日に対し {actual} 日です（必要人数・夜勤明け固定のため）。",
+                        f"{staff['name']} の休みは目標 {target} 日に対し {actual} 日です（必要人数・夜勤明け固定のため）。", staff_ids=[sid],
                     )
                 )
             else:
@@ -1465,7 +1460,7 @@ class _Generator:
                     _warning(
                         "warn",
                         "off_count_excess",
-                        f"{staff['name']} の公休は設定 {target} 日に対し {actual} 日です（希望休・夜勤明け翌日の公休・勤務を配置できない空き枠を含みます）。",
+                        f"{staff['name']} の公休は設定 {target} 日に対し {actual} 日です（希望休・夜勤明け翌日の公休・勤務を配置できない空き枠を含みます）。", staff_ids=[sid],
                     )
                 )
 
@@ -1479,18 +1474,19 @@ class _Generator:
                     code = "night_count_shortfall" if actual < target else "night_count_excess"
                     reason = "希望休・夜勤相性・配置条件・週の上限・夜勤明けルールを確認してください。" if actual < target else "手動入力分が固定回数を超えています。"
                     self.warnings.append(_warning("warn", code,
-                        f"{staff['name']} の夜勤は固定 {target} 回に対し {actual} 回です。{reason}"))
+                        f"{staff['name']} の夜勤は固定 {target} 回に対し {actual} 回です。{reason}", staff_ids=[sid]))
             for idx, day in enumerate(self.period_dates):
                 if _symbol_work_key(self._get_symbol(sid, day) or "", self.settings) != "night":
                     continue
                 for offset, allowed in ((1, {"morning_off"}), (2, LEAVE_KEYS)):
-                    if idx + offset >= len(self.period_dates):
+                    following = (date.fromisoformat(day) + timedelta(days=offset)).isoformat()
+                    saved = self._get_symbol(sid, following)
+                    if following not in self.date_index and not saved:
                         continue
-                    following = self.period_dates[idx + offset]
-                    key = symbol_to_key(self._get_symbol(sid, following) or "", self.settings)
+                    key = symbol_to_key(saved or "", self.settings)
                     if key not in allowed:
                         self.warnings.append(_warning("warn", "night_chain_conflict",
-                            f"{staff['name']} の {day} の夜勤後（{following}）に明け・公休を確保できません。手動入力・希望休を確認してください。"))
+                            f"{staff['name']} の {day} の夜勤後（{following}）に明け・公休を確保できません。手動入力・希望休を確認してください。", staff_ids=[sid], dates=[day]))
 
     def _validate_night_compatibility(self) -> None:
         """手動入力で残ったNGペアも、日付と双方の名前を付けて報告する。"""
@@ -1512,7 +1508,7 @@ class _Generator:
                 _warning(
                     "warn",
                     "night_incompatibility_conflict",
-                    f"夜勤相性でNGの {names} が同じ夜勤になっています（{len(days)} 日: {dates}{suffix}）。手動入力・相性設定を確認してください。",
+                    f"夜勤相性でNGの {names} が同じ夜勤になっています（{len(days)} 日: {dates}{suffix}）。手動入力・相性設定を確認してください。", staff_ids=[left_id, right_id], dates=days,
                 )
             )
 
@@ -1565,14 +1561,64 @@ class _Generator:
                 _warning(
                     "warn",
                     "leader_on_night_missing",
-                    f"{shift_date} の夜勤リーダー（フロア担当とは別に1人）を配置できませんでした。役職・担当可能フロア・夜勤回数・相性を確認してください。",
+                    f"{shift_date} の夜勤リーダー（フロア担当とは別に1人）を配置できませんでした。役職・担当可能フロア・夜勤回数・相性を確認してください。", dates=[shift_date],
                 )
             )
 
-    def run(self, existing: dict[tuple[int, str], dict], placements: dict | None = None) -> dict:
+    def _validate_period_limits(self) -> None:
+        for staff in self.staff_list:
+            sid = staff['id']
+            max_days = int(self.settings.get('max_consecutive_days', 0))
+            conflicts = [day for day in self.period_dates if self._is_work_day_symbol(self._get_symbol(sid, day) or '')
+                         and max_days > 0 and self._would_exceed_consecutive(sid, day)]
+            if conflicts:
+                self.warnings.append(_warning('warn', 'consecutive_conflict',
+                    f"{staff['name']} は固定入力と前後期間の勤務を含めると連勤上限 {max_days} 日を超えています。",
+                    staff_ids=[sid], dates=conflicts))
+            for week in {item['week_number'] for item in self.period_days}:
+                if self.week_nights[(sid, week)] > int(self.settings.get('max_night_per_week', 7)):
+                    days = [item['date'] for item in self.period_days if item['week_number'] == week]
+                    self.warnings.append(_warning('warn', 'weekly_night_conflict',
+                        f"{staff['name']} の {days[0]} を含む週は前後期間・固定入力を含めて夜勤上限を超えています。",
+                        staff_ids=[sid], dates=days))
+
+    def _apply_boundary_rest(self) -> None:
+        # Outside cells are read-only. Carry their obligations into this period.
+        for staff in self.staff_list:
+            sid = staff['id']
+            for day in self.period_dates[:2]:
+                d = date.fromisoformat(day)
+                previous = self._get_symbol(sid, (d - timedelta(days=1)).isoformat()) or ''
+                earlier = self._get_symbol(sid, (d - timedelta(days=2)).isoformat()) or ''
+                required = None
+                if _symbol_work_key(previous, self.settings) == 'night':
+                    required = morning_off_symbol(self.settings)
+                elif is_morning_off_symbol(previous, self.settings) or _symbol_work_key(earlier, self.settings) == 'night':
+                    required = self.off_symbol
+                if not required:
+                    continue
+                current = self._get_symbol(sid, day)
+                valid = current == required or (required == self.off_symbol and symbol_to_key(current or '', self.settings) in LEAVE_KEYS)
+                if self._is_locked(sid, day):
+                    if not valid:
+                        self.warnings.append(_warning('warn', 'boundary_rest_conflict', f"{staff['name']} {day}: 前期間の夜勤後に必要な明け・休みと固定入力が競合しています。", staff_ids=[sid], dates=[day]))
+                else:
+                    self._set_symbol(sid, day, required, lock='rest' if required == self.off_symbol else 'boundary')
+
+    def run(self, existing: dict[tuple[int, str], dict], placements: dict | None = None,
+            boundary: dict | None = None) -> dict:
+        self.boundary = {k: v for k, v in (boundary or {}).items() if k[1] not in self.date_index}
+        first = self.period_start
+        week_offset = (first.weekday() + (1 if self.settings.get('week_start', 'sunday') == 'sunday' else 0)) % 7
+        week_origin = first - timedelta(days=week_offset)
+        for (sid, day), cell in self.boundary.items():
+            if _symbol_work_key(cell.get('symbol', ''), self.settings) == 'night':
+                week = (date.fromisoformat(day) - week_origin).days // 7 + 1
+                self.week_nights[(sid, week)] += 1
         self.placements = {key: dict(value) for key, value in (placements or {}).items()
                            if key in existing and existing[key].get('source') in ('manual', 'leave')}
         manual = self._phase_manual(existing)
+        self._apply_boundary_rest()
         leave = self._phase_leave()
         self._validate_staff_capacity()
         self._phase_night_leaders()
@@ -1593,9 +1639,15 @@ class _Generator:
             self._phase_coverage_and_basis()
         self._phase_capacity_day_assign()
         self._phase_pad_empty()
+        self._validate_period_limits()
         self._validate_off_exact()
         self._validate_night_results()
         self._validate_night_compatibility()
+        for day in self.period_dates:
+            for sid in self.staff_by_id:
+                if _symbol_work_key(self._get_symbol(sid, day) or '', self.settings) in DAY_WORK_KEYS and self._day_incompatible_on_day(sid, day):
+                    self.warnings.append(_warning('warn', 'day_incompatibility_conflict',
+                        f"{self.staff_by_id[sid]['name']} {day}: 日勤相性でNGの職員と同じ日に固定入力されています。", staff_ids=[sid], dates=[day]))
         self._validate_staff_ratio_results()
         self._validate_leader_on_night()
         self._collect_staffing_shortfalls()
@@ -1694,7 +1746,8 @@ def generate_shifts(year: int, month: int, *, preview: bool = False) -> dict:
         }
 
     engine = _Generator(year, month, settings)
-    result = engine.run(existing, get_placements_between(scope_start, scope_end))
+    result = engine.run(existing, get_placements_between(scope_start, scope_end),
+                        get_shifts_between(scope_start - timedelta(days=14), scope_end + timedelta(days=14)))
 
     applied = False
     save_error: str | None = None

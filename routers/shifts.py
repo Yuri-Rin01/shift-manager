@@ -15,14 +15,13 @@ from schemas.auto_shift import (
 )
 from schemas.shift import (
     ShiftCellResponse,
+    ShiftHistoryRestore,
     ShiftCellUnlock,
     ShiftCellUpdate,
     ShiftClearRequest,
     ShiftClearResponse,
 )
 from services.morning_off import (
-    apply_morning_off_after_night,
-    clear_auto_morning_off_after_night,
     would_block_day_work_after_night,
 )
 from services.shift_generator import generate_shifts
@@ -96,38 +95,29 @@ def update_shift_cell(data: ShiftCellUpdate):
             detail="明けの翌日は早番・日勤・遅出を割り当てできません（固定ルール）。",
         )
 
-    result = repo.upsert_shift_cell(
-        data.staff_id,
-        data.year,
-        data.month,
-        data.day,
-        symbol,
-    )
-    related: list[dict] = []
-    related.extend(
-        clear_auto_morning_off_after_night(
-            data.staff_id,
-            data.year,
-            data.month,
-            data.day,
-            symbol,
-            settings,
-        )
-    )
-    related.extend(
-        apply_morning_off_after_night(
-            data.staff_id,
-            data.year,
-            data.month,
-            data.day,
-            symbol,
-            settings,
-        )
-    )
-    return ShiftCellResponse(
-        **result,
-        related=[ShiftCellResponse(**item) for item in related],
-    )
+    from services.shift_edit import edit_cell
+    try:
+        day = date(data.year, data.month, data.day)
+    except ValueError as exc:
+        raise HTTPException(400, '日付が不正です') from exc
+    return edit_cell(data.staff_id, day, symbol, settings)
+
+
+@router.post('/history/restore')
+def restore_shift_history(data: ShiftHistoryRestore):
+    from services.shift_edit import restore_cells
+    states = [c.model_dump(mode='json') for c in data.states]
+    expected = [c.model_dump(mode='json') for c in data.expected]
+    valid = _valid_symbols()
+    for cell in states:
+        if cell['symbol'] and (cell['symbol'] not in valid or not cell['source']):
+            raise HTTPException(400, '勤務記号または入力元が無効です。設定変更後は再読み込みしてください。')
+        if not cell['symbol'] and (cell['source'] or cell['placement']):
+            raise HTTPException(400, '空欄の復元データが不正です。')
+    try:
+        return {'cells': restore_cells(states, expected)}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/cell/unlock", response_model=ShiftCellResponse)
