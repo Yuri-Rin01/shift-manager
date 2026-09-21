@@ -395,9 +395,12 @@ class _Generator:
         if not self._is_leader_or_above(staff):
             return False
         if self.staffing_mode == 'time_slot':
-            required = {r['floor'] for r in self.time_slot_rules if r.get('floor')
-                        and r.get('min_staff', 0) > 0
-                        and (r['end_time'] < r['start_time'] or r['start_time'] >= '16:00' or r['end_time'] <= '09:00')}
+            required = {f for f in self.floors if self._min_staff_for(f, 'night') > 0}
+            required.update(
+                r['floor'] for r in self.time_slot_rules if r.get('floor')
+                and r.get('min_staff', 0) > 0
+                and (r['end_time'] < r['start_time'] or r['start_time'] >= '16:00' or r['end_time'] <= '09:00')
+            )
         else:
             required = {f for f in self.floors if self._min_staff_for(f, 'night') > 0}
         return required.issubset(self._staff_floors(staff))
@@ -1182,6 +1185,9 @@ class _Generator:
                             )
                         )
                     break
+
+        if night_only:
+            self._phase_night_assignments()
 
     def _emit_understaffed_warnings(self) -> None:
         if self.time_slot_shortfalls:
