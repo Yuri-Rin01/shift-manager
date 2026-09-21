@@ -97,3 +97,4 @@ def test_display_settings_page_has_custom_sheet_editor():
             assert home_html.index('data-sheet-view="foreign-students"') < home_html.index("btn-add-sheet-tab")
             assert 'id="sheet-add-popover"' in home_html
             assert home_html.index('id="student-labor-panel"') < home_html.index('id="sheet-flip-viewport"')
+            assert 'id="staff-gauge-popover"' in home_html

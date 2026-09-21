@@ -7094,6 +7094,31 @@ input[type="checkbox"]:focus-visible {
   }
 }
 
+/* 職員名に合わせると出る、その人だけの労働時間ゲージ */
+.staff-gauge-popover {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 280px;
+  max-height: min(380px, 70vh);
+  overflow: auto;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.staff-gauge-popover.hidden {
+  display: none;
+}
+
+.staff-gauge-popover .student-labor-gauge-card {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
 /* シート名に合わせると出る労働時間ゲージ */
 .student-labor-panel {
   position: absolute;

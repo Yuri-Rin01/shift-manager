@@ -1057,6 +1057,112 @@ function hideSheetGaugePopover() {
   delete panel.dataset.hoverSheet;
 }
 
+let staffGaugeHoverId = null;
+let staffGaugeHideTimer = null;
+
+function hideStaffGaugePopover() {
+  staffGaugeHoverId = null;
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop) return;
+  pop.classList.add("hidden");
+  pop.setAttribute("aria-hidden", "true");
+  pop.innerHTML = "";
+  delete pop.dataset.staffId;
+}
+
+function placeStaffGaugePopover(anchor) {
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = pop.offsetWidth || 280;
+  const height = pop.offsetHeight || 160;
+  let left = rect.right + 8;
+  if (left + width > window.innerWidth - 8) left = Math.max(8, rect.left - width - 8);
+  let top = rect.top;
+  if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+
+function renderStaffGaugePopover(link, staffId) {
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop || staffGaugeHoverId !== staffId) return;
+  const student = (readLaborCache("student")?.rows || []).find((row) => String(row.staff_id) === staffId);
+  const partData = readLaborCache("partTime");
+  const part = (partData?.rows || []).find((row) => String(row.staff_id) === staffId);
+  if (!student && !part) {
+    pop.classList.add("hidden");
+    pop.setAttribute("aria-hidden", "true");
+    delete pop.dataset.staffId;
+    return;
+  }
+  if (pop.dataset.staffId === staffId && !pop.classList.contains("hidden")) {
+    placeStaffGaugePopover(link);
+    return;
+  }
+  const statutory = Number(partData?.statutory_weekly_minutes) || 40 * 60;
+  const insurance = Number(partData?.insurance_weekly_minutes) || 20 * 60;
+  pop.innerHTML = [
+    student ? buildStudentLaborGaugeCard(student) : "",
+    part ? buildPartTimeGaugeCard(part, statutory, insurance) : "",
+  ].join("");
+  pop.dataset.staffId = staffId;
+  pop.classList.remove("hidden");
+  pop.setAttribute("aria-hidden", "false");
+  placeStaffGaugePopover(link);
+}
+
+async function showStaffGaugePopover(link) {
+  const staffId = String(link.closest("tr")?.dataset.staffId || "");
+  if (!staffId) return;
+  staffGaugeHoverId = staffId;
+  hideSheetGaugePopover();
+  if (readLaborCache("student") && readLaborCache("partTime")) {
+    renderStaffGaugePopover(link, staffId);
+    return;
+  }
+  if (!readLaborCache("student")) await loadStudentLaborSummary();
+  if (staffGaugeHoverId !== staffId) return;
+  if (!readLaborCache("partTime")) await loadPartTimeHours();
+  if (staffGaugeHoverId !== staffId) return;
+  renderStaffGaugePopover(link, staffId);
+}
+
+function initStaffGaugeHover() {
+  const calendar = document.getElementById("shift-calendar");
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!calendar || !pop || calendar.dataset.staffGaugeReady) return;
+  calendar.dataset.staffGaugeReady = "1";
+
+  const cancelHide = () => {
+    if (staffGaugeHideTimer) {
+      window.clearTimeout(staffGaugeHideTimer);
+      staffGaugeHideTimer = null;
+    }
+  };
+  const scheduleHide = () => {
+    cancelHide();
+    staffGaugeHideTimer = window.setTimeout(() => hideStaffGaugePopover(), 140);
+  };
+
+  calendar.addEventListener("pointerover", (event) => {
+    const link = event.target.closest(".staff-name-link");
+    if (!link || !calendar.contains(link)) return;
+    cancelHide();
+    showStaffGaugePopover(link);
+  });
+  calendar.addEventListener("pointerout", (event) => {
+    const link = event.target.closest(".staff-name-link");
+    if (!link || !calendar.contains(link)) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && (link.contains(next) || pop.contains(next))) return;
+    scheduleHide();
+  });
+  pop.addEventListener("pointerenter", cancelHide);
+  pop.addEventListener("pointerleave", scheduleHide);
+  document.getElementById("sheet-main-scroll")?.addEventListener("scroll", () => hideStaffGaugePopover(), { passive: true });
+}
+
 function placeSheetGaugePopover(tab) {
   const panel = document.getElementById("student-labor-panel");
   const stage = document.querySelector(".shift-sheet-stage");
@@ -1075,6 +1181,7 @@ function showSheetGaugePopover(tab) {
   const panel = document.getElementById("student-labor-panel");
   const list = document.querySelector(".sheet-tabs");
   if (!panel || !tab) return;
+  hideStaffGaugePopover();
   if (list?.classList.contains("is-reordering")) {
     hideSheetGaugePopover();
     return;
@@ -1490,6 +1597,7 @@ function initSheetViews() {
   syncSheetTabColors();
   initSheetAddPopover();
   initSheetGaugeHover();
+  initStaffGaugeHover();
 
   initSheetTabDrag();
 
@@ -4241,6 +4349,7 @@ shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");
   if (!trigger) return;
   event.preventDefault();
+  hideStaffGaugePopover();
   closeCellEditor();
   window.openStaffEditor?.(Number(trigger.dataset.staffEdit));
 });
