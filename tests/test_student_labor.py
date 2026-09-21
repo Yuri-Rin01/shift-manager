@@ -15,6 +15,7 @@ from services.student_labor import (
     net_work_minutes,
     split_shift_day_minutes,
     summarize_staff_week,
+    summarize_staff_weeks,
     week_range_containing,
 )
 
@@ -449,3 +450,27 @@ def test_summary_status_labels_on_foreign_sheet():
     assert summary["status"] == "reached"
     assert summary["status_label"] == "上限到達"
     assert summary["period_label"] == "通常期間"
+
+
+def test_month_view_has_one_gauge_summary_per_week_interval():
+    # 2026年9月は月曜始まりで5つの週区間に重なる。
+    assignments = [
+        (date(2026, 8, 31), SYM["h8"]),
+        (date(2026, 9, 1), SYM["h8"]),
+        (date(2026, 10, 1), SYM["h4"]),
+    ]
+    weeks = summarize_staff_weeks(
+        staff=_student(),
+        period_start=date(2026, 9, 1),
+        period_end=date(2026, 9, 30),
+        assignments=assignments,
+        settings=_settings(),
+    )
+
+    assert len(weeks) == 5
+    assert weeks[0]["week_start"] == "2026-08-31"
+    assert weeks[0]["display_start"] == "2026-09-01"
+    assert weeks[0]["total_week_minutes"] == 16 * 60
+    assert weeks[-1]["week_end"] == "2026-10-04"
+    assert weeks[-1]["display_end"] == "2026-09-30"
+    assert weeks[-1]["total_week_minutes"] == 4 * 60

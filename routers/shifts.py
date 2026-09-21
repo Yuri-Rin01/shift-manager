@@ -40,6 +40,7 @@ from services.student_labor import (
     normalize_student_labor_profile,
     summarize_staff_month,
     summarize_staff_week,
+    summarize_staff_weeks,
     week_range_containing,
 )
 from data.student_labor_limits import normalize_student_labor_limits
@@ -125,8 +126,10 @@ def student_labor_summary(
 
     limits = normalize_student_labor_limits(settings.get("student_labor_limits"))
     week_start, week_end = week_range_containing(focus, limits["week_start"])
-    fetch_start = min(period_start, week_start) - timedelta(days=1)
-    fetch_end = max(period_end, week_end) + timedelta(days=1)
+    first_week_start, _ = week_range_containing(period_start, limits["week_start"])
+    _, last_week_end = week_range_containing(period_end, limits["week_start"])
+    fetch_start = first_week_start - timedelta(days=1)
+    fetch_end = last_week_end + timedelta(days=1)
     shifts = repo.get_shifts_between(fetch_start, fetch_end)
 
     rows = []
@@ -153,12 +156,21 @@ def student_labor_summary(
         summary["total_hours_label"] = format_hours(summary["total_week_minutes"])
         summary["limit_hours_label"] = format_hours(summary["limit_week_minutes"])
         summary["remaining_hours_label"] = format_hours(summary["remaining_minutes"])
+        summary["weeks"] = summarize_staff_weeks(
+            staff=staff,
+            period_start=period_start,
+            period_end=period_end,
+            assignments=assignments,
+            settings=settings,
+        )
         rows.append(summary)
 
     return {
         "year": year,
         "month": month,
         "focus_day": focus.isoformat(),
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
         "week_start": week_start.isoformat(),
         "week_end": week_end.isoformat(),
         "rows": rows,

@@ -472,6 +472,33 @@ def summarize_staff_week(
     }
 
 
+def summarize_staff_weeks(
+    *,
+    staff: dict,
+    period_start: date,
+    period_end: date,
+    assignments: Iterable[tuple[date, str]],
+    settings: dict | None,
+) -> list[dict]:
+    """表示期間に重なる週を、法定の週境界ごとに集計する。"""
+    limits = normalize_student_labor_limits((settings or {}).get("student_labor_limits"))
+    first_week_start = week_start_for(period_start, limits["week_start"])
+    weeks: list[dict] = []
+    week_start = first_week_start
+    while week_start <= period_end:
+        summary = summarize_staff_week(
+            staff=staff,
+            focus_day=week_start,
+            assignments=assignments,
+            settings=settings,
+        )
+        summary["display_start"] = max(week_start, period_start).isoformat()
+        summary["display_end"] = min(week_start + timedelta(days=6), period_end).isoformat()
+        weeks.append(summary)
+        week_start += timedelta(days=7)
+    return weeks
+
+
 def summarize_staff_month(
     *,
     staff: dict,

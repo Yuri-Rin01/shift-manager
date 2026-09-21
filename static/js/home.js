@@ -622,25 +622,19 @@ async function loadStudentLaborSummary() {
   list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
 
   try {
-    const [weekRes, monthRes] = await Promise.all([
-      fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`),
-      fetch(`/api/shifts/student-labor-month?year=${year}&month=${month}`),
-    ]);
+    const weekRes = await fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`);
     if (!weekRes.ok) {
       list.innerHTML = `<p class="student-labor-empty">読み込みに失敗しました</p>`;
       return;
     }
     const weekData = await weekRes.json();
     if (rangeEl) {
-      rangeEl.textContent = formatStudentLaborDateRange(weekData.week_start, weekData.week_end);
+      rangeEl.textContent = formatStudentLaborDateRange(
+        weekData.period_start || weekData.week_start,
+        weekData.period_end || weekData.week_end
+      );
     }
-
-    let monthRows = [];
-    if (monthRes.ok) {
-      const monthData = await monthRes.json();
-      monthRows = monthData.rows || [];
-    }
-    renderStudentLaborGaugeCards(list, weekData.rows || [], monthRows);
+    renderStudentLaborGaugeCards(list, weekData.rows || []);
   } catch {
     list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
   }
@@ -670,66 +664,51 @@ function studentLaborGaugeTone(usedMinutes, limitMinutes) {
   return "ok";
 }
 
-function renderStudentLaborGaugeCards(list, weekRows, monthRows, year, month) {
-  if (!weekRows.length && !monthRows.length) {
+function renderStudentLaborGaugeCards(list, rows) {
+  if (!rows.length) {
     list.innerHTML = `<p class="student-labor-empty">対象の留学生がいません</p>`;
     return;
   }
 
-  const monthByStaff = new Map(
-    (monthRows || []).map((row) => [String(row.staff_id), row])
-  );
-  const seen = new Set();
-  const cards = [];
-
-  for (const week of weekRows) {
-    const id = String(week.staff_id ?? "");
-    seen.add(id);
-    cards.push(buildStudentLaborGaugeCard(week, monthByStaff.get(id) || {}));
-  }
-
-  for (const monthRow of monthRows) {
-    const id = String(monthRow.staff_id ?? "");
-    if (seen.has(id)) continue;
-    cards.push(buildStudentLaborGaugeCard({}, monthRow));
-  }
-
-  list.innerHTML = cards.join("");
+  list.innerHTML = rows.map(buildStudentLaborGaugeCard).join("");
 }
 
-function buildStudentLaborGaugeCard(weekRow, monthRow) {
-  const name = weekRow.name || monthRow.name || "—";
-  const weekUsed = Number(weekRow.total_week_minutes) || 0;
-  const weekLimit = Number(weekRow.limit_week_minutes) || 28 * 60;
-  const monthUsed =
-    Number(monthRow.total_with_other_minutes) ||
-    Number(monthRow.normal_minutes || 0) + Number(monthRow.vacation_minutes || 0);
-  // モックどおり週上限×4を月の目安上限に使う（法令判定は週単位）
-  const monthLimit = weekLimit * 4;
-  const weekPct = studentLaborUsagePercent(weekUsed, weekLimit);
-  const monthPct = studentLaborUsagePercent(monthUsed, monthLimit);
-  const weekTone = studentLaborGaugeTone(weekUsed, weekLimit);
-  const monthTone = studentLaborGaugeTone(monthUsed, monthLimit);
-  const status = weekRow.status || monthTone;
-  const staffId = weekRow.staff_id ?? monthRow.staff_id ?? "";
+function formatStudentLaborWeekLabel(startIso, endIso, index) {
+  const short = (iso) => {
+    const [, month, day] = String(iso || "").split("-");
+    return `${Number(month)}/${Number(day)}`;
+  };
+  if (!startIso || !endIso) return `第${index + 1}週`;
+  return `第${index + 1}週 ${short(startIso)}〜${short(endIso)}`;
+}
+
+function buildStudentLaborGaugeCard(row) {
+  const name = row.name || "—";
+  const weeks = Array.isArray(row.weeks) && row.weeks.length ? row.weeks : [row];
+  const statusPriority = { blocked: 6, need_confirm: 5, over: 4, reached: 3, approach: 2, ok: 1 };
+  const status = weeks.reduce(
+    (worst, week) =>
+      (statusPriority[week.status] || 0) > (statusPriority[worst] || 0) ? week.status : worst,
+    "ok"
+  );
+  const staffId = row.staff_id ?? "";
 
   return `<article class="student-labor-gauge-card status-${escapeHtml(status)}" data-staff-id="${staffId}">
     <h4 class="student-labor-gauge-name">${escapeHtml(name)}</h4>
     <div class="student-labor-gauge-metrics">
-      ${renderStudentLaborGaugeRow({
-        label: "週間労働時間",
-        used: weekUsed,
-        limit: weekLimit,
-        pct: weekPct,
-        tone: weekTone,
-      })}
-      ${renderStudentLaborGaugeRow({
-        label: "月間労働時間",
-        used: monthUsed,
-        limit: monthLimit,
-        pct: monthPct,
-        tone: monthTone,
-      })}
+      ${weeks
+        .map((week, index) => {
+          const used = Number(week.total_week_minutes) || 0;
+          const limit = Number(week.limit_week_minutes) || 28 * 60;
+          return renderStudentLaborGaugeRow({
+            label: formatStudentLaborWeekLabel(week.display_start || week.week_start, week.display_end || week.week_end, index),
+            used,
+            limit,
+            pct: studentLaborUsagePercent(used, limit),
+            tone: studentLaborGaugeTone(used, limit),
+          });
+        })
+        .join("")}
     </div>
   </article>`;
 }
