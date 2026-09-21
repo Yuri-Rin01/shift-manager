@@ -4556,3 +4556,7 @@ input[type="checkbox"]:focus-visible {
 @media(max-width:640px) { .settings-floor-counts { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 #generation-wizard { z-index:500; }
 #section-staffing .requirement-panel.is-collapsed { display:none; }
+
+/* One location per shift; a separate night leader is shown as L. */
+.placement-badge { display: block; font-size: 9px; line-height: 12px; font-weight: 700; color: #334155; white-space: nowrap; }
+.shift-td:has(.placement-badge) { height: 38px; }

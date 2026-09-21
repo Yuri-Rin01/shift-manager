@@ -95,6 +95,21 @@ def init_db() -> None:
         conn.execute(CREATE_STAFF_TABLE)
         conn.execute(CREATE_SETTINGS_TABLE)
         conn.execute(CREATE_SHIFT_TABLE)
+        conn.execute("""CREATE TABLE IF NOT EXISTS shift_placements (
+            staff_id INTEGER NOT NULL,
+            shift_date TEXT NOT NULL,
+            floor TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL CHECK (role IN ('floor', 'night_leader')),
+            PRIMARY KEY (staff_id, shift_date),
+            FOREIGN KEY (staff_id, shift_date)
+                REFERENCES shift_assignments(staff_id, shift_date) ON DELETE CASCADE
+        )""")
+        conn.execute("""CREATE TRIGGER IF NOT EXISTS invalidate_shift_placement
+            AFTER UPDATE OF symbol ON shift_assignments WHEN OLD.symbol <> NEW.symbol
+            BEGIN
+                DELETE FROM shift_placements
+                WHERE staff_id=NEW.staff_id AND shift_date=NEW.shift_date;
+            END""")
         conn.execute(CREATE_NIGHT_INCOMPATIBILITY_TABLE)
         conn.execute(CREATE_DAY_INCOMPATIBILITY_TABLE)
         conn.execute(CREATE_STAFF_FLOORS_TABLE)

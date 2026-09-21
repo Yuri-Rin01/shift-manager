@@ -18,7 +18,7 @@ from data.shift_symbols import (
     symbol_to_key,
 )
 from data.navigation import get_sidebar
-from db.shift_repository import get_shifts_between
+from db.shift_repository import get_shifts_between, get_placements_between
 from db.staff_repository import list_staff
 
 SHIFT_LEGEND = get_active_shift_legend()
@@ -120,6 +120,7 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
 
     staff_rows = []
     saved_shifts = get_shifts_between(period_start, period_end)
+    placements = get_placements_between(period_start, period_end)
 
     for staff in list_staff():
         person = _staff_to_row(staff)
@@ -130,12 +131,19 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
             raw_symbol = cell_data.get("symbol", "")
             source = cell_data.get("source")
             display_symbol = normalize_symbol(raw_symbol, app_settings)
+            placement = placements.get((staff['id'], day_info['date']), {})
+            placement_label = ('夜勤リーダー（担当フロア兼務）' if placement.get('role') == 'night_leader'
+                               else placement.get('floor', ''))
             cells.append(
                 {
                     "year": day_info["year"],
                     "month": day_info["month"],
                     "day": day_info["day"],
                     "symbol": display_symbol,
+                    "placement_label": placement_label,
+                    "placement_floor": placement.get('floor', ''),
+                    "placement_role": placement.get('role', ''),
+                    "placement_badge": 'L' if placement.get('role') == 'night_leader' else placement.get('floor', ''),
                     "class": get_class_for_symbol(raw_symbol, app_settings),
                     "source": source,
                     "is_manual": source == "manual",

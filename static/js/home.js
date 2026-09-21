@@ -884,6 +884,12 @@ function applyCellSymbol(td, symbol, options = {}) {
   const shiftClass = shiftClassList(symbol);
   const source = options.source ?? (options.manual ? "manual" : td.dataset.source ?? "");
 
+  const retainedBadge = td.dataset.symbol === symbol ? td.querySelector(".placement-badge")?.cloneNode(true) : null;
+  if (td.dataset.symbol !== symbol) {
+    td.title = "クリックで編集（配置先は次回の生成案で確認）";
+    delete td.dataset.placementFloor;
+    delete td.dataset.placementRole;
+  }
   td.dataset.symbol = symbol;
   if (source) {
     td.dataset.source = source;
@@ -900,6 +906,7 @@ function applyCellSymbol(td, symbol, options = {}) {
   span.className = `shift-cell ${shiftClass}${source === "leave" ? " is-leave-request" : ""}`;
   span.textContent = symbol;
   td.replaceChildren(span);
+  if (retainedBadge) td.appendChild(retainedBadge);
 }
 
 function captureCellState(td) {
@@ -1049,8 +1056,13 @@ async function redoShiftEdit() {
 function refreshSummaryCounts() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
-  const bodyRows = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden);
-  if (!bodyRows.length) return;
+  const bodyRows = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden && row.dataset.excludeFromStaffing !== 'true');
+  const floors = getSelectedFilterValues('dept');
+  const scoped = floors.length > 0 && floors.length < document.querySelectorAll('.filter-dept-cb').length;
+  const note = document.getElementById('placement-summary-note');
+  if (note) note.textContent = scoped
+    ? '人数集計：選択フロアに配置された職員のみ（夜勤リーダー・配置未確定の勤務は除外）'
+    : '人数集計：表示中の職員の実人数（夜勤リーダーを含む）。勤務下のLは別枠の兼務リーダーです。';
 
   shiftCalendar.querySelectorAll("tfoot [data-summary-symbol]").forEach((summaryRow) => {
     const symbol = summaryRow.dataset.summarySymbol;
@@ -1059,7 +1071,8 @@ function refreshSummaryCounts() {
       let total = 0;
       bodyRows.forEach((row) => {
         const shiftCell = row.querySelectorAll(".shift-td")[columnIndex];
-        if (shiftCell?.dataset.symbol === symbol) total += 1;
+        const inScope = !scoped || (shiftCell?.dataset.placementRole === 'floor' && floors.includes(shiftCell.dataset.placementFloor));
+        if (inScope && shiftCell?.dataset.symbol === symbol) total += 1;
       });
       countCell.textContent = String(total);
     });
@@ -1120,6 +1133,10 @@ async function saveCellSymbol(td, symbol, options = {}) {
 
   const previous = td.dataset.symbol;
   const previousSource = td.dataset.source;
+  const previousPlacement = {
+    floor: td.dataset.placementFloor, role: td.dataset.placementRole,
+    title: td.title, badge: td.querySelector('.placement-badge')?.cloneNode(true),
+  };
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
   applyCellSymbol(td, symbol, { source: "manual" });
@@ -1138,6 +1155,10 @@ async function saveCellSymbol(td, symbol, options = {}) {
 
   if (!response.ok) {
     applyCellSymbol(td, previous, { source: previousSource });
+    if (previousPlacement.floor !== undefined) td.dataset.placementFloor = previousPlacement.floor;
+    if (previousPlacement.role !== undefined) td.dataset.placementRole = previousPlacement.role;
+    td.title = previousPlacement.title;
+    if (previousPlacement.badge && !td.querySelector('.placement-badge')) td.appendChild(previousPlacement.badge);
     const error = await response.json().catch(() => ({}));
     window.alert(formatCellErrorDetail(error.detail));
     return;
