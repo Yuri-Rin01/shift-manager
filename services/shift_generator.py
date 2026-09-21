@@ -654,8 +654,9 @@ class _Generator:
 
     def _period_night_demand(self) -> int:
         """期間中に必要な夜勤割当のおおよその総数。"""
+        floor_per_day = sum(self._min_staff_for(floor, "night") for floor in self.floors)
+        slot_per_day = 0
         if self.staffing_mode == "time_slot":
-            per_day = 0
             for rule in self.time_slot_rules:
                 start = str(rule.get("start_time", ""))
                 end = str(rule.get("end_time", ""))
@@ -666,17 +667,11 @@ class _Generator:
                 except (TypeError, ValueError):
                     continue
                 if end < start or start >= "16:00" or end <= "09:00":
-                    per_day += count
-            if per_day and self.settings.get('require_leader_on_night') and any(r.get('floor') for r in self.time_slot_rules):
-                per_day += 1
-            return per_day * len(self.period_dates)
-        total = 0
-        for floor in self.floors:
-            per_day = self._min_staff_for(floor, "night")
-            total += per_day * len(self.period_dates)
-        if total and self.settings.get('require_leader_on_night'):
-            total += len(self.period_dates)
-        return total
+                    slot_per_day += count
+        per_day = max(floor_per_day, slot_per_day)
+        if per_day and self.settings.get("require_leader_on_night"):
+            per_day += 1
+        return per_day * len(self.period_dates)
 
     def _fair_night_cap_per_staff(self) -> int:
         capable = self._night_capable_staff()
@@ -1677,7 +1672,9 @@ class _Generator:
             self._phase_time_slot_staffing(night_only=True)
         else:
             self._phase_variant_staffing(night_only=True)
-            self._phase_night_assignments()
+        # 夜勤は時間帯モードでもフロア別の固定人数として必ず充足する。
+        # 旧データに夜勤時間帯ルールが残っている場合は上の処理結果を数えて重複しない。
+        self._phase_night_assignments()
         self._phase_fixed_night_quotas()
         # Quota-only nights also need a separate leader.
         self._phase_night_leaders()
