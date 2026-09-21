@@ -594,7 +594,7 @@ function applySheetViewContent(next, prev) {
 function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
   const panel = document.getElementById("student-labor-panel");
   if (!panel) return;
-  const show = view === "foreign-students";
+  const show = view === "all" || view === "foreign-students";
   panel.classList.toggle("hidden", !show);
   if (show) {
     loadStudentLaborSummary();
