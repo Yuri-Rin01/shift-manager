@@ -5230,6 +5230,75 @@ input[type="checkbox"]:focus-visible {
   font-weight: 600;
 }
 
+.flick-settings-block {
+  margin-bottom: 12px;
+}
+
+.flick-time-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.flick-time-field {
+  flex: 0 1 200px;
+  min-width: 160px;
+}
+
+.flick-details {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.flick-details-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+}
+
+.flick-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.flick-details-summary::after {
+  content: "";
+  width: 0.45em;
+  height: 0.45em;
+  margin-left: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.flick-details[open] {
+  flex-basis: 100%;
+}
+
+.flick-details[open] > .flick-details-summary {
+  margin-bottom: 10px;
+}
+
+.flick-details[open] > .flick-details-summary::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.flick-details-body {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
 .flick-assign-toolbar {
   display: flex;
   flex-wrap: wrap;

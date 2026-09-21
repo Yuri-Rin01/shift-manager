@@ -60,6 +60,8 @@ const addFloorButton = document.getElementById("btn-add-floor");
 const jobFilterVisibilityInputs = [
   ...document.querySelectorAll(".job-filter-visibility-input"),
 ];
+const FLICK_DIRECTION_PREFIX = "cell_flick_direction__";
+const FLICK_DIRECTION_COUNT = 8;
 
 function populateJobFilterVisibility(visibility = {}) {
   const values = visibility && typeof visibility === "object" ? visibility : {};
@@ -562,6 +564,7 @@ function applyWorkTypeTemplate() {
   renderStaffingBasisRows(template.options.map((item) => ({ ...item })));
   markDirty();
   syncWorkTypeMinStaffFromBasis();
+  rebuildFlickDirectionOptions(collectFlickDirections());
   showAlert(`「${template.label}」を反映しました。必要人数の勤務区分一覧も更新しました。適用ボタンで確定してください。`, "info");
 }
 
@@ -659,6 +662,9 @@ function populateForm(data) {
       renderTimeSlotRows(Array.isArray(value) ? value : []);
       continue;
     }
+    if (key === "cell_flick_directions") {
+      continue;
+    }
     if (key === "staffing_requirement_mode") {
       setStaffingRequirementMode(value);
       continue;
@@ -683,6 +689,7 @@ function populateForm(data) {
   refreshStaffingBasisSymbolPreviews();
   refreshTimeSlotCoverageHints();
   syncWorkTypeSymbolBadges();
+  populateFlickDirections(data.cell_flick_directions);
 }
 
 function collectVisibleWorkTypes() {
@@ -717,6 +724,91 @@ function collectShiftSymbols() {
   return symbols;
 }
 
+function getFlickSymbolChoices() {
+  const symbols = collectShiftSymbols();
+  const visibility = collectVisibleWorkTypes();
+  const choices = [];
+  const seen = new Set();
+
+  function addChoice(key, label) {
+    if (!key) return;
+    if (!(FIXED_VISIBLE_WORK_TYPES.has(key) || visibility[key])) return;
+    const symbol = (symbols[key] ?? "").trim();
+    if (!symbol || seen.has(symbol)) return;
+    seen.add(symbol);
+    choices.push({ symbol, label: `${symbol}（${label}）` });
+  }
+
+  document.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
+    if (row.hidden) return;
+    const key = row.dataset.workTypeKey ?? "";
+    const label = row.querySelector(".work-type-name")?.textContent?.trim() || key;
+    addChoice(key, label);
+  });
+
+  staffingBasisTbody?.querySelectorAll(".staffing-basis-table-row").forEach((row) => {
+    const key = row.querySelector(".staffing-basis-key")?.value.trim() ?? row.dataset.key ?? "";
+    const label = row.querySelector(".staffing-basis-label")?.value.trim() || key;
+    addChoice(key, label);
+  });
+
+  return choices;
+}
+
+function rebuildFlickDirectionOptions(selected = []) {
+  const choices = getFlickSymbolChoices();
+  const values = Array.isArray(selected) ? selected : [];
+  document.querySelectorAll(".flick-assign-select").forEach((select) => {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const index = Number(select.dataset.flickIndex);
+    const current = Number.isFinite(index) ? (values[index] ?? select.value ?? "") : "";
+    select.innerHTML = '<option value="">（なし）</option>';
+    choices.forEach((choice) => {
+      const option = document.createElement("option");
+      option.value = choice.symbol;
+      option.textContent = choice.label;
+      select.appendChild(option);
+    });
+    if (current && ![...select.options].some((opt) => opt.value === current)) {
+      const orphan = document.createElement("option");
+      orphan.value = current;
+      orphan.textContent = `${current}（未表示）`;
+      select.appendChild(orphan);
+    }
+    select.value = current || "";
+  });
+}
+
+function populateFlickDirections(directions = []) {
+  rebuildFlickDirectionOptions(Array.isArray(directions) ? directions : []);
+}
+
+function collectFlickDirections() {
+  const values = Array.from({ length: FLICK_DIRECTION_COUNT }, () => "");
+  document.querySelectorAll(".flick-assign-select").forEach((select) => {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const index = Number(select.dataset.flickIndex);
+    if (!Number.isFinite(index) || index < 0 || index >= FLICK_DIRECTION_COUNT) return;
+    values[index] = select.value.trim();
+  });
+  return values.every((item) => !item) ? [] : values;
+}
+
+function autoFillFlickDirections() {
+  const choices = getFlickSymbolChoices().slice(0, FLICK_DIRECTION_COUNT);
+  const values = Array.from({ length: FLICK_DIRECTION_COUNT }, () => "");
+  const order = [0, 2, 4, 6, 1, 3, 5, 7];
+  choices.forEach((choice, i) => {
+    const dir = order[i];
+    if (dir != null) values[dir] = choice.symbol;
+  });
+  rebuildFlickDirectionOptions(values);
+}
+
+function clearFlickDirections() {
+  rebuildFlickDirectionOptions([]);
+}
+
 function collectFormData() {
   const data = structuredClone(loadedSettings);
   if (!form) return data;
@@ -725,6 +817,7 @@ function collectFormData() {
     if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) continue;
     if (!element.name || element.name.startsWith(SHIFT_SYMBOL_PREFIX)) continue;
     if (element.name.startsWith(VISIBLE_WORK_TYPE_PREFIX)) continue;
+    if (element.name.startsWith(FLICK_DIRECTION_PREFIX)) continue;
     if (element.id === "work-type-template-select") continue;
 
     if (element.type === "radio") {
@@ -751,6 +844,7 @@ function collectFormData() {
 
   data.shift_symbols = collectShiftSymbols();
   data.visible_work_types = collectVisibleWorkTypes();
+  data.cell_flick_directions = collectFlickDirections();
   data.staffing_basis_options = collectStaffingBasisOptions();
   data.floors = collectFloors();
   data.job_filter_visibility = collectJobFilterVisibility();
@@ -852,6 +946,13 @@ form?.addEventListener("submit", saveSettings);
 form?.addEventListener("change", (event) => {
   if (event.target instanceof HTMLInputElement && event.target.classList.contains("work-type-visible-input")) {
     syncWorkTypeSymbolFields();
+    rebuildFlickDirectionOptions(collectFlickDirections());
+  }
+  if (event.target instanceof HTMLInputElement && event.target.classList.contains("staffing-basis-visible")) {
+    rebuildFlickDirectionOptions(collectFlickDirections());
+  }
+  if (event.target instanceof HTMLSelectElement && event.target.classList.contains("flick-assign-select")) {
+    markDirty();
   }
   if (event.target instanceof HTMLInputElement && event.target.name === "staffing_requirement_mode") {
     syncStaffingRequirementMode();
@@ -865,10 +966,19 @@ form?.addEventListener("input", (event) => {
     work.querySelector(".work-summary-symbol").textContent = work.querySelector(".staffing-basis-symbol").value || "＋";
     work.querySelector(".work-summary-hours").textContent = formatWorkHoursPreview(work.querySelector(".staffing-basis-start").value, work.querySelector(".staffing-basis-end").value);
   }
-  if (event.target.name.startsWith(SHIFT_SYMBOL_PREFIX)) {
+  if (event.target.name.startsWith(SHIFT_SYMBOL_PREFIX) || event.target.classList.contains("staffing-basis-symbol")) {
     syncWorkTypeSymbolBadges();
     refreshStaffingBasisSymbolPreviews();
+    rebuildFlickDirectionOptions(collectFlickDirections());
   }
+});
+document.getElementById("btn-flick-auto-fill")?.addEventListener("click", () => {
+  autoFillFlickDirections();
+  markDirty();
+});
+document.getElementById("btn-flick-clear")?.addEventListener("click", () => {
+  clearFlickDirections();
+  markDirty();
 });
 resetButton?.addEventListener("click", resetDefaults);
 applyWorkTypeTemplateButton?.addEventListener("click", applyWorkTypeTemplate);
@@ -883,6 +993,7 @@ addTimeSlotButton?.addEventListener("click", () => {
 addStaffingBasisButton?.addEventListener("click", () => {
   renderStaffingBasisRows([...collectStaffingBasisOptions(), defaultWorkTypeRow()]);
   syncWorkTypeMinStaffFromBasis();
+  rebuildFlickDirectionOptions(collectFlickDirections());
   staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
   markDirty();
 });
@@ -959,6 +1070,7 @@ staffingBasisTbody?.addEventListener("click", (event) => {
   renderStaffingBasisRows(rows);
   markDirty();
   syncWorkTypeMinStaffFromBasis();
+  rebuildFlickDirectionOptions(collectFlickDirections());
 });
 function validateSettingsForm() {
   const labels = new Set();
