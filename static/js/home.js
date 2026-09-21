@@ -596,6 +596,7 @@ function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
   if (!panel) return;
   const show = view === "all" || view === "foreign-students";
   panel.classList.toggle("hidden", !show);
+  panel.closest(".shift-workspace")?.classList.toggle("has-student-labor-panel", show);
   if (show) {
     loadStudentLaborSummary();
   }

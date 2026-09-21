@@ -6569,20 +6569,20 @@ input[type="checkbox"]:focus-visible {
   overflow: hidden;
 }
 
-/* 留学生シートは労働時間＋表を1スクロールにまとめる */
-.shift-workspace.is-sheet-foreign .sheet-main-scroll {
+/* 労働時間ゲージ表示中は表＋ゲージを1スクロールにまとめる */
+.shift-workspace.has-student-labor-panel .sheet-main-scroll {
   overflow: auto;
   overscroll-behavior: contain;
 }
 
-.shift-workspace.is-sheet-foreign .calendar-scroll {
+.shift-workspace.has-student-labor-panel .calendar-scroll {
   flex: 0 0 auto;
   min-height: auto;
   display: block;
 }
 
-.shift-workspace.is-sheet-foreign .calendar-scroll .table-wrap,
-.content-home .shift-workspace.is-sheet-foreign .calendar-scroll .table-wrap {
+.shift-workspace.has-student-labor-panel .calendar-scroll .table-wrap,
+.content-home .shift-workspace.has-student-labor-panel .calendar-scroll .table-wrap {
   flex: none;
   max-height: none;
   overflow: visible;
