@@ -146,6 +146,9 @@ def init_db() -> None:
         _migrate_min_staff_by_floor(conn)
         _migrate_staffing_requirement_mode(conn)
         _migrate_shift_source(conn)
+        from services.period_lock import ensure_lock_table
+
+        ensure_lock_table(conn)
         conn.executemany(
             "UPDATE staff SET job_type = ? WHERE job_type = ?",
             [

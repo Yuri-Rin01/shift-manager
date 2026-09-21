@@ -166,11 +166,16 @@
 
                   </details>
                   <span class="home-toolbar-note">セル編集は自動保存されます</span>
+                  <span id="period-lock-status" class="period-lock-badge" aria-live="polite">状態確認中…</span>
                 </div>
                 <div class="home-toolbar-actions">
-                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻る" title="1つ前に戻る (Ctrl+Z)">↩</button>
+                  <button class="btn btn-outline btn-icon" type="button" id="btn-shift-undo" disabled aria-label="1つ前に戻す" title="1つ前に戻る (Ctrl+Z)">↩</button>
                   <button class="btn btn-outline btn-icon" type="button" id="btn-shift-redo" disabled aria-label="進む" title="進む (Ctrl+Y)">↪</button>
-                  <details class="home-other-actions"><summary>その他</summary><button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button></details>
+                  <details class="home-other-actions"><summary>その他</summary>
+                    <button class="btn btn-outline" type="button" id="btn-clear-shifts">全クリア</button>
+                    <button class="btn btn-outline" type="button" id="btn-period-lock">この期間を確定</button>
+                    <button class="btn btn-outline" type="button" id="btn-period-unlock">確定を解除</button>
+                  </details>
                   <button class="btn btn-primary" type="button" id="btn-auto-generate">シフト自動生成</button>
                 </div>
               </div>
@@ -248,7 +253,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=30"></script>
-  <script src="/static/js/home.js?v=25"></script>
+  <script src="/static/js/home.js?v=26"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

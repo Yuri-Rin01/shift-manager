@@ -1691,6 +1691,88 @@ async function runClearShifts() {
 
 clearShiftsButton?.addEventListener("click", runClearShifts);
 
+const periodLockStatusEl = document.getElementById("period-lock-status");
+const btnPeriodLock = document.getElementById("btn-period-lock");
+const btnPeriodUnlock = document.getElementById("btn-period-unlock");
+
+function applyPeriodLockUi(status) {
+  if (!periodLockStatusEl) return;
+  const label = status?.label || "編集中";
+  periodLockStatusEl.textContent = label;
+  periodLockStatusEl.dataset.status = status?.status || "editing";
+  periodLockStatusEl.classList.toggle("is-locked", status?.status === "locked");
+  periodLockStatusEl.classList.toggle("is-partial", status?.status === "partial");
+  document.body.classList.toggle("period-locked", status?.status === "locked");
+  if (btnPeriodLock) btnPeriodLock.disabled = status?.status === "locked";
+  if (btnPeriodUnlock) btnPeriodUnlock.disabled = status?.status === "editing";
+}
+
+async function refreshPeriodLockStatus() {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month || !periodLockStatusEl) return;
+  try {
+    const response = await fetch(`/api/shifts/period-lock?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "状態を取得できません");
+    applyPeriodLockUi(data);
+  } catch (error) {
+    periodLockStatusEl.textContent = "状態不明";
+  }
+}
+
+btnPeriodLock?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const ok = window.confirm(
+    `${window.PERIOD_LABEL || `${year}年${month}月`}を確定します。\n` +
+      "確定後は手動編集・自動生成の反映・全クリア・取り消しができなくなります。\n実行しますか？"
+  );
+  if (!ok) return;
+  btnPeriodLock.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/shifts/period-lock?year=${year}&month=${month}`,
+      { method: "POST" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "確定に失敗しました");
+    applyPeriodLockUi(data);
+    window.alert("この期間を確定しました。");
+  } catch (error) {
+    window.alert(error.message || "確定に失敗しました");
+    refreshPeriodLockStatus();
+  }
+});
+
+btnPeriodUnlock?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const ok = window.confirm(
+    `${window.PERIOD_LABEL || `${year}年${month}月`}の確定を解除します。\n` +
+      "解除すると再び編集できるようになります。実行しますか？"
+  );
+  if (!ok) return;
+  btnPeriodUnlock.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/shifts/period-unlock?year=${year}&month=${month}&confirm=true`,
+      { method: "POST" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "解除に失敗しました");
+    applyPeriodLockUi(data);
+    window.alert("確定を解除しました。");
+  } catch (error) {
+    window.alert(error.message || "解除に失敗しました");
+    refreshPeriodLockStatus();
+  }
+});
+
+refreshPeriodLockStatus();
+
 shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");
   if (!trigger) return;
