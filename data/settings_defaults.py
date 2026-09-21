@@ -39,6 +39,8 @@ DEFAULT_SETTINGS: dict = {
         "all": "#3B82F6",
         "foreign-students": "#217346",
     },
+    "custom_sheet_views": [],
+    "sheet_tab_order": ["foreign-students"],
     "student_labor_limits": {
         "normal_weekly_minutes": 28 * 60,
         "vacation_daily_minutes": 8 * 60,

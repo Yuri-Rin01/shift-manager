@@ -60,6 +60,11 @@ const addFloorButton = document.getElementById("btn-add-floor");
 const jobFilterVisibilityInputs = [
   ...document.querySelectorAll(".job-filter-visibility-input"),
 ];
+const customSheetList = document.getElementById("custom-sheet-list");
+const customSheetEmpty = document.getElementById("custom-sheet-empty");
+const addCustomSheetButton = document.getElementById("btn-add-custom-sheet");
+const MAX_CUSTOM_SHEETS = 8;
+const CUSTOM_SHEET_COLORS = ["#64748B", "#0F766E", "#B45309", "#7C3AED", "#BE123C", "#0369A1", "#4D7C0F", "#9A3412"];
 
 function populateJobFilterVisibility(visibility = {}) {
   const values = visibility && typeof visibility === "object" ? visibility : {};
@@ -72,6 +77,62 @@ function collectJobFilterVisibility() {
   return Object.fromEntries(
     jobFilterVisibilityInputs.map((input) => [input.dataset.jobLabel, input.checked])
   );
+}
+
+function allocateCustomSheetId(existingIds) {
+  const used = new Set(existingIds);
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = `custom-${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `custom-${Date.now().toString(36)}`;
+}
+
+function renderCustomSheets(sheets = []) {
+  if (!customSheetList) return;
+  const jobs = Array.isArray(window.JOB_TYPES) ? window.JOB_TYPES : [];
+  const rows = Array.isArray(sheets) ? sheets.slice(0, MAX_CUSTOM_SHEETS) : [];
+  customSheetEmpty?.classList.toggle("hidden", rows.length > 0);
+  customSheetList.innerHTML = rows
+    .map((sheet, index) => {
+      const selected = new Set(Array.isArray(sheet.job_types) ? sheet.job_types : []);
+      const color = String(sheet.color || CUSTOM_SHEET_COLORS[index % CUSTOM_SHEET_COLORS.length]).toLowerCase();
+      const checks = jobs
+        .map(
+          (label) => `<label class="check-row custom-sheet-job">
+            <input type="checkbox" class="custom-sheet-job-input" value="${escapeAttr(label)}"${selected.has(label) ? " checked" : ""}>
+            <span>${escapeAttr(label)}</span>
+          </label>`
+        )
+        .join("");
+      return `<div class="custom-sheet-card" data-sheet-id="${escapeAttr(sheet.id || "")}">
+        <div class="custom-sheet-head">
+          <label class="form-field">
+            <span class="form-label">シート名</span>
+            <input type="text" class="input-text custom-sheet-label" maxlength="20" required value="${escapeAttr(sheet.label || "")}" placeholder="例: 看護">
+          </label>
+          <label class="form-field custom-sheet-color-field">
+            <span class="form-label">色</span>
+            <input type="color" class="custom-sheet-color" value="${escapeAttr(color)}" aria-label="シート${index + 1}の色">
+          </label>
+          <button type="button" class="btn btn-sm" data-remove-custom-sheet>削除</button>
+        </div>
+        <div class="custom-sheet-jobs" role="group" aria-label="表示する職種">${checks}</div>
+        <p class="field-hint custom-sheet-job-error hidden">職種を1つ以上選んでください。</p>
+      </div>`;
+    })
+    .join("");
+  if (addCustomSheetButton) addCustomSheetButton.disabled = rows.length >= MAX_CUSTOM_SHEETS;
+}
+
+function collectCustomSheets() {
+  if (!customSheetList) return [];
+  return [...customSheetList.querySelectorAll(".custom-sheet-card")].map((card) => ({
+    id: card.dataset.sheetId || "",
+    label: card.querySelector(".custom-sheet-label")?.value.trim() ?? "",
+    color: card.querySelector(".custom-sheet-color")?.value ?? "",
+    job_types: [...card.querySelectorAll(".custom-sheet-job-input:checked")].map((input) => input.value),
+  }));
 }
 
 function allocateFloorId(existingIds) {
@@ -637,6 +698,9 @@ function populateForm(data) {
       populateJobFilterVisibility(value);
       continue;
     }
+    if (key === "custom_sheet_views") {
+      continue;
+    }
     if (key === "staffing_basis_options") {
       renderStaffingBasisRows(Array.isArray(value) ? value : [], data);
       renderWorkTypeMinStaffRows(
@@ -683,6 +747,7 @@ function populateForm(data) {
   refreshStaffingBasisSymbolPreviews();
   refreshTimeSlotCoverageHints();
   syncWorkTypeSymbolBadges();
+  renderCustomSheets(Array.isArray(data.custom_sheet_views) ? data.custom_sheet_views : []);
 }
 
 function collectVisibleWorkTypes() {
@@ -754,6 +819,7 @@ function collectFormData() {
   data.staffing_basis_options = collectStaffingBasisOptions();
   data.floors = collectFloors();
   data.job_filter_visibility = collectJobFilterVisibility();
+  data.custom_sheet_views = collectCustomSheets();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();
@@ -886,6 +952,29 @@ addStaffingBasisButton?.addEventListener("click", () => {
   staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
   markDirty();
 });
+addCustomSheetButton?.addEventListener("click", () => {
+  const current = collectCustomSheets();
+  if (current.length >= MAX_CUSTOM_SHEETS) return;
+  const id = allocateCustomSheetId(current.map((item) => item.id));
+  renderCustomSheets([
+    ...current,
+    {
+      id,
+      label: "",
+      color: CUSTOM_SHEET_COLORS[current.length % CUSTOM_SHEET_COLORS.length],
+      job_types: [],
+    },
+  ]);
+  customSheetList?.querySelector(".custom-sheet-card:last-child .custom-sheet-label")?.focus();
+  markDirty();
+});
+customSheetList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-custom-sheet]");
+  if (!button) return;
+  button.closest(".custom-sheet-card")?.remove();
+  renderCustomSheets(collectCustomSheets());
+  markDirty();
+});
 addFloorButton?.addEventListener("click", () => {
   const current = collectFloors();
   const id = allocateFloorId(current.map((item) => item.id));
@@ -969,6 +1058,18 @@ function validateSettingsForm() {
     const end = row.querySelector(".staffing-basis-end");
     end.setCustomValidity(end.value === row.querySelector(".staffing-basis-start").value ? "開始と終了を異なる時刻にしてください。" : "");
   }
+  customSheetList?.querySelectorAll(".custom-sheet-card").forEach((card) => {
+    const label = card.querySelector(".custom-sheet-label");
+    const jobs = card.querySelectorAll(".custom-sheet-job-input:checked");
+    const error = card.querySelector(".custom-sheet-job-error");
+    if (label) {
+      label.setCustomValidity(label.value.trim() ? "" : "シート名を入力してください。");
+    }
+    error?.classList.toggle("hidden", jobs.length > 0);
+    if (label && label.value.trim() && jobs.length === 0) {
+      label.setCustomValidity("職種を1つ以上選んでください。");
+    }
+  });
   const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
   if (!invalid) return true;
   const requirementPanel = invalid.closest("[data-requirement-mode]");

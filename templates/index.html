@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=113">
+  <link rel="stylesheet" href="/static/css/style.css?v=123">
 </head>
 <body>
   <div class="app">
@@ -197,7 +197,7 @@
             <div class="shift-workspace" data-sheet-view="all">
               <div class="shift-sheet-stage">
                 <div class="sheet-tabs" role="tablist" aria-label="シート切替">
-                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">
+                  <button type="button" class="sheet-tab is-active is-pinned" data-sheet-view="all" data-sheet-pinned="true" role="tab" aria-selected="true">
                     <span class="sheet-tab-label">全体</span>
                     <span class="sheet-tab-count" aria-hidden="true">0</span>
                   </button>
@@ -205,7 +205,29 @@
                     <span class="sheet-tab-label">留学生用</span>
                     <span class="sheet-tab-count" aria-hidden="true">0</span>
                   </button>
+                  <button type="button" class="sheet-tab-add" id="btn-add-sheet-tab" aria-haspopup="dialog" aria-controls="sheet-add-popover" aria-label="シートを追加" title="シートを追加">＋</button>
                 </div>
+                <div id="sheet-add-popover" class="sheet-add-popover hidden" role="dialog" aria-labelledby="sheet-add-title" aria-hidden="true">
+                  <h3 id="sheet-add-title" class="sheet-add-title">シートを追加</h3>
+                  <div class="sheet-add-fields">
+                    <label class="form-field">
+                      <span class="form-label">シート名</span>
+                      <input type="text" id="sheet-add-label" class="input-text" maxlength="20" placeholder="例: 看護" autocomplete="off">
+                    </label>
+                    <label class="form-field sheet-add-color-field">
+                      <span class="form-label">色</span>
+                      <input type="color" id="sheet-add-color" class="sheet-add-color" value="#64748b" aria-label="シートの色">
+                    </label>
+                  </div>
+                  <p class="field-hint">表示する職種を選びます。</p>
+                  <div id="sheet-add-jobs" class="sheet-add-jobs" role="group" aria-label="表示する職種"></div>
+                  <p id="sheet-add-error" class="field-hint sheet-add-error hidden" role="alert"></p>
+                  <div class="sheet-add-actions">
+                    <button type="button" class="btn btn-sm" id="btn-sheet-add-cancel">キャンセル</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-sheet-add-save">追加</button>
+                  </div>
+                </div>
+                <div id="staff-gauge-popover" class="staff-gauge-popover hidden" role="tooltip" aria-hidden="true"></div>
                 <div class="sheet-flip-viewport" id="sheet-flip-viewport">
                   <div class="sheet-flip-page" id="sheet-flip-page">
                     <div class="shift-calendar-shell">
@@ -224,16 +246,37 @@
                         <a class="btn btn-primary btn-sm" href="/staff">職員管理を開く</a>
                       </div>
                       <div id="student-labor-panel" class="student-labor-panel hidden" aria-live="polite">
-                        <div class="student-labor-panel-head">
-                          <div class="student-labor-panel-titles">
-                            <p class="student-labor-kicker">留学生シート</p>
-                            <h3 class="student-labor-title">週区間ごとの労働時間</h3>
+                        <section id="student-labor-section" class="labor-panel-section">
+                          <div class="student-labor-panel-head">
+                            <div class="student-labor-panel-titles">
+                              <p class="student-labor-kicker">留学生</p>
+                              <h3 class="student-labor-title">週区間ごとの労働時間</h3>
+                            </div>
+                            <span class="student-labor-panel-range" id="student-labor-week-range"></span>
                           </div>
-                          <span class="student-labor-panel-range" id="student-labor-week-range"></span>
-                        </div>
-                        <div id="student-labor-gauge-list" class="student-labor-gauge-list">
-                          <p class="student-labor-empty">読み込み中…</p>
-                        </div>
+                          <div id="student-labor-gauge-list" class="student-labor-gauge-list">
+                            <p class="student-labor-empty">読み込み中…</p>
+                          </div>
+                        </section>
+                        <section id="part-time-labor-section" class="labor-panel-section hidden">
+                          <div class="student-labor-panel-head">
+                            <div class="student-labor-panel-titles">
+                              <p class="student-labor-kicker">パート</p>
+                              <h3 class="student-labor-title">週の法定労働時間</h3>
+                            </div>
+                            <span class="student-labor-panel-range" id="part-time-week-range"></span>
+                          </div>
+                          <p class="labor-panel-note">満量は週40時間です。中央の線は週20時間（雇用保険・社会保険の加入目安）で、超えても違反にはなりません。1日8時間を超えた日数を週ごとに示します。</p>
+                          <p class="part-time-legend">
+                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-within"></span>20時間未満</span>
+                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-statutory"></span>法定内</span>
+                            <span class="part-time-legend-item"><span class="part-time-legend-swatch tone-overtime"></span>法定超</span>
+                            <span class="part-time-legend-item"><span class="part-time-legend-tick"></span>20時間</span>
+                          </p>
+                          <div id="part-time-gauge-list" class="student-labor-gauge-list">
+                            <p class="student-labor-empty">読み込み中…</p>
+                          </div>
+                        </section>
                       </div>
                       </div>
                       {% if app_settings.show_shift_legend %}
@@ -286,7 +329,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=69"></script>
+  <script src="/static/js/home.js?v=79"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

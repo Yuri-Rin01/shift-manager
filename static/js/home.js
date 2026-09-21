@@ -390,15 +390,19 @@ function invertFilterGroupChecked(group) {
 }
 
 const FOREIGN_STUDENT_JOB = "留学生";
-const SHEET_VIEW_ORDER = ["all", "foreign-students"];
+const PINNED_SHEET_ID = "all";
+const BUILTIN_SHEET_ORDER = ["all", "foreign-students"];
+let sheetViewOrder = [...BUILTIN_SHEET_ORDER];
+let sheetTabSuppressClick = false;
 const DEFAULT_SHEET_VIEW_COLORS = {
   all: "#3B82F6",
   "foreign-students": "#217346",
 };
 const SHEET_VIEW_META = {
-  all: { title: "全体シフト表.xlsx", foreign: false },
-  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true },
+  all: { title: "全体シフト表.xlsx", foreign: false, jobs: null },
+  "foreign-students": { title: "留学生用シフト表.xlsx", foreign: true, jobs: [FOREIGN_STUDENT_JOB] },
 };
+let customSheetViews = [];
 const SHEET_FLIP_MS = 480;
 
 let currentSheetView = "all";
@@ -442,16 +446,399 @@ function mixHex(hex, target, ratio) {
   return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
 }
 
+function loadCustomSheetViews() {
+  const raw = Array.isArray(serverDefaults.custom_sheet_views) ? serverDefaults.custom_sheet_views : [];
+  customSheetViews = raw.filter(
+    (item) => item && item.id && item.label && Array.isArray(item.job_types) && item.job_types.length
+  );
+  for (const key of Object.keys(SHEET_VIEW_META)) {
+    if (!BUILTIN_SHEET_ORDER.includes(key)) delete SHEET_VIEW_META[key];
+  }
+  const customIds = [];
+  for (const sheet of customSheetViews) {
+    const jobs = sheet.job_types.map((job) => String(job));
+    SHEET_VIEW_META[sheet.id] = {
+      title: `${sheet.label}シフト表.xlsx`,
+      foreign: false,
+      jobs,
+      custom: true,
+      label: sheet.label,
+    };
+    sheetViewColors[sheet.id] = normalizeSheetHex(sheet.color, "#64748B");
+    customIds.push(sheet.id);
+  }
+  sheetViewOrder = [PINNED_SHEET_ID, ...normalizeSheetTabOrder(serverDefaults.sheet_tab_order, customIds)];
+}
+
+function normalizeSheetTabOrder(value, customIds) {
+  const allowed = ["foreign-students", ...customIds];
+  const known = new Set(allowed);
+  const result = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    const key = String(raw || "").trim();
+    if (key === PINNED_SHEET_ID || !known.has(key) || result.includes(key)) continue;
+    result.push(key);
+  }
+  for (const key of allowed) {
+    if (!result.includes(key)) result.push(key);
+  }
+  return result;
+}
+
+function fixedJobsForSheet(view) {
+  const jobs = SHEET_VIEW_META[view]?.jobs;
+  return Array.isArray(jobs) && jobs.length ? jobs : null;
+}
+
+function installCustomSheetTabs() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list) return;
+  const addButton = document.getElementById("btn-add-sheet-tab");
+  list.querySelectorAll(".sheet-tab.is-custom").forEach((el) => el.remove());
+  for (const sheet of customSheetViews) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sheet-tab is-custom";
+    button.dataset.sheetView = sheet.id;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", "false");
+    button.innerHTML = `<span class="sheet-tab-label"></span><span class="sheet-tab-count" aria-hidden="true">0</span>`;
+    button.querySelector(".sheet-tab-label").textContent = sheet.label;
+    if (addButton) list.insertBefore(button, addButton);
+    else list.appendChild(button);
+  }
+  applySheetTabOrder();
+  syncSheetAddButton();
+}
+
+function applySheetTabOrder() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list) return;
+  const addButton = document.getElementById("btn-add-sheet-tab");
+  const pinned = list.querySelector(`[data-sheet-view="${PINNED_SHEET_ID}"]`);
+  const buttons = new Map();
+  list.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    const view = el.dataset.sheetView || "";
+    if (view && view !== PINNED_SHEET_ID) buttons.set(view, el);
+    const fixed = view === PINNED_SHEET_ID;
+    el.classList.toggle("is-pinned", fixed);
+    if (fixed) el.removeAttribute("title");
+    else el.title = "ドラッグして並べ替え";
+  });
+  if (pinned) list.insertBefore(pinned, list.firstChild);
+  const order = sheetViewOrder.filter((id) => buttons.has(id));
+  for (const id of buttons.keys()) {
+    if (!order.includes(id)) order.push(id);
+  }
+  for (const id of order) {
+    if (addButton) list.insertBefore(buttons.get(id), addButton);
+    else list.appendChild(buttons.get(id));
+  }
+  sheetViewOrder = [PINNED_SHEET_ID, ...order];
+}
+
+function readMovableSheetOrder() {
+  return [...document.querySelectorAll(".sheet-tab[data-sheet-view]")]
+    .map((el) => el.dataset.sheetView || "")
+    .filter((id) => id && id !== PINNED_SHEET_ID);
+}
+
+function initSheetTabDrag() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list || list.dataset.reorderReady) return;
+  list.dataset.reorderReady = "1";
+  let drag = null;
+
+  const clearDrag = () => {
+    drag?.tab.classList.remove("is-dragging");
+    list.classList.remove("is-reordering");
+    drag = null;
+  };
+
+  list.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !list.contains(tab) || tab.dataset.sheetView === PINNED_SHEET_ID) return;
+    drag = {
+      tab,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+  });
+
+  list.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (!drag.active) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+      drag.active = true;
+      sheetTabSuppressClick = true;
+      drag.tab.classList.add("is-dragging");
+      list.classList.add("is-reordering");
+      try {
+        drag.tab.setPointerCapture?.(event.pointerId);
+      } catch {
+        /* ポインタが既に解放されているときは並べ替えだけ続ける */
+      }
+    }
+    const target = sheetTabDropTarget(list, event.clientX, drag.tab);
+    if (!target || target === drag.tab) return;
+    if (target.id === "btn-add-sheet-tab") {
+      list.insertBefore(drag.tab, target);
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    const after = event.clientX > rect.left + rect.width / 2;
+    list.insertBefore(drag.tab, after ? target.nextElementSibling : target);
+  });
+
+  const finish = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const moved = drag.active;
+    clearDrag();
+    if (!moved) return;
+    sheetTabSuppressClick = true;
+    window.setTimeout(() => {
+      sheetTabSuppressClick = false;
+    }, 50);
+    const order = readMovableSheetOrder();
+    sheetViewOrder = [PINNED_SHEET_ID, ...order];
+    persistSheetTabOrder(order);
+  };
+  list.addEventListener("pointerup", finish);
+  list.addEventListener("pointercancel", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    clearDrag();
+    applySheetTabOrder();
+  });
+}
+
+function sheetTabDropTarget(list, clientX, dragging) {
+  const tabs = [...list.querySelectorAll(".sheet-tab[data-sheet-view]")].filter(
+    (el) => el !== dragging && el.dataset.sheetView !== PINNED_SHEET_ID
+  );
+  for (const tab of tabs) {
+    const rect = tab.getBoundingClientRect();
+    if (clientX >= rect.left && clientX <= rect.right) return tab;
+  }
+  const addButton = document.getElementById("btn-add-sheet-tab");
+  if (addButton && clientX >= addButton.getBoundingClientRect().left) return addButton;
+  return null;
+}
+
+async function persistSheetTabOrder(order) {
+  const previous = Array.isArray(serverDefaults.sheet_tab_order) ? serverDefaults.sheet_tab_order.slice() : [];
+  try {
+    const loaded = await fetch("/api/settings");
+    if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+    const settings = await loaded.json();
+    settings.sheet_tab_order = order;
+    const savedResponse = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    if (!savedResponse.ok) throw new Error("並びを保存できませんでした。");
+    const saved = await savedResponse.json();
+    serverDefaults.sheet_tab_order = Array.isArray(saved.sheet_tab_order) ? saved.sheet_tab_order : order;
+    sheetViewOrder = [PINNED_SHEET_ID, ...serverDefaults.sheet_tab_order];
+    applySheetTabOrder();
+  } catch {
+    serverDefaults.sheet_tab_order = previous;
+    sheetViewOrder = [PINNED_SHEET_ID, ...normalizeSheetTabOrder(previous, customSheetViews.map((sheet) => sheet.id))];
+    applySheetTabOrder();
+  }
+}
+
+const MAX_CUSTOM_SHEETS = 8;
+const CUSTOM_SHEET_COLORS = ["#64748b", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0369a1", "#4d7c0f", "#9a3412"];
+
+function syncSheetAddButton() {
+  const button = document.getElementById("btn-add-sheet-tab");
+  if (!button) return;
+  const full = customSheetViews.length >= MAX_CUSTOM_SHEETS;
+  button.disabled = full;
+  button.title = full ? "追加シートは8件までです" : "シートを追加";
+}
+
+function allocateCustomSheetId(existingIds) {
+  const used = new Set(existingIds);
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = `custom-${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `custom-${Date.now().toString(36)}`;
+}
+
+function sheetAddError(message) {
+  const error = document.getElementById("sheet-add-error");
+  if (!error) return;
+  error.textContent = message || "";
+  error.classList.toggle("hidden", !message);
+}
+
+function renderSheetAddJobs() {
+  const box = document.getElementById("sheet-add-jobs");
+  if (!box || box.childElementCount) return;
+  const jobs = Array.isArray(window.JOB_ORDER) ? window.JOB_ORDER : [];
+  box.innerHTML = jobs
+    .map(
+      (label) => `<label class="check-row sheet-add-job">
+        <input type="checkbox" class="sheet-add-job-input" value="${escapeHtml(label)}">
+        <span>${escapeHtml(label)}</span>
+      </label>`
+    )
+    .join("");
+}
+
+function placeSheetAddPopover() {
+  const button = document.getElementById("btn-add-sheet-tab");
+  const popover = document.getElementById("sheet-add-popover");
+  const stage = document.querySelector(".shift-sheet-stage");
+  if (!button || !popover || !stage) return;
+  const stageRect = stage.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const width = popover.getBoundingClientRect().width || 440;
+  let left = buttonRect.left - stageRect.left;
+  const maxLeft = Math.max(8, stageRect.width - width - 8);
+  if (left > maxLeft) left = maxLeft;
+  popover.style.left = `${Math.max(8, left)}px`;
+  popover.style.top = `${buttonRect.bottom - stageRect.top + 6}px`;
+}
+
+function openSheetAddPopover() {
+  if (customSheetViews.length >= MAX_CUSTOM_SHEETS) return;
+  const popover = document.getElementById("sheet-add-popover");
+  const label = document.getElementById("sheet-add-label");
+  const color = document.getElementById("sheet-add-color");
+  if (!popover) return;
+  renderSheetAddJobs();
+  sheetAddError("");
+  if (label) label.value = "";
+  if (color) {
+    color.value = CUSTOM_SHEET_COLORS[customSheetViews.length % CUSTOM_SHEET_COLORS.length];
+  }
+  popover.querySelectorAll(".sheet-add-job-input").forEach((input) => {
+    input.checked = false;
+  });
+  popover.classList.remove("hidden");
+  popover.setAttribute("aria-hidden", "false");
+  placeSheetAddPopover();
+  label?.focus();
+}
+
+function closeSheetAddPopover() {
+  const popover = document.getElementById("sheet-add-popover");
+  if (!popover) return;
+  popover.classList.add("hidden");
+  popover.setAttribute("aria-hidden", "true");
+  sheetAddError("");
+}
+
+function refreshSheetCatalog() {
+  loadCustomSheetViews();
+  loadSheetViewColors();
+  installCustomSheetTabs();
+  syncSheetTabColors();
+  updateSheetTabCounts();
+}
+
+async function saveSheetFromHome() {
+  const labelInput = document.getElementById("sheet-add-label");
+  const colorInput = document.getElementById("sheet-add-color");
+  const saveButton = document.getElementById("btn-sheet-add-save");
+  const label = labelInput?.value.trim() ?? "";
+  const jobs = [...document.querySelectorAll(".sheet-add-job-input:checked")].map((input) => input.value);
+  if (!label) {
+    sheetAddError("シート名を入力してください。");
+    labelInput?.focus();
+    return;
+  }
+  if (!jobs.length) {
+    sheetAddError("職種を1つ以上選んでください。");
+    return;
+  }
+  if (saveButton) saveButton.disabled = true;
+  try {
+    const loaded = await fetch("/api/settings");
+    if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+    const settings = await loaded.json();
+    const sheets = Array.isArray(settings.custom_sheet_views) ? settings.custom_sheet_views.slice() : [];
+    if (sheets.length >= MAX_CUSTOM_SHEETS) {
+      sheetAddError("追加シートは8件までです。");
+      syncSheetAddButton();
+      return;
+    }
+    const id = allocateCustomSheetId(sheets.map((item) => item.id));
+    sheets.push({
+      id,
+      label,
+      job_types: jobs,
+      color: colorInput?.value || CUSTOM_SHEET_COLORS[0],
+    });
+    settings.custom_sheet_views = sheets;
+    const savedResponse = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    if (!savedResponse.ok) {
+      const error = await savedResponse.json().catch(() => ({}));
+      throw new Error(typeof error.detail === "string" ? error.detail : "シートを追加できませんでした。");
+    }
+    const saved = await savedResponse.json();
+    serverDefaults.custom_sheet_views = Array.isArray(saved.custom_sheet_views) ? saved.custom_sheet_views : sheets;
+    const created = serverDefaults.custom_sheet_views.find((item) => item.label === label) || serverDefaults.custom_sheet_views.at(-1);
+    closeSheetAddPopover();
+    refreshSheetCatalog();
+    if (created?.id) setSheetView(created.id);
+  } catch (error) {
+    sheetAddError(error.message || "シートを追加できませんでした。");
+  } finally {
+    if (saveButton) saveButton.disabled = false;
+  }
+}
+
+function initSheetAddPopover() {
+  const popover = document.getElementById("sheet-add-popover");
+  document.getElementById("btn-add-sheet-tab")?.addEventListener("click", () => {
+    const open = popover && !popover.classList.contains("hidden");
+    if (open) closeSheetAddPopover();
+    else openSheetAddPopover();
+  });
+  document.getElementById("btn-sheet-add-cancel")?.addEventListener("click", closeSheetAddPopover);
+  document.getElementById("btn-sheet-add-save")?.addEventListener("click", saveSheetFromHome);
+  document.getElementById("sheet-add-label")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveSheetFromHome();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!popover || popover.classList.contains("hidden")) return;
+    if (event.target.closest("#sheet-add-popover, #btn-add-sheet-tab")) return;
+    closeSheetAddPopover();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSheetAddPopover();
+  });
+}
+
 function loadSheetViewColors() {
   const fromSettings = serverDefaults.sheet_view_colors;
+  const customColors = Object.fromEntries(
+    customSheetViews.map((sheet) => [sheet.id, normalizeSheetHex(sheet.color, "#64748B")])
+  );
   sheetViewColors = {
     ...DEFAULT_SHEET_VIEW_COLORS,
     ...(fromSettings && typeof fromSettings === "object" ? fromSettings : {}),
+    ...customColors,
   };
-  for (const key of SHEET_VIEW_ORDER) {
+  for (const key of sheetViewOrder) {
     sheetViewColors[key] = normalizeSheetHex(
       sheetViewColors[key],
-      DEFAULT_SHEET_VIEW_COLORS[key]
+      DEFAULT_SHEET_VIEW_COLORS[key] || "#64748B"
     );
   }
   return sheetViewColors;
@@ -505,9 +892,15 @@ function syncSheetTabColors() {
 function syncJobFilterPanelForSheet(view = getCurrentSheetView()) {
   const panel = document.getElementById("home-filter-panel-job");
   const note = document.getElementById("home-filter-job-lock-note");
-  const locked = view === "foreign-students";
+  const locked = Boolean(fixedJobsForSheet(view));
   panel?.classList.toggle("is-sheet-locked", locked);
   note?.classList.toggle("hidden", !locked);
+  if (note && locked) {
+    const jobs = fixedJobsForSheet(view) || [];
+    note.textContent = view === "foreign-students"
+      ? "留学生用シートでは職種「留学生」のみ表示します"
+      : `このシートでは職種「${jobs.join("」「")}」のみ表示します`;
+  }
   panel?.querySelectorAll(".home-filter-action").forEach((button) => {
     if (!(button instanceof HTMLButtonElement)) return;
     button.disabled = locked;
@@ -524,9 +917,22 @@ function updateSheetEmptyState() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!empty || !tbody) return;
 
-  const isForeign = getCurrentSheetView() === "foreign-students";
+  const view = getCurrentSheetView();
+  const fixed = fixedJobsForSheet(view);
   const visibleCount = [...tbody.querySelectorAll("tr")].filter((row) => !row.hidden).length;
-  const showEmpty = isForeign && visibleCount === 0;
+  const showEmpty = Boolean(fixed) && visibleCount === 0;
+  const title = empty.querySelector(".sheet-empty-title");
+  const body = empty.querySelector(".sheet-empty-body");
+  if (showEmpty && title && body) {
+    if (view === "foreign-students") {
+      title.textContent = "表示できる留学生がいません";
+      body.textContent = "職員管理で職種を「留学生」にした職員を登録すると、ここに表が表示されます。";
+    } else {
+      const label = SHEET_VIEW_META[view]?.label || "このシート";
+      title.textContent = `${label}に表示できる職員がいません`;
+      body.textContent = `職種が「${fixed.join("」「")}」の職員を登録すると、ここに表が表示されます。`;
+    }
+  }
   empty.classList.toggle("hidden", !showEmpty);
   shiftCalendar?.classList.toggle("hidden", showEmpty);
   legend?.classList.toggle("hidden", showEmpty);
@@ -562,13 +968,17 @@ function applySheetViewContent(next, prev) {
   syncJobFilterPanelForSheet(next);
   syncStudentLaborPanelVisibility(next);
 
-  if (next === "foreign-students" && prev !== "foreign-students") {
+  const nextJobs = fixedJobsForSheet(next);
+  const prevJobs = fixedJobsForSheet(prev);
+  if (nextJobs && !prevJobs) {
     savedJobFilterBeforeSheet = getSelectedFilterValues("job");
-    const jobBoxes = document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]');
-    jobBoxes.forEach((box) => {
-      box.checked = box.value === FOREIGN_STUDENT_JOB;
+  }
+  if (nextJobs) {
+    const allowed = new Set(nextJobs);
+    document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]').forEach((box) => {
+      box.checked = allowed.has(box.value);
     });
-  } else if (next === "all" && prev === "foreign-students") {
+  } else if (prevJobs) {
     const jobBoxes = [...document.querySelectorAll('[data-filter-group="job"] input[type="checkbox"]')];
     if (Array.isArray(savedJobFilterBeforeSheet)) {
       jobBoxes.forEach((box) => {
@@ -591,15 +1001,163 @@ function applySheetViewContent(next, prev) {
   });
 }
 
+const PART_TIME_JOB = "パート";
+
+function laborAudience(view = getCurrentSheetView()) {
+  const jobs = fixedJobsForSheet(view);
+  const all = view === "all" || !jobs;
+  return {
+    students: all || view === "foreign-students" || jobs.includes(FOREIGN_STUDENT_JOB),
+    partTime: all || jobs.includes(PART_TIME_JOB),
+  };
+}
+
+const laborSummaryCache = { key: "", student: null, partTime: null };
+
+function currentLaborKey() {
+  return `${getCalendarYear()}-${getCalendarMonth()}`;
+}
+
+function readLaborCache(kind) {
+  if (laborSummaryCache.key !== currentLaborKey()) return null;
+  return laborSummaryCache[kind];
+}
+
+function rememberLaborCache(kind, data) {
+  const key = currentLaborKey();
+  if (laborSummaryCache.key !== key) {
+    laborSummaryCache.key = key;
+    laborSummaryCache.student = null;
+    laborSummaryCache.partTime = null;
+  }
+  laborSummaryCache[kind] = data;
+}
+
 function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
   const panel = document.getElementById("student-labor-panel");
   if (!panel) return;
-  const show = view === "all" || view === "foreign-students";
+  const audience = laborAudience(view);
+  const show = audience.students || audience.partTime;
   panel.classList.toggle("hidden", !show);
+  panel.classList.toggle("is-split", audience.students && audience.partTime);
   panel.closest(".shift-workspace")?.classList.toggle("has-student-labor-panel", show);
-  if (show) {
-    loadStudentLaborSummary();
+  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
+  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
+  loadStudentLaborSummary();
+  loadPartTimeHours();
+}
+
+function refreshLaborPanels() {
+  laborSummaryCache.key = "";
+  laborSummaryCache.student = null;
+  laborSummaryCache.partTime = null;
+  loadStudentLaborSummary({ refresh: true });
+  loadPartTimeHours({ refresh: true });
+}
+
+let staffGaugeHoverId = null;
+let staffGaugeHideTimer = null;
+
+function hideStaffGaugePopover() {
+  staffGaugeHoverId = null;
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop) return;
+  pop.classList.add("hidden");
+  pop.setAttribute("aria-hidden", "true");
+  pop.innerHTML = "";
+  delete pop.dataset.staffId;
+}
+
+function placeStaffGaugePopover(anchor) {
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = pop.offsetWidth || 280;
+  const height = pop.offsetHeight || 160;
+  let left = rect.right + 8;
+  if (left + width > window.innerWidth - 8) left = Math.max(8, rect.left - width - 8);
+  let top = rect.top;
+  if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+
+function renderStaffGaugePopover(link, staffId) {
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!pop || staffGaugeHoverId !== staffId) return;
+  const student = (readLaborCache("student")?.rows || []).find((row) => String(row.staff_id) === staffId);
+  const partData = readLaborCache("partTime");
+  const part = (partData?.rows || []).find((row) => String(row.staff_id) === staffId);
+  if (!student && !part) {
+    pop.classList.add("hidden");
+    pop.setAttribute("aria-hidden", "true");
+    delete pop.dataset.staffId;
+    return;
   }
+  if (pop.dataset.staffId === staffId && !pop.classList.contains("hidden")) {
+    placeStaffGaugePopover(link);
+    return;
+  }
+  const statutory = Number(partData?.statutory_weekly_minutes) || 40 * 60;
+  const insurance = Number(partData?.insurance_weekly_minutes) || 20 * 60;
+  pop.innerHTML = [
+    student ? buildStudentLaborGaugeCard(student) : "",
+    part ? buildPartTimeGaugeCard(part, statutory, insurance) : "",
+  ].join("");
+  pop.dataset.staffId = staffId;
+  pop.classList.remove("hidden");
+  pop.setAttribute("aria-hidden", "false");
+  placeStaffGaugePopover(link);
+}
+
+async function showStaffGaugePopover(link) {
+  const staffId = String(link.closest("tr")?.dataset.staffId || "");
+  if (!staffId) return;
+  staffGaugeHoverId = staffId;
+  if (readLaborCache("student") && readLaborCache("partTime")) {
+    renderStaffGaugePopover(link, staffId);
+    return;
+  }
+  if (!readLaborCache("student")) await loadStudentLaborSummary();
+  if (staffGaugeHoverId !== staffId) return;
+  if (!readLaborCache("partTime")) await loadPartTimeHours();
+  if (staffGaugeHoverId !== staffId) return;
+  renderStaffGaugePopover(link, staffId);
+}
+
+function initStaffGaugeHover() {
+  const calendar = document.getElementById("shift-calendar");
+  const pop = document.getElementById("staff-gauge-popover");
+  if (!calendar || !pop || calendar.dataset.staffGaugeReady) return;
+  calendar.dataset.staffGaugeReady = "1";
+
+  const cancelHide = () => {
+    if (staffGaugeHideTimer) {
+      window.clearTimeout(staffGaugeHideTimer);
+      staffGaugeHideTimer = null;
+    }
+  };
+  const scheduleHide = () => {
+    cancelHide();
+    staffGaugeHideTimer = window.setTimeout(() => hideStaffGaugePopover(), 140);
+  };
+
+  calendar.addEventListener("pointerover", (event) => {
+    const link = event.target.closest(".staff-name-link");
+    if (!link || !calendar.contains(link)) return;
+    cancelHide();
+    showStaffGaugePopover(link);
+  });
+  calendar.addEventListener("pointerout", (event) => {
+    const link = event.target.closest(".staff-name-link");
+    if (!link || !calendar.contains(link)) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && (link.contains(next) || pop.contains(next))) return;
+    scheduleHide();
+  });
+  pop.addEventListener("pointerenter", cancelHide);
+  pop.addEventListener("pointerleave", scheduleHide);
+  document.getElementById("sheet-main-scroll")?.addEventListener("scroll", () => hideStaffGaugePopover(), { passive: true });
 }
 
 function formatStudentLaborDateRange(startIso, endIso) {
@@ -611,16 +1169,36 @@ function formatStudentLaborDateRange(startIso, endIso) {
   return `${fmt(startIso)}～${fmt(endIso)}`;
 }
 
-async function loadStudentLaborSummary() {
+function applyStudentLaborSummary(weekData) {
   const list = document.getElementById("student-labor-gauge-list");
   const rangeEl = document.getElementById("student-labor-week-range");
+  if (!list || !weekData) return;
+  if (rangeEl) {
+    rangeEl.textContent = formatStudentLaborDateRange(
+      weekData.period_start || weekData.week_start,
+      weekData.period_end || weekData.week_end
+    );
+  }
+  renderStudentLaborGaugeCards(list, weekData.rows || []);
+}
+
+async function loadStudentLaborSummary(options = {}) {
+  const list = document.getElementById("student-labor-gauge-list");
   if (!list) return;
 
   const year = getCalendarYear();
   const month = getCalendarMonth();
   if (!year || !month) return;
 
-  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  const cached = options.refresh ? null : readLaborCache("student");
+  if (cached) {
+    applyStudentLaborSummary(cached);
+    return;
+  }
+
+  if (!list.querySelector(".student-labor-gauge-card")) {
+    list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  }
 
   try {
     const weekRes = await fetch(`/api/shifts/student-labor-summary?year=${year}&month=${month}`);
@@ -629,13 +1207,8 @@ async function loadStudentLaborSummary() {
       return;
     }
     const weekData = await weekRes.json();
-    if (rangeEl) {
-      rangeEl.textContent = formatStudentLaborDateRange(
-        weekData.period_start || weekData.week_start,
-        weekData.period_end || weekData.week_end
-      );
-    }
-    renderStudentLaborGaugeCards(list, weekData.rows || []);
+    rememberLaborCache("student", weekData);
+    applyStudentLaborSummary(weekData);
   } catch {
     list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
   }
@@ -735,6 +1308,124 @@ function renderStudentLaborGaugeRow({ label, used, limit, pct, tone }) {
   </div>`;
 }
 
+function applyPartTimeHours(data) {
+  const list = document.getElementById("part-time-gauge-list");
+  const rangeEl = document.getElementById("part-time-week-range");
+  if (!list || !data) return;
+  if (rangeEl) {
+    rangeEl.textContent = formatStudentLaborDateRange(data.period_start, data.period_end);
+  }
+  renderPartTimeGaugeCards(list, data.rows || [], data);
+}
+
+async function loadPartTimeHours(options = {}) {
+  const list = document.getElementById("part-time-gauge-list");
+  if (!list) return;
+
+  const year = getCalendarYear();
+  const month = getCalendarMonth();
+  if (!year || !month) return;
+
+  const cached = options.refresh ? null : readLaborCache("partTime");
+  if (cached) {
+    applyPartTimeHours(cached);
+    return;
+  }
+
+  if (!list.querySelector(".student-labor-gauge-card")) {
+    list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+  }
+
+  try {
+    const response = await fetch(`/api/shifts/part-time-hours?year=${year}&month=${month}`);
+    if (!response.ok) {
+      list.innerHTML = `<p class="student-labor-empty">読み込みに失敗しました</p>`;
+      return;
+    }
+    const data = await response.json();
+    rememberLaborCache("partTime", data);
+    applyPartTimeHours(data);
+  } catch {
+    list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
+  }
+}
+
+function partTimeGaugeTone(usedMinutes, statutoryMinutes, insuranceMinutes) {
+  const used = Number(usedMinutes) || 0;
+  const statutory = Number(statutoryMinutes) || 40 * 60;
+  const insurance = Number(insuranceMinutes) || 20 * 60;
+  if (used > statutory) return "overtime";
+  if (used >= insurance) return "statutory";
+  return "within";
+}
+
+function renderPartTimeGaugeCards(list, rows, data) {
+  if (!rows.length) {
+    list.innerHTML = `<p class="student-labor-empty">対象のパート職員がいません</p>`;
+    return;
+  }
+  const statutory = Number(data.statutory_weekly_minutes) || 40 * 60;
+  const insurance = Number(data.insurance_weekly_minutes) || 20 * 60;
+  list.innerHTML = rows.map((row) => buildPartTimeGaugeCard(row, statutory, insurance)).join("");
+}
+
+function buildPartTimeGaugeCard(row, statutory, insurance) {
+  const name = row.name || "—";
+  const weeks = Array.isArray(row.weeks) && row.weeks.length ? row.weeks : [];
+  const status = row.status || "within";
+  const staffId = row.staff_id ?? "";
+  const markPct = statutory > 0 ? Math.round((insurance / statutory) * 100) : 50;
+
+  return `<article class="student-labor-gauge-card status-${escapeHtml(status)}" data-staff-id="${staffId}">
+    <h4 class="student-labor-gauge-name">${escapeHtml(name)}</h4>
+    <div class="student-labor-gauge-metrics">
+      ${weeks
+        .map((week, index) => {
+          const used = Number(week.week_minutes) || 0;
+          const limit = Number(week.limit_week_minutes) || statutory;
+          const dailyOver = Number(week.daily_over_count) || 0;
+          return renderPartTimeGaugeRow({
+            label: formatStudentLaborWeekLabel(week.display_start || week.week_start, week.display_end || week.week_end, index),
+            used,
+            limit,
+            pct: studentLaborUsagePercent(used, limit),
+            tone: partTimeGaugeTone(used, limit, Number(week.insurance_week_minutes) || insurance),
+            dailyOver,
+            markPct,
+          });
+        })
+        .join("")}
+    </div>
+  </article>`;
+}
+
+function renderPartTimeGaugeRow({ label, used, limit, pct, tone, dailyOver, markPct }) {
+  const ratio = `${formatStudentLaborClock(used)}/${formatStudentLaborClock(limit)}`;
+  const note = dailyOver > 0 ? `8時間超 ${dailyOver}日` : "";
+  const valueText = note ? `${ratio} ${note}` : ratio;
+  return `<div class="student-labor-gauge-row tone-${escapeHtml(tone)} is-part-time">
+    <div class="student-labor-gauge-meta">
+      <span class="student-labor-gauge-label">${escapeHtml(label)}</span>
+      <span class="student-labor-gauge-ratio">${escapeHtml(ratio)}</span>
+    </div>
+    ${note ? `<p class="part-time-daily-note">${escapeHtml(note)}</p>` : ""}
+    <div
+      class="part-time-gauge"
+      role="progressbar"
+      aria-label="${escapeHtml(label)}"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="${pct}"
+      aria-valuetext="${escapeHtml(valueText)}"
+    >
+      <span class="part-time-gauge-track">
+        <span class="student-labor-gauge-fill" style="width:${pct}%"></span>
+      </span>
+      <span class="part-time-gauge-mark" style="left:${markPct}%" title="週20時間"></span>
+    </div>
+  </div>`;
+}
+
 function clearSheetFlipClasses(viewport) {
   viewport?.classList.remove(
     "is-flipping",
@@ -766,8 +1457,8 @@ function setSheetView(view, opts = {}) {
     return;
   }
 
-  const prevIndex = SHEET_VIEW_ORDER.indexOf(prev);
-  const nextIndex = SHEET_VIEW_ORDER.indexOf(next);
+  const prevIndex = sheetViewOrder.indexOf(prev);
+  const nextIndex = sheetViewOrder.indexOf(next);
   const forward = nextIndex >= prevIndex;
   sheetFlipBusy = true;
   clearSheetFlipClasses(viewport);
@@ -802,26 +1493,38 @@ function updateSheetTabCounts() {
   const tbody = shiftCalendar?.querySelector("tbody");
   if (!tbody) return;
   const rows = [...tbody.querySelectorAll("tr")];
-  const allCount = rows.length;
-  const foreignCount = rows.filter((row) => (row.dataset.job ?? "") === FOREIGN_STUDENT_JOB).length;
 
-  document.querySelectorAll('.sheet-tab[data-sheet-view="all"] .sheet-tab-count').forEach((el) => {
-    el.textContent = String(allCount);
-  });
-  document.querySelectorAll('.sheet-tab[data-sheet-view="foreign-students"] .sheet-tab-count').forEach((el) => {
-    el.textContent = String(foreignCount);
+  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    const view = el.dataset.sheetView || "all";
+    const fixed = fixedJobsForSheet(view);
+    const count = fixed
+      ? rows.filter((row) => fixed.includes(row.dataset.job ?? "")).length
+      : rows.length;
+    const badge = el.querySelector(".sheet-tab-count");
+    if (badge) badge.textContent = String(count);
   });
 }
 
 function initSheetViews() {
   const saved = loadPrefs();
+  const tabList = document.querySelector(".sheet-tabs");
+  loadCustomSheetViews();
   loadSheetViewColors();
+  installCustomSheetTabs();
   syncSheetTabColors();
+  initSheetAddPopover();
+  initStaffGaugeHover();
 
-  document.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
-    el.addEventListener("click", () => {
-      setSheetView(el.dataset.sheetView || "all");
-    });
+  initSheetTabDrag();
+
+  tabList?.addEventListener("click", (event) => {
+    if (sheetTabSuppressClick) {
+      sheetTabSuppressClick = false;
+      return;
+    }
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !tabList.contains(tab)) return;
+    setSheetView(tab.dataset.sheetView || "all");
   });
 
   const initial = SHEET_VIEW_META[saved.sheetView] ? saved.sheetView : "all";
@@ -846,10 +1549,10 @@ function applyRowFilters() {
     const matchDept =
       selectedDepts.length === 0 || floors.some((floor) => selectedDepts.includes(floor));
     const job = row.dataset.job ?? "";
-    const matchJob =
-      sheetView === "foreign-students"
-        ? job === FOREIGN_STUDENT_JOB
-        : !jobFilterActive || selectedJobs.includes(job);
+    const fixedJobs = fixedJobsForSheet(sheetView);
+    const matchJob = fixedJobs
+      ? fixedJobs.includes(job)
+      : !jobFilterActive || selectedJobs.includes(job);
     const rowPosition = row.dataset.position ?? "";
     const matchPosition =
       selectedPositions.length === 0 || selectedPositions.includes(rowPosition);
@@ -2079,9 +2782,7 @@ async function saveBulkCellSymbols(cells, symbol) {
     [...afterStates, ...relatedAfterStates]
   );
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function saveCellSymbol(td, symbol, options = {}) {
@@ -2145,9 +2846,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function unlockBulkCells(cells) {
@@ -2239,9 +2938,7 @@ async function unlockBulkCells(cells) {
     [...afterStates, ...relatedAfterStates]
   );
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function unlockManualCell(td) {
@@ -3568,6 +4265,7 @@ shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");
   if (!trigger) return;
   event.preventDefault();
+  hideStaffGaugePopover();
   closeCellEditor();
   window.openStaffEditor?.(Number(trigger.dataset.staffEdit));
 });
