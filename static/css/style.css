@@ -4590,6 +4590,50 @@ body.period-locked .shift-td-editable {
   gap: 6px;
 }
 
+.shift-validation-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.shift-validation-panel.hidden {
+  display: none;
+}
+
+.shift-validation-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.shift-validation-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.shift-validation-item.is-error {
+  color: #b91c1c;
+}
+
+.shift-validation-item.is-info {
+  color: #334155;
+}
+
+.shift-td-editable.is-validation-focus {
+  outline: 3px solid #ea580c;
+  outline-offset: -2px;
+}
+
 #section-staffing .settings-subtitle { margin-top: 28px; }
 #section-staffing .card-body > .settings-subtitle:first-child { margin-top: 0; }
 #section-staffing [hidden] { display: none !important; }

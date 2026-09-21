@@ -1174,7 +1174,80 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
+  if (data.validation) {
+    showValidationWarnings(data.validation);
+  }
 }
+
+function showValidationWarnings(validation) {
+  const panel = document.getElementById("shift-validation-panel");
+  const list = document.getElementById("shift-validation-list");
+  if (!panel || !list) return;
+  const warnings = validation.warnings || [];
+  if (!warnings.length) {
+    panel.classList.add("hidden");
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = warnings
+    .slice(0, 40)
+    .map((item) => {
+      const date = (item.dates && item.dates[0]) || "";
+      const staffId = (item.staff_ids && item.staff_ids[0]) || "";
+      const jump =
+        date && staffId
+          ? `<button type="button" class="btn-link" data-jump-staff="${staffId}" data-jump-date="${date}">移動</button>`
+          : "";
+      const level = item.level === "error" ? "error" : item.level === "info" ? "info" : "warn";
+      return `<li class="shift-validation-item is-${level}"><span>${escapeValidationText(item.message || "")}</span> ${jump}</li>`;
+    })
+    .join("");
+  panel.classList.remove("hidden");
+}
+
+function escapeValidationText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+document.getElementById("shift-validation-panel")?.addEventListener("click", (event) => {
+  const jump = event.target.closest("[data-jump-staff]");
+  if (!jump) return;
+  const staffId = jump.getAttribute("data-jump-staff");
+  const iso = jump.getAttribute("data-jump-date") || "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const td = shiftCalendar?.querySelector(
+    `.shift-td-editable[data-staff-id="${staffId}"][data-year="${y}"][data-month="${m}"][data-day="${d}"]`
+  );
+  if (!td) return;
+  td.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+  td.classList.add("is-validation-focus");
+  window.setTimeout(() => td.classList.remove("is-validation-focus"), 1600);
+});
+
+document.getElementById("btn-validation-close")?.addEventListener("click", () => {
+  document.getElementById("shift-validation-panel")?.classList.add("hidden");
+});
+
+document.getElementById("btn-validate-period")?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  try {
+    const response = await fetch(`/api/shifts/validate?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "検証に失敗しました");
+    showValidationWarnings(data);
+    if (!(data.warnings || []).length) {
+      window.alert("この期間に表示する警告はありません。");
+    }
+  } catch (error) {
+    window.alert(error.message || "検証に失敗しました");
+  }
+});
 
 async function unlockManualCell(td) {
   const staffId = Number(td.dataset.staffId);

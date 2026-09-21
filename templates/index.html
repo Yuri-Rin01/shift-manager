@@ -192,6 +192,14 @@
                 {% endwith %}
               </div>
               <p class="field-hint" id="placement-summary-note"></p>
+              <div id="shift-validation-panel" class="shift-validation-panel hidden" aria-live="polite">
+                <div class="shift-validation-head">
+                  <strong>ルール確認</strong>
+                  <button type="button" class="btn btn-sm" id="btn-validate-period">この期間を再チェック</button>
+                  <button type="button" class="btn btn-sm" id="btn-validation-close">閉じる</button>
+                </div>
+                <ul id="shift-validation-list" class="shift-validation-list"></ul>
+              </div>
               {% if app_settings.show_shift_legend %}
               <div class="legend"><span class="legend-item">勤務下：配置先 / L：夜勤リーダー（担当フロア兼務・別枠）</span>
                 {% for item in legend %}
@@ -253,7 +261,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=30"></script>
-  <script src="/static/js/home.js?v=26"></script>
+  <script src="/static/js/home.js?v=27"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

@@ -96,14 +96,31 @@ def update_shift_cell(data: ShiftCellUpdate):
         )
 
     from services.shift_edit import edit_cell
+    from datetime import timedelta as _td
+    from services.shift_validate import validate_period
+
     try:
         day = date(data.year, data.month, data.day)
     except ValueError as exc:
         raise HTTPException(400, '日付が不正です') from exc
     try:
-        return edit_cell(data.staff_id, day, symbol, settings)
+        result = edit_cell(data.staff_id, day, symbol, settings)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    try:
+        validation = validate_period(
+            data.year,
+            data.month,
+            focus_dates=[day.isoformat(), (day + _td(days=1)).isoformat()],
+        )
+        result = dict(result)
+        result["validation"] = {
+            "warning_count": validation["warning_count"],
+            "warnings": validation["warnings"][:30],
+        }
+    except Exception:
+        pass
+    return result
 
 
 @router.post('/history/restore')
@@ -207,6 +224,17 @@ def apply_generation(data: GenerationApplyRequest):
         return apply_preview(data.token)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/validate")
+def validate_shift_period(year: int, month: int, focus_date: str | None = None):
+    from services.shift_validate import validate_period
+
+    focus = [focus_date] if focus_date else None
+    try:
+        return validate_period(year, month, focus_dates=focus)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"検証に失敗しました: {exc}") from exc
 
 
 @router.get("/period-lock")
