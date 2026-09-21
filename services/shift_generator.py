@@ -1233,6 +1233,26 @@ class _Generator:
                 )
             )
 
+    def _emit_student_labor_warnings(self) -> None:
+        blocks = getattr(self, "student_labor_blocks", None) or []
+        if not blocks:
+            return
+        names = list(dict.fromkeys(str(item.get("name") or "留学生") for item in blocks))
+        sample = "、".join(names[:5])
+        suffix = f" ほか {len(names) - 5}名" if len(names) > 5 else ""
+        self.warnings.append(
+            _warning(
+                "warn",
+                "student_labor_limit",
+                f"留学生の労働時間制限により必要人数を満たせません（{sample}{suffix}）。",
+                staff_ids=[
+                    int(item["staff_id"])
+                    for item in blocks
+                    if item.get("staff_id") is not None
+                ],
+            )
+        )
+
     def _staff_needs_night_on_day(self, staff: dict, shift_date: str) -> bool:
         for floor in self._staff_floors(staff):
             min_night = self._min_staff_for(floor, "night")
@@ -1706,6 +1726,7 @@ class _Generator:
         self._validate_leader_on_night()
         self._collect_staffing_shortfalls()
         self._emit_understaffed_warnings()
+        self._emit_student_labor_warnings()
 
         if not self.staff_list:
             self.warnings.append(_warning("error", "no_staff", "人員に含める職員が0人です。"))
