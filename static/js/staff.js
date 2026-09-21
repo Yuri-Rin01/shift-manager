@@ -1453,6 +1453,18 @@ function openModal(mode, staff = null) {
   setSelectValue(document.getElementById("field-position"), staff?.position ?? "");
   document.getElementById("field-can-work-night").checked = staff?.can_work_night ?? false;
   document.getElementById("field-exclude-from-staffing").checked = staff?.exclude_from_staffing ?? false;
+  const weeklyLimitInput = document.getElementById("field-weekly-hour-limit");
+  const monthlyLimitInput = document.getElementById("field-monthly-hour-limit");
+  if (weeklyLimitInput) {
+    weeklyLimitInput.value =
+      staff?.weekly_hour_limit != null ? String(staff.weekly_hour_limit) : "";
+  }
+  if (monthlyLimitInput) {
+    monthlyLimitInput.value =
+      staff?.monthly_hour_limit != null ? String(staff.monthly_hour_limit) : "";
+  }
+  const portalPinInput = document.getElementById("field-portal-pin");
+  if (portalPinInput) portalPinInput.value = "";
   const fixNightCountCheckbox = document.getElementById("field-fix-night-shift-count");
   const nightCountInput = document.getElementById("field-night-shift-count");
   if (fixNightCountCheckbox) {
@@ -1665,6 +1677,14 @@ async function saveStaff(event) {
     exclude_from_staffing: document.getElementById("field-exclude-from-staffing").checked,
     fix_night_shift_count: fixNightCount,
     night_shift_count: fixNightCount ? nightCount : null,
+    weekly_hour_limit: (() => {
+      const raw = document.getElementById("field-weekly-hour-limit")?.value.trim() ?? "";
+      return raw === "" ? null : Number.parseFloat(raw);
+    })(),
+    monthly_hour_limit: (() => {
+      const raw = document.getElementById("field-monthly-hour-limit")?.value.trim() ?? "";
+      return raw === "" ? null : Number.parseFloat(raw);
+    })(),
     day_incompatible_ids: [...selectedDayIncompatibilities],
     night_incompatible_ids: mergeNightIncompatibilities(),
   };
@@ -1687,6 +1707,21 @@ async function saveStaff(event) {
           : undefined;
     showAlert(message ?? "保存に失敗しました", "error");
     return;
+  }
+
+  const saved = await response.json().catch(() => ({}));
+  const pinValue = document.getElementById("field-portal-pin")?.value.trim() ?? "";
+  const targetId = isEdit ? Number(id) : Number(saved.id);
+  if (pinValue && Number.isFinite(targetId)) {
+    const pinResponse = await fetch(`${API_BASE}/${targetId}/portal-pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: pinValue }),
+    });
+    if (!pinResponse.ok) {
+      const error = await pinResponse.json().catch(() => ({}));
+      showAlert(error.detail || "職員は保存しましたが、PINの設定に失敗しました。", "error");
+    }
   }
 
   closeModal();
@@ -1776,6 +1811,27 @@ document.getElementById("field-night-shift-count")?.addEventListener("input", ()
     syncNonNightRatioCeilings();
   }
   refreshStaffingBasisDisplay();
+});
+document.getElementById("btn-clear-portal-pin")?.addEventListener("click", async () => {
+  const id = document.getElementById("staff-id")?.value;
+  if (!id) {
+    showAlert("先に職員を保存してください。", "error");
+    return;
+  }
+  if (!window.confirm("この職員のポータルPINを解除しますか？")) return;
+  const response = await fetch(`${API_BASE}/${id}/portal-pin`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin: null }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    showAlert(error.detail || "PINの解除に失敗しました。", "error");
+    return;
+  }
+  const pinInput = document.getElementById("field-portal-pin");
+  if (pinInput) pinInput.value = "";
+  showAlert("ポータルPINを解除しました。");
 });
 
 form?.addEventListener("submit", saveStaff);

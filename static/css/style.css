@@ -4482,6 +4482,158 @@ input[type="checkbox"]:focus-visible {
 .settings-advanced { margin: 18px 0; border: 1px solid #dbe3ed; border-radius: 9px; padding: 12px 16px; background: #f8fafc; }
 .settings-advanced > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
 .settings-advanced[open] > summary { margin-bottom: 12px; }
+
+.backup-create-row,
+.backup-restore-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.backup-create-row .form-field {
+  flex: 1 1 220px;
+}
+
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.backup-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.backup-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.backup-list-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.backup-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.backup-summary-card {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.backup-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.backup-summary-table th,
+.backup-summary-table td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid #fed7aa;
+}
+
+.period-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.period-lock-badge.is-locked {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.period-lock-badge.is-partial {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+body.period-locked .shift-td-editable {
+  cursor: not-allowed;
+}
+
+.home-other-actions {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shift-validation-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.shift-validation-panel.hidden {
+  display: none;
+}
+
+.shift-validation-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.shift-validation-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.shift-validation-item.is-error {
+  color: #b91c1c;
+}
+
+.shift-validation-item.is-info {
+  color: #334155;
+}
+
+.shift-td-editable.is-validation-focus {
+  outline: 3px solid #ea580c;
+  outline-offset: -2px;
+}
+
 #section-staffing .settings-subtitle { margin-top: 28px; }
 #section-staffing .card-body > .settings-subtitle:first-child { margin-top: 0; }
 #section-staffing [hidden] { display: none !important; }
@@ -4616,7 +4768,40 @@ input[type="checkbox"]:focus-visible {
   .staffing-basis-list .staffing-basis-row, .staffing-basis-list .staffing-basis-row[data-key="night"] { grid-template-columns:90px minmax(40px,1fr) 76px; gap:6px; }
   .staffing-basis-value { grid-column:2 / -1; }
 }
-.home-view-options > summary, .home-other-actions > summary, .home-bottom-status > summary { padding:8px; cursor:pointer; }
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(160deg, #eef3f8 0%, #f7fafc 45%, #e8eef5 100%);
+}
+.auth-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #d7dee8;
+  border-radius: 12px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(20, 40, 70, 0.08);
+}
+.auth-card-wide { width: min(640px, 100%); }
+.auth-form { display: grid; gap: 12px; margin-top: 16px; }
+.auth-steps { margin: 16px 0; padding-left: 1.2em; display: grid; gap: 10px; line-height: 1.5; }
+.labor-hours-panel { margin-top:12px; border:1px solid #d8dee6; border-radius:8px; padding:8px 12px; background:#fafbfd; }
+.labor-hours-panel > summary { cursor:pointer; font-weight:600; }
+.labor-hours-table-wrap { margin-top:8px; }
+.labor-hours-scroll { max-height:280px; overflow:auto; }
+.labor-hours-table { width:100%; border-collapse:collapse; font-size:13px; }
+.labor-hours-table th, .labor-hours-table td { border-bottom:1px solid #e5e9ef; padding:6px 8px; text-align:left; white-space:nowrap; }
+.labor-hours-table .labor-week-cell { white-space:normal; min-width:160px; }
+.labor-status.is-incomplete { color:#a15c00; font-weight:600; }
+.labor-status.is-complete { color:#1f6b3a; }
+.floors-editor { display:grid; gap:8px; margin-bottom:8px; }
+.floor-editor-row { display:grid; grid-template-columns:minmax(120px,220px) auto auto; gap:8px; align-items:end; }
+.floor-id-hint { align-self:center; color:#667; font-size:12px; }
+@media (max-width:760px) {
+  .labor-hours-scroll { max-height:220px; }
+  .floor-editor-row { grid-template-columns:1fr; }
+}
 .home-bottom-status { flex:1; }
 .home-other-actions { position:relative; }
 .home-other-actions[open] > button { position:absolute; right:0; top:100%; z-index:20; white-space:nowrap; }

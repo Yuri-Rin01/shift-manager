@@ -18,6 +18,7 @@ class ShiftCellResponse(BaseModel):
     placement: dict | None = None
     history_before: list[dict] = Field(default_factory=list)
     history_after: list[dict] = Field(default_factory=list)
+    validation: dict | None = None
 
 
 class ShiftCellUnlock(BaseModel):

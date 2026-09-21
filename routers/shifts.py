@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.calendar_period import period_bounds
 from data.shift_symbols import get_valid_symbols, normalize_symbol
@@ -21,6 +21,7 @@ from schemas.shift import (
     ShiftClearRequest,
     ShiftClearResponse,
 )
+from services.auth import require_admin
 from services.morning_off import (
     would_block_day_work_after_night,
 )
@@ -28,7 +29,7 @@ from services.shift_generator import generate_shifts
 from schemas.generation_preview import GenerationPreviewRequest, GenerationApplyRequest
 from services.generation_preview import generation_context, create_preview, apply_preview
 
-router = APIRouter(prefix="/api/shifts", tags=["シフト"])
+router = APIRouter(prefix="/api/shifts", tags=["シフト"], dependencies=[Depends(require_admin)])
 
 
 def _valid_symbols() -> set[str]:
@@ -96,11 +97,31 @@ def update_shift_cell(data: ShiftCellUpdate):
         )
 
     from services.shift_edit import edit_cell
+    from datetime import timedelta as _td
+    from services.shift_validate import validate_period
+
     try:
         day = date(data.year, data.month, data.day)
     except ValueError as exc:
         raise HTTPException(400, '日付が不正です') from exc
-    return edit_cell(data.staff_id, day, symbol, settings)
+    try:
+        result = edit_cell(data.staff_id, day, symbol, settings)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    try:
+        validation = validate_period(
+            data.year,
+            data.month,
+            focus_dates=[day.isoformat(), (day + _td(days=1)).isoformat()],
+        )
+        result = dict(result)
+        result["validation"] = {
+            "warning_count": validation["warning_count"],
+            "warnings": validation["warnings"][:30],
+        }
+    except Exception:
+        pass
+    return result
 
 
 @router.post('/history/restore')
@@ -123,6 +144,8 @@ def restore_shift_history(data: ShiftHistoryRestore):
 @router.post("/cell/unlock", response_model=ShiftCellResponse)
 def unlock_shift_cell(data: ShiftCellUnlock):
     """手動確定を解除し、自動生成で上書き可能な状態に戻す（記号は維持）。"""
+    from services.period_lock import assert_dates_editable
+
     staff = get_staff(data.staff_id)
     if staff is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="職員が見つかりません")
@@ -131,6 +154,11 @@ def unlock_shift_cell(data: ShiftCellUnlock):
         shift_date = date(data.year, data.month, data.day)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="日付が不正です") from exc
+
+    try:
+        assert_dates_editable([shift_date], action="固定解除")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     existing = repo.get_shift_cell(data.staff_id, shift_date)
     if existing is None:
@@ -158,7 +186,10 @@ def clear_shift_schedule(data: ShiftClearRequest):
     settings = get_settings()
     start_day = settings.get("calendar_start_day", 1)
     period_start, period_end = period_bounds(data.year, data.month, start_day)
-    deleted = repo.delete_shifts_between(period_start, period_end)
+    try:
+        deleted = repo.delete_shifts_between(period_start, period_end)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return ShiftClearResponse(
         year=data.year,
         month=data.month,
@@ -194,3 +225,60 @@ def apply_generation(data: GenerationApplyRequest):
         return apply_preview(data.token)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/validate")
+def validate_shift_period(year: int, month: int, focus_date: str | None = None):
+    from services.shift_validate import validate_period
+
+    focus = [focus_date] if focus_date else None
+    try:
+        return validate_period(year, month, focus_dates=focus)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"検証に失敗しました: {exc}") from exc
+
+
+@router.get("/labor-hours")
+def get_labor_hours(year: int, month: int):
+    from services.labor_hours import summarize_labor_hours
+
+    try:
+        return summarize_labor_hours(year, month)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"労働時間の集計に失敗しました: {exc}") from exc
+
+
+@router.get("/period-lock")
+def get_period_lock_status(year: int, month: int):
+    from services.period_lock import period_status
+
+    settings = get_settings()
+    start_day = settings.get("calendar_start_day", 1)
+    start, end = period_bounds(year, month, start_day)
+    return period_status(start, end)
+
+
+@router.post("/period-lock")
+def lock_current_period(year: int, month: int, note: str = ""):
+    from services.period_lock import lock_period
+
+    settings = get_settings()
+    start_day = settings.get("calendar_start_day", 1)
+    start, end = period_bounds(year, month, start_day)
+    try:
+        return lock_period(start, end, note=note or f"{year}年{month}月の確定")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/period-unlock")
+def unlock_current_period(year: int, month: int, confirm: bool = False):
+    from services.period_lock import unlock_period
+
+    settings = get_settings()
+    start_day = settings.get("calendar_start_day", 1)
+    start, end = period_bounds(year, month, start_day)
+    try:
+        return unlock_period(start, end, confirm=confirm)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

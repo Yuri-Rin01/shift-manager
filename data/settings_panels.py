@@ -9,6 +9,7 @@ SETTINGS_PANELS: list[dict] = [
     {"id": "rules", "key": "settings-rules", "label": "休みと夜勤", "subtitle": "公休・連続勤務・夜勤ルール", "section_id": "section-rules"},
     {"id": "display", "key": "settings-display", "label": "表示と印刷", "subtitle": "カレンダーと印刷の見え方", "section_id": "section-display"},
     {"id": "facility", "key": "settings-facility", "label": "施設情報", "subtitle": "施設名・種類・シフトの期間", "section_id": "section-facility"},
+    {"id": "data", "key": "settings-data", "label": "データの保存と復元", "subtitle": "バックアップ・復元", "section_id": "section-data"},
 ]
 
 SETTINGS_PANEL_BY_ID = {panel["id"]: panel for panel in SETTINGS_PANELS}
@@ -23,7 +24,8 @@ def settings_panel_href(panel_id: str) -> str:
 
 def resolve_settings_panel(panel: str | None) -> dict:
     aliases = {"auto": "rules", "print": "display", "alert": "display",
-               "notify": "facility", "security": "facility", "account": "facility", "top": "staffing"}
+               "notify": "facility", "security": "facility", "account": "facility",
+               "backup": "data", "restore": "data", "top": "staffing"}
     return SETTINGS_PANEL_BY_ID.get(aliases.get(panel, panel), SETTINGS_PANELS[0])
 
 

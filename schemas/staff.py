@@ -34,6 +34,18 @@ class StaffBase(BaseModel):
         default=False,
         description="夜勤回数を固定する",
     )
+    weekly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=168,
+        description="週あたり労働時間の業務上の上限（時間）。未設定は施設既定または比較なし",
+    )
+    monthly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=744,
+        description="表示期間あたり労働時間の業務上の上限（時間）。未設定は施設既定または比較なし",
+    )
     day_incompatible_ids: list[int] = Field(
         default_factory=list,
         description="日勤で組ませない職員ID",
@@ -83,6 +95,18 @@ class StaffUpdate(BaseModel):
     fix_night_shift_count: bool | None = Field(
         default=None,
         description="夜勤回数を固定する",
+    )
+    weekly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=168,
+        description="週あたり労働時間の業務上の上限（時間）",
+    )
+    monthly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=744,
+        description="表示期間あたり労働時間の業務上の上限（時間）",
     )
     day_incompatible_ids: list[int] | None = Field(
         default=None,

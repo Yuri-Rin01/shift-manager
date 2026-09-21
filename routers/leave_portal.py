@@ -10,6 +10,7 @@ from data.leave_request_config import get_portal_request_options
 from db.settings_repository import get_settings
 from schemas.leave_request import LeavePortalCalendarResponse, LeaveRequestCreate, LeaveRequestResponse
 from services import leave_portal_service as portal_service
+from services.auth import current_staff, require_staff_self
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -20,6 +21,7 @@ router = APIRouter(tags=["休み希望ポータル"])
 @router.get("/", response_class=HTMLResponse, name="leave_portal_home")
 def leave_portal_page(request: Request):
     settings = get_settings()
+    staff = current_staff(request)
     return templates.TemplateResponse(
         request,
         "portal/leave_request.html",
@@ -30,17 +32,25 @@ def leave_portal_page(request: Request):
                 "cell_flick_input_enabled": bool(settings.get("cell_flick_input_enabled", True)),
                 "cell_long_press_ms": int(settings.get("cell_long_press_ms", 450) or 450),
             },
+            "portal_staff": staff,
         },
     )
 
 
 @router.get("/api/staff")
 def list_portal_staff():
+    # ログイン選択用に氏名一覧のみ公開（詳細・希望の更新はセッション必須）
     return portal_service.list_portal_staff()
 
 
 @router.get("/api/calendar", response_model=LeavePortalCalendarResponse)
-def get_portal_calendar(staff_id: int, year: int | None = None, month: int | None = None):
+def get_portal_calendar(
+    request: Request,
+    staff_id: int,
+    year: int | None = None,
+    month: int | None = None,
+):
+    require_staff_self(request, staff_id)
     today = date.today()
     resolved_year = year or today.year
     resolved_month = month or today.month
@@ -53,7 +63,8 @@ def get_portal_calendar(staff_id: int, year: int | None = None, month: int | Non
 
 
 @router.put("/api/requests", response_model=LeaveRequestResponse)
-def upsert_leave_request(data: LeaveRequestCreate):
+def upsert_leave_request(request: Request, data: LeaveRequestCreate):
+    require_staff_self(request, data.staff_id)
     try:
         return portal_service.save_leave_request(
             data.staff_id,
@@ -66,7 +77,8 @@ def upsert_leave_request(data: LeaveRequestCreate):
 
 
 @router.delete("/api/requests")
-def delete_leave_request(staff_id: int, shift_date: date):
+def delete_leave_request(request: Request, staff_id: int, shift_date: date):
+    require_staff_self(request, staff_id)
     try:
         removed = portal_service.remove_leave_request(staff_id, shift_date)
     except ValueError as exc:

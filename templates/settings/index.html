@@ -230,6 +230,19 @@
                   <input type="number" name="max_night_per_week" min="0" max="7">
                 </label>
               </div>
+              <details class="settings-advanced"><summary>労働時間の上限（業務設定）</summary>
+                <p class="field-hint">開始・終了・休憩から実働を集計し、ここで設定した上限との差を表示します。法令の上限を自動判定するものではありません。空欄のときは上限比較をしません。留学生・短時間勤務などは職員ごとに個別上限を設定できます。</p>
+                <div class="settings-form-grid settings-form-grid-compact">
+                  <label class="form-field">
+                    <span class="form-label">週の上限（時間）</span>
+                    <input type="number" name="default_weekly_hour_limit" min="0" max="168" step="0.5" placeholder="未設定">
+                  </label>
+                  <label class="form-field">
+                    <span class="form-label">期間の上限（時間）</span>
+                    <input type="number" name="default_monthly_hour_limit" min="0" max="744" step="0.5" placeholder="未設定">
+                  </label>
+                </div>
+              </details>
               <details class="settings-advanced"><summary>詳しい夜勤ルール</summary><div class="settings-checkbox-grid">
                 <label class="check-row settings-check">
                   <input type="checkbox" name="night_shift_counts_as_two_days">
@@ -398,6 +411,44 @@
                   <span class="field-hint">例: 16日 → 当月16日〜翌月15日を1ヶ月として表示します。1日は暦月（1日〜月末）です。</span>
                 </label>
             </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">フロア</h3>
+              <p class="field-hint">施設のフロア名を追加・変更できます。内部IDは変えず、職員・配置・人数設定の関連を保ったまま名前だけ変えられます。使用中のフロアは削除できません。</p>
+              <div id="floors-editor" class="floors-editor"></div>
+              <button type="button" class="btn btn-sm" id="btn-add-floor">＋ フロアを追加</button>
+            </div>
+          </section>
+
+          <section class="card settings-section{% if settings_panel != 'data' %} is-hidden-panel{% endif %}" id="section-data" data-panel="data">
+            <div class="card-header">
+              <h2>データの保存と復元</h2>
+              <p class="card-header-note">職員・勤務表・配置・設定・希望休をまとめて保存／復元します。故障や入れ替えの前に保存しておくと安心です。</p>
+            </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">いまの状態を保存</h3>
+              <p class="field-hint">日時付きのファイル名で保存されます。ダウンロードしてUSBなどへ保管できます。</p>
+              <div class="backup-create-row">
+                <label class="form-field">
+                  <span class="form-label">メモ（任意）</span>
+                  <input type="text" id="backup-note" maxlength="100" placeholder="例: 9月確定前">
+                </label>
+                <button type="button" class="btn btn-primary" id="btn-backup-create">バックアップを作成</button>
+              </div>
+
+              <h3 class="settings-subtitle">保存済み一覧</h3>
+              <div id="backup-list" class="backup-list" aria-live="polite">
+                <p class="field-hint">読み込み中…</p>
+              </div>
+
+              <h3 class="settings-subtitle">ファイルから復元</h3>
+              <p class="field-hint">復元すると今のデータは置き換わります。実行前に内容確認があり、直前の状態は自動で退避します。</p>
+              <div class="backup-restore-row">
+                <input type="file" id="backup-file" accept=".zip,application/zip">
+                <button type="button" class="btn" id="btn-backup-validate">内容を確認</button>
+              </div>
+              <div id="backup-validate-result" class="backup-validate-result hidden"></div>
+              <button type="button" class="btn btn-danger hidden" id="btn-backup-restore" disabled>確認して復元する</button>
+            </div>
           </section>
 
         </form>
@@ -419,6 +470,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=10"></script>
+  <script src="/static/js/settings.js?v=11"></script>
 </body>
 </html>

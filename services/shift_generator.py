@@ -153,7 +153,7 @@ class _Generator:
         self.off_symbol = get_shift_symbols(settings)["off"]
         self.work_keys = _enabled_work_keys(settings)
         self.min_staff_by_floor = _min_staff_requirements(settings)
-        self.floors = get_floor_labels()
+        self.floors = get_floor_labels(settings)
         self.min_staff = _legacy_min_staff_totals(settings)
         self.staffing_mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
         self.time_slot_rules = get_time_slot_rules(settings) if self.staffing_mode == "time_slot" else []

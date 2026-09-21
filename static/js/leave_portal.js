@@ -723,7 +723,22 @@ async function cycleDayRequest(button) {
   await saveDayRequest(shiftDate, nextType);
 }
 
-async function startPortal(staffId) {
+async function startPortal(staffId, pin) {
+  const pinValue = pin ?? document.getElementById("staff-pin")?.value?.trim() ?? "";
+  if (!pinValue) {
+    showAlert("ポータルPINを入力してください。", "error");
+    return;
+  }
+  const loginResponse = await fetch("/portal/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ staff_id: Number(staffId), pin: pinValue }),
+  });
+  const loginData = await loginResponse.json().catch(() => ({}));
+  if (!loginResponse.ok) {
+    showAlert(loginData.detail || "ログインに失敗しました。", "error");
+    return;
+  }
   currentStaffId = staffId;
   storeStaffId(staffId);
   showCalendar();
@@ -857,8 +872,9 @@ btnStartPortal?.addEventListener("click", async () => {
   await startPortal(staffId);
 });
 
-btnChangeStaff?.addEventListener("click", () => {
+btnChangeStaff?.addEventListener("click", async () => {
   clearStoredStaffId();
+  await fetch("/portal/api/logout", { method: "POST" }).catch(() => null);
   showStaffSelect();
 });
 
@@ -882,12 +898,24 @@ async function initPortal() {
     return;
   }
 
+  const meResponse = await fetch("/portal/api/me");
+  if (meResponse.ok) {
+    const me = await meResponse.json().catch(() => null);
+    const storedStaff = staffList.find((staff) => staff.id === me?.id);
+    if (storedStaff) {
+      selectStaff(storedStaff, { silent: true });
+      currentStaffId = storedStaff.id;
+      storeStaffId(storedStaff.id);
+      showCalendar();
+      await loadCalendar();
+      return;
+    }
+  }
+
   const storedId = getStoredStaffId();
   const storedStaff = staffList.find((staff) => staff.id === storedId);
   if (storedStaff) {
     selectStaff(storedStaff, { silent: true });
-    await startPortal(storedStaff.id);
-    return;
   }
   showStaffSelect();
 }

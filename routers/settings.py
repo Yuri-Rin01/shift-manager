@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from db import settings_repository as repo
 from schemas.settings import AppSettings
+from services.auth import require_admin
 
-router = APIRouter(prefix="/api/settings", tags=["各種設定"])
+router = APIRouter(prefix="/api/settings", tags=["各種設定"], dependencies=[Depends(require_admin)])
 
 
 @router.get("", response_model=AppSettings)

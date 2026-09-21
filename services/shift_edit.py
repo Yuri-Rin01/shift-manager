@@ -27,7 +27,10 @@ def write(conn, cell):
 
 
 def edit_cell(sid, day, symbol, settings):
+    from services.period_lock import assert_dates_editable
+
     dates = [day.isoformat(), (day + timedelta(days=1)).isoformat()]
+    assert_dates_editable(dates, action="編集")
     with get_connection() as conn:
         conn.execute('BEGIN IMMEDIATE')
         before = [snapshot(conn, sid, d) for d in dates]
@@ -46,10 +49,13 @@ def edit_cell(sid, day, symbol, settings):
 
 
 def restore_cells(states, expected):
+    from services.period_lock import assert_dates_editable
+
     def key(c):
         return c['staff_id'], c['shift_date']
     if not states or len({key(c) for c in states}) != len(states) or {key(c) for c in states} != {key(c) for c in expected}:
         raise ValueError('復元対象が一致しません。')
+    assert_dates_editable([c['shift_date'] for c in states], action="取り消し／やり直し")
     with get_connection() as conn:
         conn.execute('BEGIN IMMEDIATE')
         for cell in expected:

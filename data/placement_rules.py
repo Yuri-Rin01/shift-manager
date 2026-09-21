@@ -29,10 +29,14 @@ DEFAULT_TIME_SLOT_STAFFING_RULES: list[dict] = [
 ]
 
 
-def get_floor_labels() -> list[str]:
-    from data.masters import get_departments
+def get_floor_labels(settings: dict | None = None) -> list[str]:
+    from data.floors import normalize_floors
 
-    return [item["label"] for item in get_departments()]
+    if settings is not None:
+        return [item["label"] for item in normalize_floors(settings.get("floors"))]
+    from data.floors import get_floor_labels as _labels
+
+    return _labels()
 
 
 def normalize_staffing_requirement_mode(value: str | None) -> str:
@@ -40,7 +44,7 @@ def normalize_staffing_requirement_mode(value: str | None) -> str:
     return cleaned if cleaned in STAFFING_REQUIREMENT_MODES else "work_type"
 
 
-def normalize_time_slot_rule(item: dict) -> dict | None:
+def normalize_time_slot_rule(item: dict, settings: dict | None = None) -> dict | None:
     if not isinstance(item, dict):
         return None
     label = str(item.get("label", "")).strip()
@@ -57,7 +61,7 @@ def normalize_time_slot_rule(item: dict) -> dict | None:
     except (TypeError, ValueError):
         return None
     floor = str(item.get("floor", "")).strip()
-    allowed_floors = set(get_floor_labels())
+    allowed_floors = set(get_floor_labels(settings))
     if floor and floor not in allowed_floors:
         return None
     return {
@@ -69,12 +73,12 @@ def normalize_time_slot_rule(item: dict) -> dict | None:
     }
 
 
-def normalize_time_slot_staffing_rules(raw: list | None) -> list[dict]:
+def normalize_time_slot_staffing_rules(raw: list | None, settings: dict | None = None) -> list[dict]:
     if not isinstance(raw, list):
         return [dict(item) for item in DEFAULT_TIME_SLOT_STAFFING_RULES]
     normalized: list[dict] = []
     for item in raw:
-        rule = normalize_time_slot_rule(item)
+        rule = normalize_time_slot_rule(item, settings)
         if rule:
             normalized.append(rule)
     return normalized if normalized else [dict(item) for item in DEFAULT_TIME_SLOT_STAFFING_RULES]
@@ -135,7 +139,7 @@ def normalize_min_staff_by_floor(raw: dict | None, settings: dict | None = None)
     from db.settings_repository import get_settings
 
     cfg = settings or get_settings()
-    floors = get_floor_labels()
+    floors = get_floor_labels(cfg)
     global_defaults = normalize_min_staff_by_work_type(cfg.get("min_staff_by_work_type"), cfg)
     allowed = get_staffing_basis_keys(cfg)
     source = raw if isinstance(raw, dict) else {}
@@ -171,7 +175,7 @@ def validate_min_staff_by_floor(settings: dict) -> None:
         return
     if not isinstance(raw, dict):
         raise ValueError("フロア別必要人数の形式が不正です。")
-    allowed_floors = set(get_floor_labels())
+    allowed_floors = set(get_floor_labels(settings))
     allowed_keys = get_staffing_basis_keys(settings)
     for floor, values in raw.items():
         cleaned_floor = str(floor).strip()
@@ -234,7 +238,7 @@ def validate_time_slot_staffing_rules(settings: dict) -> None:
         if start_time == end_time:
             raise ValueError(f"時間帯ルール {index} 行目: 開始と終了時刻は異なる値にしてください。")
         floor = str(item.get("floor", "")).strip()
-        allowed_floors = set(get_floor_labels())
+        allowed_floors = set(get_floor_labels(settings))
         if floor and floor not in allowed_floors:
             raise ValueError(f"時間帯ルール {index} 行目: 未登録のフロアです。")
         try:

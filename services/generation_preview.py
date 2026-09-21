@@ -141,6 +141,8 @@ def create_preview(request: GenerationPreviewRequest):
 
 
 def apply_preview(token: str):
+    from services.period_lock import assert_dates_editable
+
     with get_connection() as conn:
         _ensure_table(conn)
         conn.commit()
@@ -153,6 +155,10 @@ def apply_preview(token: str):
         payload = json.loads(row['payload'])
         if any(w['level'] == 'error' for w in payload['warnings']):
             raise ValueError('エラーを含む案は反映できません。条件を見直してください。')
+        touched = [a[1] for a in payload.get('assignments', [])]
+        touched.extend(p.get('date') for p in payload.get('placements', []) if p.get('date'))
+        # トランザクション外の判定でも可だが、確定チェックは書き込み前に必須
+        assert_dates_editable(touched, action="自動生成の反映")
         # One transaction: never clear another floor or leave an empty schedule on failure.
         conn.executemany('''INSERT INTO shift_assignments(staff_id,shift_date,symbol,source) VALUES (?,?,?,?)
             ON CONFLICT(staff_id,shift_date) DO UPDATE SET symbol=excluded.symbol, source=excluded.source''', payload['assignments'])

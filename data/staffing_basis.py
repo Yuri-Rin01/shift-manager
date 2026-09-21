@@ -39,6 +39,18 @@ def base_work_key(key: str, settings: dict | None = None) -> str:
     return key
 
 
+def _normalize_break_minutes(value) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return None
+    if minutes < 0 or minutes > 24 * 60:
+        return None
+    return minutes
+
+
 def normalize_staffing_basis_option(item: dict) -> dict | None:
     if not isinstance(item, dict):
         return None
@@ -51,13 +63,23 @@ def normalize_staffing_basis_option(item: dict) -> dict | None:
     end_time = str(item.get("end_time") or catalog.get("end_time") or "").strip()
     if not start_time or not end_time:
         start_time, end_time = default_times_for_key(key)
-    return {
+    option = {
         "key": key,
         "label": label,
         "start_time": start_time,
         "end_time": end_time,
         **({"base_key": item.get("base_key", "day")} if key not in _catalog_by_key() else {}),
     }
+    # 休憩は任意。未設定のまま残し、労働時間集計では推測しない。
+    break_minutes = _normalize_break_minutes(item.get("break_minutes"))
+    if break_minutes is None and "break_minutes" in catalog:
+        break_minutes = _normalize_break_minutes(catalog.get("break_minutes"))
+    if break_minutes is not None:
+        option["break_minutes"] = break_minutes
+    elif "break_minutes" in item:
+        # 明示的に空にしたときはキーを残さない（incomplete）
+        pass
+    return option
 
 
 def format_work_hours(start_time: str, end_time: str) -> str:
@@ -262,6 +284,13 @@ def validate_staffing_basis_options(settings: dict) -> None:
             raise ValueError(f"勤務区分 {index} 行目: 開始と終了時刻は異なる値にしてください。")
         if item.get("base_key", "day") not in {"early", "day", "late", "night"}:
             raise ValueError(f"勤務区分 {index} 行目: 勤務の種類を選択してください。")
+        if "break_minutes" in item and item.get("break_minutes") not in (None, ""):
+            try:
+                break_minutes = int(item.get("break_minutes"))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"勤務区分 {index} 行目: 休憩は分単位の整数で入力してください。") from exc
+            if break_minutes < 0 or break_minutes > 24 * 60:
+                raise ValueError(f"勤務区分 {index} 行目: 休憩時間（分）が不正です。")
         keys.append(key)
         labels.append(label)
 

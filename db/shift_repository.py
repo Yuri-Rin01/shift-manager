@@ -121,6 +121,14 @@ def delete_shift_cell(staff_id: int, shift_date: date) -> bool:
 
 def delete_shifts_between(start: date, end: date) -> int:
     """指定期間のシフト割当を削除。削除件数を返す。"""
+    from services.period_lock import overlapping_locks
+
+    locks = overlapping_locks(start, end)
+    if locks:
+        raise ValueError(
+            "確定済みの期間が含まれるため全クリアできません。"
+            "解除してから操作してください。"
+        )
     with get_connection() as conn:
         cursor = conn.execute(
             """

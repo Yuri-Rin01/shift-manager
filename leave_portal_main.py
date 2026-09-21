@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db.database import init_db
 from routers.leave_portal import router as leave_portal_router
+from routers.auth import router as auth_router
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -29,5 +30,6 @@ app = FastAPI(
     description="職員が休み希望を登録するための別ポート用アプリ",
     lifespan=lifespan,
 )
+app.include_router(auth_router)
 app.include_router(leave_portal_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

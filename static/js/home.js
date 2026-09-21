@@ -1174,7 +1174,138 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
+  if (data.validation) {
+    showValidationWarnings(data.validation);
+  }
 }
+
+function showValidationWarnings(validation) {
+  const panel = document.getElementById("shift-validation-panel");
+  const list = document.getElementById("shift-validation-list");
+  if (!panel || !list) return;
+  const warnings = validation.warnings || [];
+  if (!warnings.length) {
+    panel.classList.add("hidden");
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = warnings
+    .slice(0, 40)
+    .map((item) => {
+      const date = (item.dates && item.dates[0]) || "";
+      const staffId = (item.staff_ids && item.staff_ids[0]) || "";
+      const jump =
+        date && staffId
+          ? `<button type="button" class="btn-link" data-jump-staff="${staffId}" data-jump-date="${date}">移動</button>`
+          : "";
+      const level = item.level === "error" ? "error" : item.level === "info" ? "info" : "warn";
+      return `<li class="shift-validation-item is-${level}"><span>${escapeValidationText(item.message || "")}</span> ${jump}</li>`;
+    })
+    .join("");
+  panel.classList.remove("hidden");
+}
+
+function escapeValidationText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+document.getElementById("shift-validation-panel")?.addEventListener("click", (event) => {
+  const jump = event.target.closest("[data-jump-staff]");
+  if (!jump) return;
+  const staffId = jump.getAttribute("data-jump-staff");
+  const iso = jump.getAttribute("data-jump-date") || "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const td = shiftCalendar?.querySelector(
+    `.shift-td-editable[data-staff-id="${staffId}"][data-year="${y}"][data-month="${m}"][data-day="${d}"]`
+  );
+  if (!td) return;
+  td.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+  td.classList.add("is-validation-focus");
+  window.setTimeout(() => td.classList.remove("is-validation-focus"), 1600);
+});
+
+document.getElementById("btn-validation-close")?.addEventListener("click", () => {
+  document.getElementById("shift-validation-panel")?.classList.add("hidden");
+});
+
+document.getElementById("btn-validate-period")?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  try {
+    const response = await fetch(`/api/shifts/validate?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "検証に失敗しました");
+    showValidationWarnings(data);
+    if (!(data.warnings || []).length) {
+      window.alert("この期間に表示する警告はありません。");
+    }
+  } catch (error) {
+    window.alert(error.message || "検証に失敗しました");
+  }
+});
+
+function formatLaborHours(value) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${Number(value).toFixed(1)}h`;
+}
+
+function renderLaborHours(data) {
+  const note = document.getElementById("labor-hours-note");
+  const wrap = document.getElementById("labor-hours-table-wrap");
+  if (!wrap) return;
+  if (note) note.textContent = data.note || "";
+  const rows = data.staff || [];
+  if (!rows.length) {
+    wrap.innerHTML = "<p class=\"field-hint\">職員がいません。</p>";
+    return;
+  }
+  const body = rows
+    .map((row) => {
+      const status =
+        row.period_status === "incomplete"
+          ? `<span class="labor-status is-incomplete">未確定</span>`
+          : `<span class="labor-status is-complete">確定</span>`;
+      const diff =
+        row.period_diff_hours == null
+          ? "—"
+          : `${row.period_diff_hours > 0 ? "+" : ""}${Number(row.period_diff_hours).toFixed(1)}h`;
+      const weekBits = (row.weekly || [])
+        .map((week) => {
+          if (week.status === "incomplete") return `W${week.week}:未確定`;
+          const weekDiff =
+            week.diff_hours == null
+              ? ""
+              : ` (${week.diff_hours > 0 ? "+" : ""}${Number(week.diff_hours).toFixed(1)})`;
+          return `W${week.week}:${formatLaborHours(week.hours)}${weekDiff}`;
+        })
+        .join(" / ");
+      return `<tr data-staff-id="${row.staff_id}"><td>${escapeValidationText(row.name || "")}</td><td>${formatLaborHours(row.period_hours)}</td><td>${formatLaborHours(row.monthly_limit_hours)}</td><td>${diff}</td><td>${status}</td><td class="labor-week-cell">${escapeValidationText(weekBits)}</td></tr>`;
+    })
+    .join("");
+  wrap.innerHTML = `<div class="table-wrap labor-hours-scroll"><table class="labor-hours-table"><thead><tr><th>職員</th><th>期間合計</th><th>期間上限</th><th>差</th><th>状態</th><th>週ごと</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+document.getElementById("btn-labor-hours-refresh")?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const wrap = document.getElementById("labor-hours-table-wrap");
+  if (wrap) wrap.innerHTML = "<p class=\"field-hint\">集計中…</p>";
+  try {
+    const response = await fetch(`/api/shifts/labor-hours?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "集計に失敗しました");
+    renderLaborHours(data);
+  } catch (error) {
+    if (wrap) wrap.innerHTML = "";
+    window.alert(error.message || "集計に失敗しました");
+  }
+});
 
 async function unlockManualCell(td) {
   const staffId = Number(td.dataset.staffId);
@@ -1690,6 +1821,88 @@ async function runClearShifts() {
 }
 
 clearShiftsButton?.addEventListener("click", runClearShifts);
+
+const periodLockStatusEl = document.getElementById("period-lock-status");
+const btnPeriodLock = document.getElementById("btn-period-lock");
+const btnPeriodUnlock = document.getElementById("btn-period-unlock");
+
+function applyPeriodLockUi(status) {
+  if (!periodLockStatusEl) return;
+  const label = status?.label || "編集中";
+  periodLockStatusEl.textContent = label;
+  periodLockStatusEl.dataset.status = status?.status || "editing";
+  periodLockStatusEl.classList.toggle("is-locked", status?.status === "locked");
+  periodLockStatusEl.classList.toggle("is-partial", status?.status === "partial");
+  document.body.classList.toggle("period-locked", status?.status === "locked");
+  if (btnPeriodLock) btnPeriodLock.disabled = status?.status === "locked";
+  if (btnPeriodUnlock) btnPeriodUnlock.disabled = status?.status === "editing";
+}
+
+async function refreshPeriodLockStatus() {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month || !periodLockStatusEl) return;
+  try {
+    const response = await fetch(`/api/shifts/period-lock?year=${year}&month=${month}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "状態を取得できません");
+    applyPeriodLockUi(data);
+  } catch (error) {
+    periodLockStatusEl.textContent = "状態不明";
+  }
+}
+
+btnPeriodLock?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const ok = window.confirm(
+    `${window.PERIOD_LABEL || `${year}年${month}月`}を確定します。\n` +
+      "確定後は手動編集・自動生成の反映・全クリア・取り消しができなくなります。\n実行しますか？"
+  );
+  if (!ok) return;
+  btnPeriodLock.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/shifts/period-lock?year=${year}&month=${month}`,
+      { method: "POST" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "確定に失敗しました");
+    applyPeriodLockUi(data);
+    window.alert("この期間を確定しました。");
+  } catch (error) {
+    window.alert(error.message || "確定に失敗しました");
+    refreshPeriodLockStatus();
+  }
+});
+
+btnPeriodUnlock?.addEventListener("click", async () => {
+  const year = window.CALENDAR_YEAR;
+  const month = window.CALENDAR_MONTH;
+  if (!year || !month) return;
+  const ok = window.confirm(
+    `${window.PERIOD_LABEL || `${year}年${month}月`}の確定を解除します。\n` +
+      "解除すると再び編集できるようになります。実行しますか？"
+  );
+  if (!ok) return;
+  btnPeriodUnlock.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/shifts/period-unlock?year=${year}&month=${month}&confirm=true`,
+      { method: "POST" }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "解除に失敗しました");
+    applyPeriodLockUi(data);
+    window.alert("確定を解除しました。");
+  } catch (error) {
+    window.alert(error.message || "解除に失敗しました");
+    refreshPeriodLockStatus();
+  }
+});
+
+refreshPeriodLockStatus();
 
 shiftCalendar?.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-staff-edit]");

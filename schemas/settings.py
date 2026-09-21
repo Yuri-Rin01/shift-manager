@@ -12,12 +12,19 @@ from data.placement_rules import (
     normalize_time_slot_staffing_rules,
 )
 from data.staffing_basis import normalize_staffing_basis_options
+from data.floors import normalize_floors, validate_floors
 
 
 class AppSettings(BaseModel):
     facility_name: str = Field(default="○○病院", max_length=100)
     facility_type: str = Field(default="all")
     admin_name: str = Field(default="管理者", max_length=50)
+    floors: list[dict] = Field(default_factory=lambda: [
+        {"id": "1f", "label": "1F"},
+        {"id": "2f", "label": "2F"},
+        {"id": "3f", "label": "3F"},
+        {"id": "4f", "label": "4F"},
+    ])
 
     default_color_cells: bool = True
     default_show_job_column: bool = True
@@ -61,6 +68,9 @@ class AppSettings(BaseModel):
     max_consecutive_days: int = Field(default=5, ge=1, le=14)
     max_night_per_week: int = Field(default=2, ge=0, le=7)
     require_leader_on_night: bool = True
+    # 業務上の労働時間上限（時間）。未設定は比較しない。法令適合判定ではない。
+    default_weekly_hour_limit: float | None = Field(default=None, ge=0, le=168)
+    default_monthly_hour_limit: float | None = Field(default=None, ge=0, le=744)
 
     leave_alert_threshold: int = Field(default=72, ge=0, le=168)
     leave_fulfill_target: int = Field(default=90, ge=0, le=100)
@@ -102,6 +112,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_staffing_basis(cls, value: list[dict]) -> list[dict]:
         return normalize_staffing_basis_options(value)
+
+    @field_validator("floors")
+    @classmethod
+    def normalize_floors_field(cls, value: list[dict]) -> list[dict]:
+        return validate_floors(value)
 
     @field_validator("min_staff_by_work_type")
     @classmethod

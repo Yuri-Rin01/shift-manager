@@ -137,6 +137,10 @@ def init_db() -> None:
             conn.execute(
                 "UPDATE staff SET fix_night_shift_count = 1 WHERE night_shift_count IS NOT NULL"
             )
+        if "weekly_hour_limit" not in columns:
+            conn.execute("ALTER TABLE staff ADD COLUMN weekly_hour_limit REAL")
+        if "monthly_hour_limit" not in columns:
+            conn.execute("ALTER TABLE staff ADD COLUMN monthly_hour_limit REAL")
         _migrate_staff_floors(conn)
         _migrate_staffing_defaults(conn)
         _migrate_removed_staffing_basis(conn)
@@ -146,6 +150,12 @@ def init_db() -> None:
         _migrate_min_staff_by_floor(conn)
         _migrate_staffing_requirement_mode(conn)
         _migrate_shift_source(conn)
+        from services.period_lock import ensure_lock_table
+
+        ensure_lock_table(conn)
+        from services.auth import ensure_auth_tables
+
+        ensure_auth_tables(conn)
         conn.executemany(
             "UPDATE staff SET job_type = ? WHERE job_type = ?",
             [

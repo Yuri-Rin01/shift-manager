@@ -17,7 +17,8 @@
   <div class="sidebar-footer">
     <div class="facility">{{ facility_name }}</div>
     <div>{{ facility_label }} / {{ admin_name }}</div>
-    <button class="btn-logout" type="button" disabled title="管理者ログイン実装後に有効化予定">ログアウト（ログイン実装予定）</button>
+    <a class="btn-logout" href="/docs/local-auth">ログインの使い方</a>
+    <button class="btn-logout" type="button" id="btn-admin-logout">ログアウト</button>
   </div>
 </aside>
 
@@ -29,5 +30,15 @@
         {% for child in item.children %}<a href="{{ child.href }}">{{ child.label }}</a>{% endfor %}
       {% else %}<a href="{{ item.href }}">{{ item.label }}</a>{% endif %}
     {% endfor %}
+    <a href="/docs/local-auth">ログインの使い方</a>
+    <button type="button" id="btn-admin-logout-mobile">ログアウト</button>
   </nav>
 </details>
+<script>
+async function adminLogout() {
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+  location.href = "/login";
+}
+document.getElementById("btn-admin-logout")?.addEventListener("click", adminLogout);
+document.getElementById("btn-admin-logout-mobile")?.addEventListener("click", adminLogout);
+</script>

@@ -184,6 +184,31 @@
           </label>
           </div>
         </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-labor-limits-wrap">
+          <span class="form-label">労働時間の個別上限（業務設定）</span>
+          <p class="field-hint">空欄のときは施設の既定上限を使います。法令判定ではありません。留学生・短時間勤務などに使います。</p>
+          <div class="settings-form-grid settings-form-grid-compact">
+            <label class="form-field">
+              <span class="form-label">週の上限（時間）</span>
+              <input type="number" id="field-weekly-hour-limit" class="input-number" min="0" max="168" step="0.5" placeholder="施設の既定">
+            </label>
+            <label class="form-field">
+              <span class="form-label">期間の上限（時間）</span>
+              <input type="number" id="field-monthly-hour-limit" class="input-number" min="0" max="744" step="0.5" placeholder="施設の既定">
+            </label>
+          </div>
+        </div>
+        <div class="form-field form-field-full single-only staff-editor-optional" id="field-portal-pin-wrap">
+          <span class="form-label">休み希望ポータルのPIN</span>
+          <p class="field-hint">職員がポータルに入るための4〜8桁の数字です。空欄のまま保存するとPINは変更しません。解除する場合は「PINを解除」を使います。</p>
+          <div class="settings-form-grid settings-form-grid-compact">
+            <label class="form-field">
+              <span class="form-label">新しいPIN</span>
+              <input type="password" id="field-portal-pin" class="input-text" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="変更しない">
+            </label>
+            <button type="button" class="btn btn-sm" id="btn-clear-portal-pin">PINを解除</button>
+          </div>
+        </div>
         <div class="form-field form-field-full single-only staff-editor-optional" id="field-incompat-wrap">
           <div class="picker-head">
             <span class="form-label">日勤相性</span>
