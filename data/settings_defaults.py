@@ -10,7 +10,14 @@ DEFAULT_SETTINGS: dict = {
     # 施設
     "facility_name": "○○施設",
     "facility_type": "care",
-    "admin_name": "管理者",    # 表示ルール
+    "admin_name": "管理者",
+    "floors": [
+        {"id": "1f", "label": "1F"},
+        {"id": "2f", "label": "2F"},
+        {"id": "3f", "label": "3F"},
+        {"id": "4f", "label": "4F"},
+    ],
+    # 表示ルール
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
@@ -78,6 +85,9 @@ DEFAULT_SETTINGS: dict = {
     "max_night_per_week": _AUTO["max_night_per_week"],
     "require_leader_on_night": _AUTO["require_leader_on_night"],
     "night_leader_groups": list(_AUTO["night_leader_groups"]),
+    # 労働時間の業務上の上限（法令値の固定ではない。未設定は上限比較なし）
+    "default_weekly_hour_limit": None,
+    "default_monthly_hour_limit": None,
     # アラート
     "leave_alert_threshold": 72,
     "leave_fulfill_target": 90,

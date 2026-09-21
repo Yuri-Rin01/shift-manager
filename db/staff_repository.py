@@ -12,7 +12,8 @@ from data.student_labor_limits import normalize_student_labor_profile
 STAFF_COLUMNS = (
     "id, name, department, job_type, position, can_work_night, can_be_night_leader, "
     "staffing_basis, exclude_from_staffing, off_days_per_period, "
-    "night_shift_count, fix_night_shift_count, student_labor"
+    "night_shift_count, fix_night_shift_count, student_labor, "
+    "weekly_hour_limit, monthly_hour_limit"
 )
 
 NIGHT_INCOMPAT_TABLE = "staff_night_incompatibilities"
@@ -178,6 +179,16 @@ def _row_to_dict(
             else None
         ),
         "fix_night_shift_count": bool(row["fix_night_shift_count"]),
+        "weekly_hour_limit": (
+            float(row["weekly_hour_limit"])
+            if "weekly_hour_limit" in keys and row["weekly_hour_limit"] is not None
+            else None
+        ),
+        "monthly_hour_limit": (
+            float(row["monthly_hour_limit"])
+            if "monthly_hour_limit" in keys and row["monthly_hour_limit"] is not None
+            else None
+        ),
         "night_incompatible_ids": night_incompatible_ids or [],
         "day_incompatible_ids": day_incompatible_ids or [],
         "student_labor": _parse_student_labor(
@@ -236,9 +247,10 @@ def create_staff(data: StaffCreate) -> dict:
             INSERT INTO staff (
                 name, department, job_type, position, can_work_night, can_be_night_leader,
                 staffing_basis, exclude_from_staffing, off_days_per_period,
-                night_shift_count, fix_night_shift_count, student_labor
+                night_shift_count, fix_night_shift_count, student_labor,
+                weekly_hour_limit, monthly_hour_limit
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.name,
@@ -255,6 +267,8 @@ def create_staff(data: StaffCreate) -> dict:
                 _serialize_student_labor(
                     normalize_student_labor_profile(data.student_labor, job_type=data.job_type)
                 ),
+                data.weekly_hour_limit,
+                data.monthly_hour_limit,
             ),
         )
         staff_id = cursor.lastrowid
@@ -340,6 +354,16 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 job_type=data.job_type if data.job_type is not None else current["job_type"],
             )
         ),
+        "weekly_hour_limit": (
+            data.weekly_hour_limit
+            if "weekly_hour_limit" in fields_set
+            else current.get("weekly_hour_limit")
+        ),
+        "monthly_hour_limit": (
+            data.monthly_hour_limit
+            if "monthly_hour_limit" in fields_set
+            else current.get("monthly_hour_limit")
+        ),
     }
 
     can_work_night, can_be_night_leader = resolve_night_flags(
@@ -359,7 +383,7 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
             SET name = ?, department = ?, job_type = ?, position = ?, can_work_night = ?,
                 can_be_night_leader = ?, staffing_basis = ?, exclude_from_staffing = ?,
                 off_days_per_period = ?, night_shift_count = ?, fix_night_shift_count = ?,
-                student_labor = ?
+                student_labor = ?, weekly_hour_limit = ?, monthly_hour_limit = ?
             WHERE id = ?
             """,
             (
@@ -375,6 +399,8 @@ def update_staff(staff_id: int, data: StaffUpdate) -> dict | None:
                 updated["night_shift_count"],
                 int(updated["fix_night_shift_count"]),
                 _serialize_student_labor(updated["student_labor"]),
+                updated.get("weekly_hour_limit"),
+                updated.get("monthly_hour_limit"),
                 staff_id,
             ),
         )

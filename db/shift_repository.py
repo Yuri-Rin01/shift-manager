@@ -86,6 +86,17 @@ def get_shift_cell(staff_id: int, shift_date: date) -> ShiftCell | None:
     }
 
 
+def save_placements(conn, placements: list[dict]) -> None:
+    """Save in the same transaction as the corresponding shift assignments."""
+    conn.executemany(
+        """
+        INSERT INTO shift_placements(staff_id, shift_date, floor, role) VALUES (?, ?, ?, ?)
+        ON CONFLICT(staff_id, shift_date) DO UPDATE SET floor=excluded.floor, role=excluded.role
+        """,
+        [(p["staff_id"], p["date"], p["floor"], p["role"]) for p in placements],
+    )
+
+
 def delete_shift_cell(staff_id: int, shift_date: date) -> bool:
     """1セル分の割当を削除。削除できた場合 True。"""
     with get_connection() as conn:

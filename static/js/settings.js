@@ -1,3 +1,4 @@
+let loadedSettings = {};
 const form = document.getElementById("settings-form");
 const alertBox = document.getElementById("settings-alert");
 const resetButton = document.getElementById("btn-reset-defaults");
@@ -53,7 +54,63 @@ const timeSlotStaffingPanel = document.getElementById("panel-time-slot-staffing"
 const workTypeTemplateSelect = document.getElementById("work-type-template-select");
 const applyWorkTypeTemplateButton = document.getElementById("btn-apply-work-type-template");
 const WORK_TYPE_TEMPLATES = window.WORK_TYPE_TEMPLATES ?? [];
-const FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
+let FLOOR_LABELS = window.FLOOR_LABELS ?? ["1F", "2F", "3F", "4F"];
+const floorsEditor = document.getElementById("floors-editor");
+const addFloorButton = document.getElementById("btn-add-floor");
+
+function allocateFloorId(existingIds) {
+  const used = new Set(existingIds);
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = `f${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `f_${Date.now().toString(36)}`;
+}
+
+function collectFloors() {
+  if (!floorsEditor) {
+    return (window.FLOOR_LABELS ?? FLOOR_LABELS).map((label, index) => ({
+      id: ["1f", "2f", "3f", "4f"][index] || allocateFloorId([]),
+      label,
+    }));
+  }
+  return [...floorsEditor.querySelectorAll(".floor-editor-row")]
+    .map((row) => ({
+      id: row.querySelector(".floor-id")?.value.trim() || "",
+      label: row.querySelector(".floor-label")?.value.trim() || "",
+    }))
+    .filter((item) => item.id && item.label);
+}
+
+function syncFloorLabelsFromEditor() {
+  FLOOR_LABELS = collectFloors().map((item) => item.label);
+  window.FLOOR_LABELS = FLOOR_LABELS;
+  renderWorkTypeMinStaffRows(collectRegisteredWorkTypes(), collectMinStaffByFloor());
+}
+
+function renderFloorsEditor(floors = []) {
+  if (!floorsEditor) return;
+  const rows = Array.isArray(floors) && floors.length ? floors : [
+    { id: "1f", label: "1F" },
+    { id: "2f", label: "2F" },
+    { id: "3f", label: "3F" },
+    { id: "4f", label: "4F" },
+  ];
+  floorsEditor.innerHTML = rows
+    .map(
+      (item, index) => `<div class="floor-editor-row" data-floor-id="${escapeAttr(item.id)}">
+      <input type="hidden" class="floor-id" value="${escapeAttr(item.id)}">
+      <label class="form-field"><span class="form-label">表示名</span>
+        <input type="text" class="floor-label input-text" maxlength="20" required value="${escapeAttr(item.label || "")}" aria-label="フロア${index + 1}の表示名">
+      </label>
+      <span class="field-hint floor-id-hint">ID: ${escapeAttr(item.id)}</span>
+      <button type="button" class="btn btn-sm" data-remove-floor>削除</button>
+    </div>`
+    )
+    .join("");
+  FLOOR_LABELS = rows.map((item) => item.label);
+  window.FLOOR_LABELS = FLOOR_LABELS;
+}
 
 const INT_FIELDS = new Set([
   "max_consecutive_days",
@@ -183,36 +240,6 @@ function workTypesCoveringSlot(startTime, endTime, workTypes) {
 const BASE_LABELS = {early: "早番", day: "日勤", late: "遅出", night: "夜勤"};
 const FIXED_WORK_KEYS = new Set(Object.keys(BASE_LABELS).flatMap((key) => [key, `semi_${key}`]));
 
-
-function compactTimeRangeSymbol(start, end) {
-  const s = String(start || "").trim();
-  const e = String(end || "").trim();
-  if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(e)) return "";
-  const slim = (t) => t.replace(/^0(\d:)/, "$1");
-  return `${slim(s)}-${slim(e)}`;
-}
-
-function maybeSyncSymbolFromHours(row) {
-  if (!(row instanceof HTMLElement)) return;
-  const labelInput = row.querySelector(".staffing-basis-label");
-  const symbolInput = row.querySelector(".staffing-basis-symbol");
-  const startInput = row.querySelector(".staffing-basis-start");
-  const endInput = row.querySelector(".staffing-basis-end");
-  if (!labelInput || !symbolInput || !startInput || !endInput) return;
-  const suggested = compactTimeRangeSymbol(startInput.value, endInput.value);
-  if (!suggested) return;
-  const label = labelInput.value.trim();
-  const symbol = symbolInput.value.trim();
-  const labelLooksLikeTime = /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(label);
-  const symbolLooksLikeTime = /^\d{1,2}:\d{2}\s*[-〜～~－]\s*\d{1,2}:\d{2}$/.test(symbol);
-  if (labelLooksLikeTime && (!symbol || symbolLooksLikeTime || symbol === label.slice(0, 16))) {
-    symbolInput.value = suggested.slice(0, 16);
-    if (labelLooksLikeTime) labelInput.value = suggested.slice(0, 20);
-  } else if (!symbol && labelLooksLikeTime) {
-    symbolInput.value = suggested.slice(0, 16);
-  }
-}
-
 function renderStaffingBasisRows(options = [], settings = null) {
   if (!staffingBasisTbody) return;
   const symbols = settings?.shift_symbols ?? getShiftSymbolMap();
@@ -220,19 +247,20 @@ function renderStaffingBasisRows(options = [], settings = null) {
   staffingBasisTbody.innerHTML = options.map((item, index) => {
     const key = item.key;
     const base = item.base_key ?? key.replace("semi_", "");
-    return `<article class="staffing-basis-table-row work-editor-card" data-key="${escapeAttr(key)}">
+    return `<details class="staffing-basis-table-row work-editor-card" data-key="${escapeAttr(key)}" ${item.label ? "" : "open"}><summary class="work-editor-summary"><span class="work-summary-symbol">${escapeAttr(symbols[key] ?? item.label?.slice(0,10) ?? "＋")}</span><span><strong class="work-summary-label">${escapeAttr(item.label || "新しい勤務")}</strong><span class="work-summary-hours">${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}</span></span><span>編集</span></summary>
       <div class="work-editor-card-head"><span>勤務 ${index + 1}</span>
         <button type="button" class="btn btn-sm" data-remove-staffing-basis aria-label="${escapeAttr(item.label || "この勤務")}を削除">削除</button></div>
       <input type="hidden" class="staffing-basis-key" value="${escapeAttr(key)}">
       <div class="work-editor-fields">
         <label class="form-field"><span class="form-label">勤務名</span><input class="input-text staffing-basis-label" maxlength="20" required placeholder="例：短時間日勤" value="${escapeAttr(item.label ?? "")}"></label>
-        <label class="form-field"><span class="form-label">表示記号</span><input class="input-text staffing-basis-symbol" maxlength="16" required placeholder="例：9:00-16:00" value="${escapeAttr(symbols[key] ?? item.label?.slice(0,16) ?? "")}"></label>
+        <label class="form-field"><span class="form-label">表示記号</span><input class="input-text staffing-basis-symbol" maxlength="10" required placeholder="例：短" value="${escapeAttr(symbols[key] ?? item.label?.slice(0,10) ?? "")}"></label>
         <label class="form-field"><span class="form-label">種類</span><select class="staffing-basis-base" ${FIXED_WORK_KEYS.has(key) ? "disabled" : ""}>${Object.entries(BASE_LABELS).map(([value,label]) => `<option value="${value}" ${base === value || (!BASE_LABELS[base] && value === "day") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
         <label class="form-field"><span class="form-label">開始</span><input type="time" class="staffing-basis-start" required value="${escapeAttr(item.start_time ?? "09:00")}"></label>
         <label class="form-field"><span class="form-label">終了</span><input type="time" class="staffing-basis-end" required value="${escapeAttr(item.end_time ?? "18:00")}"></label>
+        <label class="form-field"><span class="form-label">休憩（分）</span><input type="number" class="staffing-basis-break" min="0" max="720" step="1" placeholder="未設定" value="${item.break_minutes != null && item.break_minutes !== "" ? escapeAttr(String(item.break_minutes)) : ""}"><span class="field-hint">実働集計に必要。空欄のままでは確定値を出しません。</span></label>
       </div>
       <div class="work-editor-card-foot"><label class="check-row"><input type="checkbox" class="staffing-basis-visible" ${visibility[key] !== false ? "checked" : ""}> カレンダーに表示</label><span class="staffing-basis-hours-preview"></span></div>
-    </article>`;
+    </details>`;
   }).join("");
   const registered = new Set(options.map((item) => item.key));
   form.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
@@ -287,59 +315,19 @@ function syncWorkTypeSymbolBadges() {
 }
 
 function renderWorkTypeMinStaffRows(workTypes = [], minStaffByFloor = {}) {
-  const head = document.getElementById("floor-min-staff-head");
   if (!workTypeMinStaffTbody) return;
-  const rows = workTypes.filter((item) => item.key && item.label);
+  const picker = document.getElementById("settings-staffing-floor");
+  const selected = picker?.value || FLOOR_LABELS[0];
+  if (picker) picker.innerHTML = FLOOR_LABELS.map(floor => `<option ${floor === selected ? "selected" : ""}>${escapeAttr(floor)}</option>`).join("");
+  const rows = workTypes.filter(item => item.key && item.label);
   workTypeMinStaffEmpty?.classList.toggle("hidden", rows.length > 0);
-  if (!rows.length) {
-    workTypeMinStaffTbody.innerHTML = "";
-    if (head) {
-      head.innerHTML = "<tr><th>フロア</th></tr>";
-    }
-    return;
-  }
-
-  if (head) {
-    head.innerHTML = `
-      <tr>
-        <th class="col-floor">フロア</th>
-        ${rows
-          .map(
-            (item) => `
-          <th class="col-min-staff" title="${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}">
-            <span class="floor-min-staff-work-label">${escapeAttr(item.label)}</span>
-            <span class="floor-min-staff-work-hours">${escapeAttr(formatWorkHoursPreview(item.start_time, item.end_time))}</span>
-          </th>`
-          )
-          .join("")}
-      </tr>`;
-  }
-
-  workTypeMinStaffTbody.innerHTML = FLOOR_LABELS.map((floor) => {
-    const floorValues = minStaffByFloor[floor] ?? {};
-    return `
-      <tr class="floor-min-staff-row" data-floor="${escapeAttr(floor)}">
-        <td class="col-floor">${escapeHtmlFloorBadge(floor)}</td>
-        ${rows
-          .map(
-            (item) => `
-          <td class="staffing-basis-min-staff-cell">
-            <input
-              type="number"
-              class="floor-min-staff input-number"
-              data-floor="${escapeAttr(floor)}"
-              data-key="${escapeAttr(item.key)}"
-              min="0"
-              max="99"
-              value="${escapeAttr(String(floorValues[item.key] ?? defaultMinStaffForKey(item.key)))}"
-              aria-label="${escapeAttr(floor)} ${escapeAttr(item.label)}の必要人数"
-            >
-          </td>`
-          )
-          .join("")}
-      </tr>`;
-  }).join("");
+  workTypeMinStaffTbody.innerHTML = FLOOR_LABELS.map(floor => `<div class="floor-min-staff-row settings-floor-counts" data-floor="${escapeAttr(floor)}" ${floor !== selected ? "hidden" : ""}>
+    ${rows.map(item => `<label class="form-field"><span class="form-label">${escapeAttr(item.label)}</span><span class="field-hint">${escapeAttr(formatWorkHoursPreview(item.start_time,item.end_time))}</span><input type="number" class="floor-min-staff input-number" data-floor="${escapeAttr(floor)}" data-key="${escapeAttr(item.key)}" min="0" max="99" required value="${minStaffByFloor[floor]?.[item.key] ?? defaultMinStaffForKey(item.key)}" aria-label="${escapeAttr(floor)} ${escapeAttr(item.label)}の必要人数"></label>`).join("")}
+  </div>`).join("");
 }
+document.getElementById("settings-staffing-floor")?.addEventListener("change", event => {
+  workTypeMinStaffTbody.querySelectorAll(".floor-min-staff-row").forEach(row => {row.hidden = row.dataset.floor !== event.target.value;});
+});
 
 function escapeHtmlFloorBadge(floor) {
   const slug = String(floor).toLowerCase();
@@ -525,13 +513,18 @@ function escapeAttr(value) {
 function collectStaffingBasisOptions() {
   if (!staffingBasisTbody) return [];
   return [...staffingBasisTbody.querySelectorAll(".staffing-basis-table-row")]
-    .map((row) => ({
-      key: row.querySelector(".staffing-basis-key")?.value.trim() ?? "",
-      label: row.querySelector(".staffing-basis-label")?.value.trim() ?? "",
-      start_time: row.querySelector(".staffing-basis-start")?.value.trim() ?? "",
-      end_time: row.querySelector(".staffing-basis-end")?.value.trim() ?? "",
-      ...(!FIXED_WORK_KEYS.has(row.dataset.key) ? {base_key: row.querySelector(".staffing-basis-base")?.value ?? "day"} : {}),
-    }))
+    .map((row) => {
+      const breakRaw = row.querySelector(".staffing-basis-break")?.value.trim() ?? "";
+      const breakMinutes = breakRaw === "" ? null : Number(breakRaw);
+      return {
+        key: row.querySelector(".staffing-basis-key")?.value.trim() ?? "",
+        label: row.querySelector(".staffing-basis-label")?.value.trim() ?? "",
+        start_time: row.querySelector(".staffing-basis-start")?.value.trim() ?? "",
+        end_time: row.querySelector(".staffing-basis-end")?.value.trim() ?? "",
+        ...(Number.isFinite(breakMinutes) ? { break_minutes: breakMinutes } : {}),
+        ...(!FIXED_WORK_KEYS.has(row.dataset.key) ? {base_key: row.querySelector(".staffing-basis-base")?.value ?? "day"} : {}),
+      };
+    })
     .filter((item) => item.key || item.label);
 }
 
@@ -609,6 +602,7 @@ function populateShiftSymbols(symbols = {}) {
 }
 
 function populateForm(data) {
+  loadedSettings = structuredClone(data);
   if (!form) return;
   for (const [key, value] of Object.entries(data)) {
     if (key === "shift_symbols") {
@@ -617,6 +611,10 @@ function populateForm(data) {
     }
     if (key === "visible_work_types") {
       populateVisibleWorkTypes(value);
+      continue;
+    }
+    if (key === "floors") {
+      renderFloorsEditor(Array.isArray(value) ? value : []);
       continue;
     }
     if (key === "staffing_basis_options") {
@@ -645,7 +643,7 @@ function populateForm(data) {
       setStaffingRequirementMode(value);
       continue;
     }
-    if (key === "off_days_per_period") {
+    if (key === "off_days_per_period" || key === "default_weekly_hour_limit" || key === "default_monthly_hour_limit") {
       const field = form.elements.namedItem(key);
       if (field && "value" in field) {
         field.value = value == null ? "" : String(value);
@@ -700,7 +698,7 @@ function collectShiftSymbols() {
 }
 
 function collectFormData() {
-  const data = {};
+  const data = structuredClone(loadedSettings);
   if (!form) return data;
 
   for (const element of form.elements) {
@@ -721,6 +719,9 @@ function collectFormData() {
     } else if (element.name === "off_days_per_period") {
       const raw = element.value.trim();
       data[element.name] = raw === "" ? null : Number.parseInt(raw, 10);
+    } else if (element.name === "default_weekly_hour_limit" || element.name === "default_monthly_hour_limit") {
+      const raw = element.value.trim();
+      data[element.name] = raw === "" ? null : Number.parseFloat(raw);
     } else if (INT_FIELDS.has(element.name)) {
       data[element.name] = Number.parseInt(element.value, 10);
     } else {
@@ -731,6 +732,7 @@ function collectFormData() {
   data.shift_symbols = collectShiftSymbols();
   data.visible_work_types = collectVisibleWorkTypes();
   data.staffing_basis_options = collectStaffingBasisOptions();
+  data.floors = collectFloors();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();
@@ -836,6 +838,12 @@ form?.addEventListener("change", (event) => {
 });
 form?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;
+  const work = event.target.closest(".work-editor-card");
+  if (work) {
+    work.querySelector(".work-summary-label").textContent = work.querySelector(".staffing-basis-label").value || "新しい勤務";
+    work.querySelector(".work-summary-symbol").textContent = work.querySelector(".staffing-basis-symbol").value || "＋";
+    work.querySelector(".work-summary-hours").textContent = formatWorkHoursPreview(work.querySelector(".staffing-basis-start").value, work.querySelector(".staffing-basis-end").value);
+  }
   if (event.target.name.startsWith(SHIFT_SYMBOL_PREFIX)) {
     syncWorkTypeSymbolBadges();
     refreshStaffingBasisSymbolPreviews();
@@ -856,6 +864,27 @@ addStaffingBasisButton?.addEventListener("click", () => {
   syncWorkTypeMinStaffFromBasis();
   staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
   markDirty();
+});
+addFloorButton?.addEventListener("click", () => {
+  const current = collectFloors();
+  const id = allocateFloorId(current.map((item) => item.id));
+  renderFloorsEditor([...current, { id, label: "" }]);
+  syncFloorLabelsFromEditor();
+  floorsEditor?.querySelector(".floor-editor-row:last-child .floor-label")?.focus();
+  markDirty();
+});
+floorsEditor?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-floor]");
+  if (!button) return;
+  const row = button.closest(".floor-editor-row");
+  row?.remove();
+  syncFloorLabelsFromEditor();
+  markDirty();
+});
+floorsEditor?.addEventListener("input", (event) => {
+  if (event.target.classList?.contains("floor-label")) {
+    syncFloorLabelsFromEditor();
+  }
 });
 staffingBasisTbody?.addEventListener("input", (event) => {
   if (!(event.target instanceof HTMLInputElement)) return;
@@ -921,6 +950,10 @@ function validateSettingsForm() {
   }
   const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid);
   if (!invalid) return true;
+  const requirementPanel = invalid.closest("[data-requirement-mode]");
+  if (requirementPanel) setStaffingRequirementMode(requirementPanel.dataset.requirementMode);
+  const floorRow = invalid.closest(".floor-min-staff-row");
+  if (floorRow?.hidden) { const picker=document.getElementById("settings-staffing-floor");picker.value=floorRow.dataset.floor;picker.dispatchEvent(new Event("change")); }
   const section = invalid.closest(".settings-section");
   if (section?.classList.contains("is-hidden-panel")) {
     document.querySelectorAll(".settings-section").forEach((item) => item.classList.toggle("is-hidden-panel", item !== section));
@@ -933,89 +966,191 @@ function validateSettingsForm() {
   return false;
 }
 form.noValidate = true;
-function getFlickSymbolChoices() {
-  const symbols = collectShiftSymbols();
-  const visibility = collectVisibleWorkTypes();
-  const choices = [];
-  const seen = new Set();
-
-  document.querySelectorAll(".work-type-row[data-work-type-key]").forEach((row) => {
-    const key = row.dataset.workTypeKey ?? "";
-    if (!key) return;
-    if (!(FIXED_VISIBLE_WORK_TYPES.has(key) || visibility[key])) return;
-    const symbol = (symbols[key] ?? "").trim();
-    if (!symbol || seen.has(symbol)) return;
-    seen.add(symbol);
-    const label =
-      row.querySelector(".work-type-name")?.textContent?.trim() ||
-      key;
-    choices.push({ symbol, label: `${symbol}（${label}）` });
-  });
-
-  return choices;
-}
-
-function rebuildFlickDirectionOptions(selected = []) {
-  const choices = getFlickSymbolChoices();
-  const values = Array.isArray(selected) ? selected : [];
-  document.querySelectorAll(".flick-assign-select").forEach((select) => {
-    if (!(select instanceof HTMLSelectElement)) return;
-    const index = Number(select.dataset.flickIndex);
-    const current = Number.isFinite(index) ? (values[index] ?? select.value ?? "") : "";
-    select.innerHTML = '<option value="">（なし）</option>';
-    choices.forEach((choice) => {
-      const option = document.createElement("option");
-      option.value = choice.symbol;
-      option.textContent = choice.label;
-      select.appendChild(option);
-    });
-    if (current && ![...select.options].some((opt) => opt.value === current)) {
-      const orphan = document.createElement("option");
-      orphan.value = current;
-      orphan.textContent = `${current}（未表示）`;
-      select.appendChild(orphan);
-    }
-    select.value = current || "";
-  });
-}
-
-function populateFlickDirections(directions = []) {
-  rebuildFlickDirectionOptions(Array.isArray(directions) ? directions : []);
-}
-
-function collectFlickDirections() {
-  const values = Array.from({ length: FLICK_DIRECTION_COUNT }, () => "");
-  document.querySelectorAll(".flick-assign-select").forEach((select) => {
-    if (!(select instanceof HTMLSelectElement)) return;
-    const index = Number(select.dataset.flickIndex);
-    if (!Number.isFinite(index) || index < 0 || index >= FLICK_DIRECTION_COUNT) return;
-    values[index] = select.value.trim();
-  });
-  return values.every((item) => !item) ? [] : values;
-}
-
-function autoFillFlickDirections() {
-  const choices = getFlickSymbolChoices().slice(0, FLICK_DIRECTION_COUNT);
-  const values = Array.from({ length: FLICK_DIRECTION_COUNT }, () => "");
-  // Prefer cardinal directions first: up, right, down, left, then diagonals
-  const order = [0, 2, 4, 6, 1, 3, 5, 7];
-  choices.forEach((choice, i) => {
-    const dir = order[i];
-    if (dir != null) values[dir] = choice.symbol;
-  });
-  rebuildFlickDirectionOptions(values);
-}
-
-function clearFlickDirections() {
-  rebuildFlickDirectionOptions([]);
-}
-
-
-document.getElementById("btn-flick-auto-fill")?.addEventListener("click", () => {
-  autoFillFlickDirections();
-});
-document.getElementById("btn-flick-clear")?.addEventListener("click", () => {
-  clearFlickDirections();
-});
-
 loadSettings();
+
+/* ---- バックアップ / 復元 ---- */
+const backupListEl = document.getElementById("backup-list");
+const backupNoteEl = document.getElementById("backup-note");
+const backupFileEl = document.getElementById("backup-file");
+const backupValidateResult = document.getElementById("backup-validate-result");
+const btnBackupCreate = document.getElementById("btn-backup-create");
+const btnBackupValidate = document.getElementById("btn-backup-validate");
+const btnBackupRestore = document.getElementById("btn-backup-restore");
+
+let pendingRestoreFilename = null;
+
+function formatBackupWhen(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ja-JP", { hour12: false });
+}
+
+function renderBackupList(items) {
+  if (!backupListEl) return;
+  if (!items.length) {
+    backupListEl.innerHTML = "<p class=\"field-hint\">まだバックアップはありません。</p>";
+    return;
+  }
+  const rows = items
+    .map((item) => {
+      const note = item.note ? `<span class="backup-note">${escapeHtml(item.note)}</span>` : "";
+      const invalid = item.invalid ? "<span class=\"backup-invalid\">破損の可能性</span>" : "";
+      return `<div class="backup-list-item">
+        <div class="backup-list-main">
+          <strong>${escapeHtml(item.filename)}</strong>
+          <span class="backup-list-meta">${escapeHtml(formatBackupWhen(item.created_at || item.modified_at))}${note ? " · " : ""}${note}${invalid}</span>
+        </div>
+        <div class="backup-list-actions">
+          <a class="btn btn-sm" href="/api/backup/download/${encodeURIComponent(item.filename)}">ダウンロード</a>
+          <button type="button" class="btn btn-sm" data-backup-inspect="${escapeAttr(item.filename)}">内容確認</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+  backupListEl.innerHTML = rows;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
+}
+
+async function refreshBackupList() {
+  if (!backupListEl) return;
+  try {
+    const response = await fetch("/api/backup");
+    if (!response.ok) throw new Error("list failed");
+    const data = await response.json();
+    renderBackupList(data.items || []);
+  } catch (error) {
+    backupListEl.innerHTML = "<p class=\"field-hint\">一覧を読み込めませんでした。</p>";
+  }
+}
+
+function renderValidateSummary(summary) {
+  if (!backupValidateResult) return;
+  const rows = Object.entries(summary.overwrite_summary || {})
+    .map(([key, value]) => {
+      const labels = {
+        staff: "職員",
+        shift_assignments: "勤務セル",
+        shift_placements: "配置先",
+        leave_requests: "希望休",
+        app_settings: "設定",
+      };
+      return `<tr><th>${labels[key] || key}</th><td>いま ${value.current} → バックアップ ${value.backup}</td></tr>`;
+    })
+    .join("");
+  backupValidateResult.classList.remove("hidden");
+  backupValidateResult.innerHTML = `
+    <div class="backup-summary-card">
+      <p><strong>復元内容の確認</strong></p>
+      <p>作成日時: ${escapeHtml(formatBackupWhen(summary.created_at))}</p>
+      <p>${escapeHtml(summary.warning || "")}</p>
+      <table class="backup-summary-table">${rows}</table>
+    </div>`;
+  pendingRestoreFilename = summary.pending_filename || summary.filename || null;
+  if (btnBackupRestore) {
+    btnBackupRestore.classList.remove("hidden");
+    btnBackupRestore.disabled = !pendingRestoreFilename;
+  }
+}
+
+btnBackupCreate?.addEventListener("click", async () => {
+  btnBackupCreate.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("note", backupNoteEl?.value?.trim() || "");
+    const response = await fetch("/api/backup/create", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "作成に失敗しました");
+    showAlert(`バックアップを作成しました: ${data.filename}`, "info");
+    if (backupNoteEl) backupNoteEl.value = "";
+    await refreshBackupList();
+  } catch (error) {
+    showAlert(error.message || "バックアップに失敗しました", "error");
+  } finally {
+    btnBackupCreate.disabled = false;
+  }
+});
+
+btnBackupValidate?.addEventListener("click", async () => {
+  const file = backupFileEl?.files?.[0];
+  if (!file) {
+    showAlert("復元するZIPファイルを選んでください。", "error");
+    return;
+  }
+  btnBackupValidate.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("file", file);
+    const response = await fetch("/api/backup/validate", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "検証に失敗しました");
+    renderValidateSummary(data);
+    showAlert("内容を確認しました。問題なければ「確認して復元する」を押してください。", "info");
+  } catch (error) {
+    pendingRestoreFilename = null;
+    btnBackupRestore?.classList.add("hidden");
+    if (backupValidateResult) {
+      backupValidateResult.classList.add("hidden");
+      backupValidateResult.innerHTML = "";
+    }
+    showAlert(error.message || "検証に失敗しました", "error");
+  } finally {
+    btnBackupValidate.disabled = false;
+  }
+});
+
+btnBackupRestore?.addEventListener("click", async () => {
+  if (!pendingRestoreFilename) return;
+  const ok = window.confirm(
+    "いまの職員・勤務表・設定などをバックアップの内容で置き換えます。\n" +
+      "復元直前の状態は自動バックアップされます。実行しますか？"
+  );
+  if (!ok) return;
+  btnBackupRestore.disabled = true;
+  try {
+    const body = new FormData();
+    body.set("filename", pendingRestoreFilename);
+    body.set("confirm", "true");
+    const response = await fetch("/api/backup/restore", { method: "POST", body });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "復元に失敗しました");
+    showAlert(data.message || "復元が完了しました。ページを再読み込みします。", "info");
+    window.setTimeout(() => window.location.reload(), 1200);
+  } catch (error) {
+    showAlert(error.message || "復元に失敗しました", "error");
+    btnBackupRestore.disabled = false;
+  }
+});
+
+backupListEl?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-backup-inspect]");
+  if (!button) return;
+  const filename = button.getAttribute("data-backup-inspect");
+  try {
+    const response = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`);
+    if (!response.ok) throw new Error("取得に失敗しました");
+    const blob = await response.blob();
+    const file = new File([blob], filename, { type: "application/zip" });
+    const body = new FormData();
+    body.set("file", file);
+    const validate = await fetch("/api/backup/validate", { method: "POST", body });
+    const data = await validate.json().catch(() => ({}));
+    if (!validate.ok) throw new Error(data.detail || "検証に失敗しました");
+    renderValidateSummary(data);
+  } catch (error) {
+    showAlert(error.message || "内容確認に失敗しました", "error");
+  }
+});
+
+refreshBackupList();

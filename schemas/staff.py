@@ -77,6 +77,18 @@ class StaffBase(BaseModel):
         default_factory=default_student_labor_profile,
         description="留学生の在留資格・労働時間制限プロフィール",
     )
+    weekly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=168,
+        description="週あたりの業務上の労働時間上限（時間）。未設定は施設デフォルト",
+    )
+    monthly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=744,
+        description="月あたりの業務上の労働時間上限（時間）。未設定は施設デフォルト",
+    )
 
     @field_validator("departments")
     @classmethod
@@ -154,6 +166,18 @@ class StaffUpdate(BaseModel):
     student_labor: dict | None = Field(
         default=None,
         description="留学生の在留資格・労働時間制限プロフィール",
+    )
+    weekly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=168,
+        description="週あたりの業務上の労働時間上限（時間）",
+    )
+    monthly_hour_limit: float | None = Field(
+        default=None,
+        ge=0,
+        le=744,
+        description="月あたりの業務上の労働時間上限（時間）",
     )
 
     @field_validator("departments")

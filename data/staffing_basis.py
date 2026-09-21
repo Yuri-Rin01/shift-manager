@@ -38,6 +38,18 @@ DEFAULT_BREAK_MINUTES_BY_KEY = {
 }
 
 
+def _normalize_break_minutes(value) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return None
+    if minutes < 0 or minutes > 24 * 60:
+        return None
+    return minutes
+
+
 def _catalog_by_key() -> dict[str, dict]:
     return {item["key"]: item for item in DEFAULT_STAFFING_BASIS_CATALOG}
 
@@ -64,21 +76,20 @@ def normalize_staffing_basis_option(item: dict) -> dict | None:
     end_time = str(item.get("end_time") or catalog.get("end_time") or "").strip()
     if not start_time or not end_time:
         start_time, end_time = default_times_for_key(key)
-    break_minutes = item.get("break_minutes", catalog.get("break_minutes"))
-    if break_minutes is None:
-        break_minutes = DEFAULT_BREAK_MINUTES_BY_KEY.get(key, 60)
-    try:
-        break_minutes = max(0, min(12 * 60, int(break_minutes)))
-    except (TypeError, ValueError):
-        break_minutes = 60
-    return {
+    option = {
         "key": key,
         "label": label,
         "start_time": start_time,
         "end_time": end_time,
-        "break_minutes": break_minutes,
         **({"base_key": item.get("base_key", "day")} if key not in _catalog_by_key() else {}),
     }
+    # 休憩は任意。未設定のまま残し、労働時間集計では推測しない。
+    break_minutes = _normalize_break_minutes(item.get("break_minutes"))
+    if break_minutes is None and "break_minutes" in catalog:
+        break_minutes = _normalize_break_minutes(catalog.get("break_minutes"))
+    if break_minutes is not None:
+        option["break_minutes"] = break_minutes
+    return option
 
 
 def format_work_hours(start_time: str, end_time: str) -> str:

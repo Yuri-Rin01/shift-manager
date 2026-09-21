@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者ログイン - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <h1>管理者ログイン</h1>
+    <p class="field-hint">{{ facility_name }} のシフト管理に入るには、管理者アカウントでログインしてください。</p>
+    <div id="auth-alert" class="alert alert-error hidden" role="alert"></div>
+    <form id="login-form" class="auth-form">
+      <label class="form-field">
+        <span class="form-label">ユーザー名</span>
+        <input type="text" name="username" required autocomplete="username" maxlength="40">
+      </label>
+      <label class="form-field">
+        <span class="form-label">パスワード</span>
+        <input type="password" name="password" required autocomplete="current-password" maxlength="200">
+      </label>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn-primary">ログイン</button>
+    </form>
+    <p class="field-hint"><a href="/docs/local-auth">はじめての方向け手順</a></p>
+  </main>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const alertBox = document.getElementById("auth-alert");
+      alertBox.classList.add("hidden");
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: form.username.value.trim(),
+          password: form.password.value,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alertBox.textContent = data.detail || "ログインに失敗しました。";
+        alertBox.classList.remove("hidden");
+        return;
+      }
+      location.href = form.next.value || "/";
+    });
+  </script>
+</body>
+</html>

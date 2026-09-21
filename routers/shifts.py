@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from data.calendar_period import period_bounds
 from data.shift_symbols import get_valid_symbols, normalize_symbol
@@ -25,6 +25,7 @@ from schemas.shift import (
     ShiftClearRequest,
     ShiftClearResponse,
 )
+from services.auth import require_admin
 from services.morning_off import (
     apply_morning_off_after_night,
     clear_auto_morning_off_after_night,
@@ -43,7 +44,7 @@ from services.student_labor import (
 )
 from data.student_labor_limits import normalize_student_labor_limits
 
-router = APIRouter(prefix="/api/shifts", tags=["シフト"])
+router = APIRouter(prefix="/api/shifts", tags=["シフト"], dependencies=[Depends(require_admin)])
 
 
 def _valid_symbols() -> set[str]:
@@ -414,6 +415,16 @@ def preflight_shift_generate(
             "suggestions": raw.get("suggestions") or [],
         }
     )
+
+
+@router.get("/labor-hours")
+def get_labor_hours(year: int, month: int):
+    from services.labor_hours import summarize_labor_hours
+
+    try:
+        return summarize_labor_hours(year, month)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"労働時間の集計に失敗しました: {exc}") from exc
 
 
 @router.post("/generate", response_model=ShiftGenerateResponse, name="generate_shift_schedule")

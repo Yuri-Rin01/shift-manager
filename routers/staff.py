@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.masters import validate_staff_for_facility, validate_staffing_basis
 from db import staff_repository as repo
 from schemas.staff import StaffBulkUpdate, StaffBulkUpdateResponse, StaffCreate, StaffResponse, StaffUpdate
+from services.auth import require_admin
 
-router = APIRouter(prefix="/api/staff", tags=["職員マスタ"])
+router = APIRouter(prefix="/api/staff", tags=["職員マスタ"], dependencies=[Depends(require_admin)])
 
 
 def _validate_staff(job_type: str, departments: list[str], staffing_basis: dict[str, int]) -> None:

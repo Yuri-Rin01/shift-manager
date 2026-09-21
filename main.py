@@ -45,6 +45,9 @@ from routers.leave_requests import router as leave_requests_router
 from routers.settings import router as settings_router
 from routers.shifts import router as shifts_router
 from routers.staff import router as staff_router
+from routers.backup import router as backup_router
+from routers.auth import router as auth_router
+from services.backup import is_write_blocked
 
 BASE_DIR = resource_root()
 
@@ -60,9 +63,27 @@ app = FastAPI(
     description="病院・介護施設向けシフト管理",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def block_writes_during_restore(request: Request, call_next):
+    if is_write_blocked() and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        path = request.url.path or ""
+        if not path.startswith("/api/backup/restore") and not path.startswith("/static"):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "復元処理中のため、いまは変更できません。完了までお待ちください。"},
+            )
+    return await call_next(request)
+
+
 app.include_router(staff_router)
 app.include_router(settings_router)
 app.include_router(shifts_router)
+app.include_router(backup_router)
+app.include_router(auth_router)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -232,3 +253,12 @@ def _register_stub_pages() -> None:
 
 _register_stub_pages()
 app.include_router(leave_requests_router)
+
+
+@app.get("/docs/local-auth", response_class=HTMLResponse)
+async def local_auth_guide(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "auth/local_guide.html",
+        _base_context(),
+    )

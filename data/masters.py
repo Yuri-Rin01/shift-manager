@@ -1,4 +1,5 @@
 from config import FACILITY_TYPE
+from data.floors import get_floors
 from data.shift_symbols import build_daily_summary_rows, build_shift_legend
 from db.settings_repository import get_settings
 
@@ -106,7 +107,10 @@ def _merge_by_label(items: list[dict]) -> list[dict]:
 
 
 def get_departments() -> list[dict]:
-    return list(FLOOR_DEPARTMENTS)
+    try:
+        return get_floors()
+    except Exception:
+        return list(FLOOR_DEPARTMENTS)
 
 
 def get_staffing_basis_options() -> list[dict]:

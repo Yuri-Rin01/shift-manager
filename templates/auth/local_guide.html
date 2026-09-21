@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ローカル運用のログイン手順 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card auth-card-wide">
+    <h1>ローカル運用のはじめ方</h1>
+    <ol class="auth-steps">
+      <li>管理者用アプリを起動し、最初に表示される画面で<strong>管理者アカウント</strong>を作成します（ユーザー名とパスワードを決めるだけです）。</li>
+      <li>作成後は毎回「管理者ログイン」から入ります。職員管理・各種設定・自動生成・確定解除・バックアップ復元は管理者だけが実行できます。</li>
+      <li>職員が休み希望を出す場合は、職員管理でその人の<strong>ポータルPIN（4〜8桁）</strong>を設定します。</li>
+      <li>休み希望ポータルでは、名前を選んでPINを入力すると本人だけが希望を登録できます。URLの職員IDを変えても他人のデータは見えません。</li>
+      <li>パスワードやPIN、秘密鍵はプログラムに書き込みません。このPC上のデータベース／秘密ファイルにだけ保存されます。</li>
+    </ol>
+    <p class="field-hint">管理者アカウントをまだ作っていない場合は <a href="/setup">初期設定</a> へ。作成済みなら <a href="/login">ログイン</a> へ。</p>
+  </main>
+</body>
+</html>

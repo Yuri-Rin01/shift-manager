@@ -13,6 +13,7 @@ from data.placement_rules import (
     normalize_time_slot_staffing_rules,
 )
 from data.staffing_basis import normalize_staffing_basis_options
+from data.floors import validate_floors
 from data.flick_directions import default_cell_flick_directions, normalize_cell_flick_directions
 from data.sheet_view_colors import default_sheet_view_colors, normalize_sheet_view_colors
 from data.student_labor_limits import default_student_labor_limits, normalize_student_labor_limits
@@ -22,6 +23,14 @@ class AppSettings(BaseModel):
     facility_name: str = Field(default="○○施設", max_length=100)
     facility_type: str = Field(default="care")
     admin_name: str = Field(default="管理者", max_length=50)
+    floors: list[dict] = Field(
+        default_factory=lambda: [
+            {"id": "1f", "label": "1F"},
+            {"id": "2f", "label": "2F"},
+            {"id": "3f", "label": "3F"},
+            {"id": "4f", "label": "4F"},
+        ]
+    )
 
     default_color_cells: bool = True
     default_show_job_column: bool = True
@@ -81,6 +90,9 @@ class AppSettings(BaseModel):
         default_factory=lambda: normalize_night_leader_groups(None),
         description="夜勤リーダー必須のフロアグループ（空なら施設全体で1人）",
     )
+    # 業務上の労働時間上限（時間）。未設定は比較しない。法令適合判定ではない。
+    default_weekly_hour_limit: float | None = Field(default=None, ge=0, le=168)
+    default_monthly_hour_limit: float | None = Field(default=None, ge=0, le=744)
 
     leave_alert_threshold: int = Field(default=72, ge=0, le=168)
     leave_fulfill_target: int = Field(default=90, ge=0, le=100)
@@ -138,6 +150,11 @@ class AppSettings(BaseModel):
     def normalize_staffing_basis(cls, value: list[dict]) -> list[dict]:
         return normalize_staffing_basis_options(value)
 
+    @field_validator("floors")
+    @classmethod
+    def normalize_floors_field(cls, value: list[dict]) -> list[dict]:
+        return validate_floors(value)
+
     @field_validator("min_staff_by_work_type")
     @classmethod
     def normalize_min_staff(cls, value: dict[str, int], info: ValidationInfo) -> dict[str, int]:
@@ -155,13 +172,13 @@ class AppSettings(BaseModel):
 
     @field_validator("time_slot_staffing_rules")
     @classmethod
-    def normalize_time_slot_rules(cls, value: list[dict]) -> list[dict]:
-        return normalize_time_slot_staffing_rules(value)
+    def normalize_time_slot_rules(cls, value: list[dict], info: ValidationInfo) -> list[dict]:
+        return normalize_time_slot_staffing_rules(value, info.data)
 
     @field_validator("night_leader_groups")
     @classmethod
-    def normalize_night_leader_groups_field(cls, value: list[dict]) -> list[dict]:
-        return normalize_night_leader_groups(value)
+    def normalize_night_leader_groups_field(cls, value: list[dict], info: ValidationInfo) -> list[dict]:
+        return normalize_night_leader_groups(value, info.data)
 
     @field_validator("leave_request_visible_types")
     @classmethod

@@ -4,17 +4,33 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>各種設定 - {{ facility_name }}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=111">
+  <link rel="stylesheet" href="/static/css/style.css?v=48">
 </head>
 <body class="settings-screen">
   <div class="app">
     {% include "partials/sidebar.html" %}
 
     <div class="main">
-      {% with page_heading=settings_panel_meta.label %}
-        {% include "partials/topbar.html" %}
-      {% endwith %}
-      <p class="page-lead">{{ settings_panel_meta.subtitle }}</p>
+      <header class="topbar">
+        <details class="settings-app-menu">
+          <summary>メニュー</summary>
+          <nav aria-label="画面を移動">
+            {% for item in sidebar_menu %}
+              {% if item.children %}
+                {% for child in item.children %}<a href="{{ child.href }}">{{ child.label }}</a>{% endfor %}
+              {% else %}<a href="{{ item.href }}">{{ item.label }}</a>{% endif %}
+            {% endfor %}
+          </nav>
+        </details>
+        <div class="page-title-bar">
+          <h1 class="page-title">{{ settings_panel_meta.label }}</h1>
+          <p class="page-subtitle">{{ settings_panel_meta.subtitle }}</p>
+        </div>
+        <div class="topbar-actions">
+          <span>?</span>
+          <span>{{ admin_name }}</span>
+        </div>
+      </header>
 
       <div class="content content-settings">
         <div id="settings-alert" class="alert hidden" role="alert"></div>
@@ -51,219 +67,14 @@
             </label>
 
             <form id="settings-form" class="settings-page settings-panels-mode">
-          <section class="card settings-section settings-hub{% if settings_panel != 'top' %} is-hidden-panel{% endif %}" id="section-top" data-panel="top">
-            <div class="card-header">
-              <h2>設定区分</h2>
-              <p class="card-header-note">区分を選ぶと、その設定だけを表示します。保存はどの画面からでも全設定に適用されます。</p>
-            </div>
-            <div class="card-body">
-              <div class="settings-hub-grid">
-                {% for panel in settings_panels if panel.id != 'top' %}
-                  <a class="settings-hub-card" href="/settings?panel={{ panel.id }}">
-                    <strong>{{ panel.label }}</strong>
-                    <span>{{ panel.subtitle }}</span>
-                  </a>
-                {% endfor %}
-              </div>
-            </div>
-          </section>
-
-          <section class="card settings-section{% if settings_panel != 'facility' %} is-hidden-panel{% endif %}" id="section-facility" data-panel="facility">
-            <div class="card-header">
-              <h2>施設情報</h2>
-            </div>
-            <div class="card-body settings-form-grid">
-              <label class="form-field">
-                <span class="form-label">施設名</span>
-                <input type="text" name="facility_name" maxlength="100" required>
-              </label>
-              <label class="form-field">
-                <span class="form-label">施設種別</span>
-                <select name="facility_type">
-                  {% for opt in facility_type_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
-                  {% endfor %}
-                </select>
-                <span class="field-hint">介護施設・病院を選ぶと、職種・カレンダー表示がその種別に合わせて切り替わります（フロアは 1F〜4F のみ使用）。</span>
-              </label>
-              <label class="form-field">
-                <span class="form-label">管理者表示名</span>
-                <input type="text" name="admin_name" maxlength="50" required>
-              </label>
-            </div>
-          </section>
-
-          <section class="card settings-section{% if settings_panel != 'display' %} is-hidden-panel{% endif %}" id="section-display" data-panel="display">
-            <div class="card-header">
-              <h2>表示ルール</h2>
-              <p class="card-header-note">シフトカレンダー・印刷の初期表示を設定します。保存後にカレンダーを再読み込みすると反映されます。</p>
-            </div>
-            <div class="card-body">
-              <h3 class="settings-subtitle">並び順・倍率</h3>
-              <div class="settings-form-grid">
-                <label class="form-field">
-                  <span class="form-label">カレンダー並び順</span>
-                  <select name="calendar_sort_mode">
-                    {% for opt in calendar_sort_options %}
-                      <option value="{{ opt.value }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                  <span class="field-hint">職員管理の表示順の初期値にも使われます。</span>
-                </label>
-                <label class="form-field">
-                  <span class="form-label">初期表示倍率</span>
-                  <select name="default_table_zoom">
-                    {% for zoom in table_zoom_options %}
-                      <option value="{{ zoom }}">{{ zoom }}%</option>
-                    {% endfor %}
-                  </select>
-                </label>
-              </div>
-
-              <h3 class="settings-subtitle">列・色・集計</h3>
-              <div class="settings-checkbox-grid">
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="default_color_cells">
-                  <span>シフトセルを背景色で表示</span>
-                </label>
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="default_show_job_column">
-                  <span>職種列を表示</span>
-                </label>
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="default_show_dept_column">
-                  <span>フロア列を表示</span>
-                </label>
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="default_show_summary">
-                  <span>人員数集計行を表示</span>
-                </label>
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="show_shift_legend">
-                  <span>シフト凡例を表示</span>
-                </label>
-              </div>
-
-              <h3 class="settings-subtitle">日付・カレンダー</h3>
-              <div class="settings-form-grid settings-form-grid-compact">
-                <label class="form-field">
-                  <span class="form-label">カレンダー開始日</span>
-                  <select name="calendar_start_day">
-                    {% for opt in calendar_start_day_options %}
-                      <option value="{{ opt.value }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                  <span class="field-hint">例: 16日 → 当月16日〜翌月15日を1ヶ月として表示します。1日は暦月（1日〜月末）です。</span>
-                </label>
-                <label class="form-field">
-                  <span class="form-label">週の始まり</span>
-                  <select name="week_start">
-                    {% for opt in week_start_options %}
-                      <option value="{{ opt.value }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                  <span class="field-hint">週番号行の区切りに使用します。</span>
-                </label>
-                <label class="form-field">
-                  <span class="form-label">休み日数（1期間あたり）</span>
-                  <input
-                    type="number"
-                    name="off_days_per_period"
-                    min="0"
-                    max="31"
-                    placeholder="自動（土日）"
-                  >
-                  <span class="field-hint">全職員共通の公休数（夜勤明け翌日の公休を含み、明け・有休は別扱い）。空欄のときは表示期間内の土日数を使います。自動生成では日中勤務より先に公休を確保し、条件により不足・超過した場合は結果に表示します。</span>
-                </label>
-              </div>
-              <div class="settings-checkbox-grid">
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="show_week_number">
-                  <span>週番号行を表示</span>
-                </label>
-              </div>
-
-              <h3 class="settings-subtitle">シフト入力</h3>
-              <div class="settings-checkbox-grid">
-                <label class="check-row settings-check">
-                  <input type="checkbox" name="cell_flick_input_enabled">
-                  <span>長押しでフリック入力を使う</span>
-                </label>
-              </div>
-              <div class="settings-form-grid settings-form-grid-compact">
-                <label class="form-field">
-                  <span class="form-label">長押し時間（ミリ秒）</span>
-                  <input
-                    type="number"
-                    name="cell_long_press_ms"
-                    min="300"
-                    max="1500"
-                    step="50"
-                  >
-                  <span class="field-hint">セルを長押しすると方向フリックでシフトを選べます。短くタップすると従来の一覧から選択します（最大8区分までフリックに割り当て）。</span>
-                </label>
-              </div>
-
-              <a class="btn" href="/settings?panel=staffing">勤務・配置で記号や勤務時間を編集 →</a>
-
-              <h3 class="settings-subtitle">スライド（フリック）方向の割り当て</h3>
-              <p class="field-hint">
-                長押し後に指を動かした方向へ割り当てる勤務区分です。空欄の方向は使いません。
-                すべて空のときは、上の勤務区分の表示順から最大8つを自動割り当てします。
-              </p>
-              <div class="flick-assign-toolbar">
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-flick-auto-fill">表示区分で自動配置</button>
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-flick-clear">すべて空にする</button>
-              </div>
-
-            </div>
-          </section>
-
-          <section class="card settings-section{% if settings_panel != 'print' %} is-hidden-panel{% endif %}" id="section-print" data-panel="print">
-            <div class="card-header">
-              <h2>印刷設定</h2>
-              <p class="card-header-note">用紙・倍率・列表示は反映されます。ヘッダー・フッターとページ番号は保存のみです。</p>
-            </div>
-            <div class="card-body settings-form-grid">
-              <label class="form-field">
-                <span class="form-label">用紙サイズ</span>
-                <select name="print_paper">
-                  {% for opt in print_paper_options %}
-                    <option value="{{ opt }}">{{ opt }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="form-field">
-                <span class="form-label">縮小率</span>
-                <select name="print_scale">
-                  {% for opt in print_scale_options %}
-                    <option value="{{ opt }}">{{ opt }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="print_color_cells">
-                <span>セル色付き印刷（デフォルト）</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="print_header_footer">
-                <span>ヘッダー・フッターを印刷</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="print_page_numbers">
-                <span>ページ番号を印刷</span>
-              </label>
-            </div>
-          </section>
-
           <section class="card settings-section{% if settings_panel != 'staffing' %} is-hidden-panel{% endif %}" id="section-staffing" data-panel="staffing">
             <div class="card-header">
-              <h2>勤務・配置</h2>
+              <h2>勤務と必要人数</h2>
               <p class="card-header-note">勤務を登録し、必要人数を設定します。最後に「変更を保存」で反映されます。</p>
             </div>
             <div class="card-body">
               <h3 class="settings-subtitle">1. 勤務を登録</h3>
-              <p class="field-hint">名前・記号・開始と終了を同じカードで編集できます。夜勤は「種類」を夜勤にすると、明け・休みのルールが適用されます。</p>
+              <p class="field-hint">編集したい勤務を開くと、名前・記号・時間をまとめて変更できます。夜勤は「種類」を夜勤にすると、明け・休みのルールが適用されます。</p>
 <details class="settings-advanced"><summary>テンプレートからまとめて設定</summary>              <div class="work-type-template-bar">
                 <label class="form-field work-type-template-field">
                   <span class="form-label">テンプレート</span>
@@ -321,7 +132,7 @@
                                 type="text"
                                 name="shift_symbol__{{ item.key }}"
                                 class="shift-symbol-input work-type-symbol-input"
-                                maxlength="16"
+                                maxlength="10"
                                 required
                                 value="{{ item.symbol }}"
                                 autocomplete="off"
@@ -339,8 +150,8 @@
               </div>              </details>
 
               <h3 class="settings-subtitle">2. 必要人数を設定</h3>
-              <p class="field-hint">下の2種類は<strong>別々に登録</strong>します。シフト配置で参照する方を選んでください（もう一方の設定も保存され、いつでも切り替え可能です）。</p>
-              <fieldset class="staffing-requirement-mode staffing-requirement-tabs" id="staffing-requirement-mode">
+              <p class="field-hint">フロアを選び、1日に必要な人数を入力します。時間帯で数えたい場合は配置方法を切り替えてください。</p>
+              <details class="settings-advanced"><summary>配置方法を変更（勤務ごと・時間帯ごと）</summary><fieldset class="staffing-requirement-mode staffing-requirement-tabs" id="staffing-requirement-mode">
                 <legend class="form-label">配置で適用する設定</legend>
                 <div class="staffing-requirement-tablist">
                   <label class="staffing-requirement-tab settings-radio">
@@ -352,23 +163,15 @@
                     <span>時間帯ごと</span>
                   </label>
                 </div>
-              </fieldset>
+              </fieldset></details>
 
               <div class="requirement-panels">
               <div id="panel-work-type-min-staff" class="requirement-panel" data-requirement-mode="work_type">
                 <h4 class="requirement-panel-title">フロア別の必要人数（勤務区分ごと）</h4>
-                <p class="field-hint requirement-panel-desc">フロアごとに、早番・日勤など区分別の1日あたり必要人数を設定します。自動生成では担当フロアの職員だけがそのフロアの必要人数にカウントされます。</p>
+                <p class="field-hint requirement-panel-desc">フロアごとに必要な担当者数を設定します。日中・通常夜勤は1人につき1フロアだけに配置します。夜勤リーダーを必須にすると、フロア担当とは別に1人を確保します（例：1Fに1人＋2Fに1人＋兼務リーダー1人＝計3人）。</p>
                 <p class="field-hint">上で勤務を追加・編集すると、この一覧も自動で更新されます。</p>
-                <div class="staffing-basis-table-wrap">
-                  <table class="data-table floor-min-staff-table" id="floor-min-staff-table">
-                    <thead id="floor-min-staff-head">
-                      <tr>
-                        <th>フロア</th>
-                      </tr>
-                    </thead>
-                    <tbody id="work-type-min-staff-tbody"></tbody>
-                  </table>
-                </div>
+                <label class="form-field settings-floor-picker"><span class="form-label">人数を設定するフロア</span><select id="settings-staffing-floor" aria-label="必要人数のフロア"></select></label>
+                <div id="work-type-min-staff-tbody"></div>
                 <p class="field-hint requirement-panel-empty hidden" id="work-type-min-staff-empty">勤務区分が未登録です。上の「勤務区分・勤務時間」で区分を追加してください。</p>
               </div>
 
@@ -394,14 +197,29 @@
               </div>
               </div>
 
-              <h3 class="settings-subtitle">時間・勤務ルール</h3>
-              <div class="fixed-rules-panel">
+            </div>
+          </section>
+
+          <section class="card settings-section{% if settings_panel != 'rules' %} is-hidden-panel{% endif %}" id="section-rules" data-panel="rules">
+            <div class="card-header"><h2>休みと夜勤</h2><p class="card-header-note">施設の標準ルールです。自動生成前に、今回だけの条件に変更できます。</p></div>
+            <div class="card-body"><label class="form-field">
+                  <span class="form-label">休み日数（1期間あたり）</span>
+                  <input
+                    type="number"
+                    name="off_days_per_period"
+                    min="0"
+                    max="31"
+                    placeholder="自動（土日）"
+                  >
+                  <span class="field-hint">全職員共通の公休数（夜勤明け翌日の公休を含み、明け・有休は別扱い）。空欄のときは表示期間内の土日数を使います。自動生成では日中勤務より先に公休を確保し、条件により不足・超過した場合は結果に表示します。</span>
+                </label>              <h3 class="settings-subtitle">時間・勤務ルール</h3>
+              <details class="settings-advanced fixed-rules-panel"><summary>常に守るルール</summary>
                 <p class="fixed-rules-title">固定ルール（変更不可）</p>
                 <ul class="fixed-rules-list">
                   <li>夜勤の<strong>翌日は明け</strong>に自動設定します（自動生成・手動入力とも）。</li>
                   <li>明けの<strong>翌日</strong>は<strong>早番・日勤・遅出</strong>には入れません。</li>
                 </ul>
-              </div>
+              </details>
               <div class="settings-form-grid settings-form-grid-compact">
                 <label class="form-field">
                   <span class="form-label">連続勤務 上限日数</span>
@@ -412,167 +230,227 @@
                   <input type="number" name="max_night_per_week" min="0" max="7">
                 </label>
               </div>
-              <div class="settings-checkbox-grid">
+              <details class="settings-advanced"><summary>労働時間の上限（業務設定）</summary>
+                <p class="field-hint">開始・終了・休憩から実働を集計し、ここで設定した上限との差を表示します。法令の上限を自動判定するものではありません。空欄のときは上限比較をしません。留学生・短時間勤務などは職員ごとに個別上限を設定できます。</p>
+                <div class="settings-form-grid settings-form-grid-compact">
+                  <label class="form-field">
+                    <span class="form-label">週の上限（時間）</span>
+                    <input type="number" name="default_weekly_hour_limit" min="0" max="168" step="0.5" placeholder="未設定">
+                  </label>
+                  <label class="form-field">
+                    <span class="form-label">期間の上限（時間）</span>
+                    <input type="number" name="default_monthly_hour_limit" min="0" max="744" step="0.5" placeholder="未設定">
+                  </label>
+                </div>
+              </details>
+              <details class="settings-advanced"><summary>詳しい夜勤ルール</summary><div class="settings-checkbox-grid">
                 <label class="check-row settings-check">
                   <input type="checkbox" name="night_shift_counts_as_two_days">
                   <span>夜勤を2日分としてカウント</span>
                 </label>
                 <label class="check-row settings-check">
                   <input type="checkbox" name="require_leader_on_night">
-                  <span>夜勤にリーダー以上を必須</span>
+                  <span>夜勤リーダーをフロア担当とは別に1人確保する（リーダー以上・担当フロア兼務）</span>
                 </label>
               </div>
+
+              </details><details class="settings-advanced"><summary>職員ごとの夜勤・相性設定</summary><p>夜勤可否・回数・NGの組み合わせは職員管理で登録します。生成前にも回数と相性を確認できます。</p><a class="btn" href="/staff">職員管理を開く</a></details>
+              <p class="field-hint">手動入力・希望休、夜勤不可、相性NGは常に守ります。勤務の偏りを抑えて配置します。</p>
             </div>
           </section>
-
-          <section class="card settings-section{% if settings_panel != 'alert' %} is-hidden-panel{% endif %}" id="section-alert" data-panel="alert">
+          <section class="card settings-section{% if settings_panel != 'display' %} is-hidden-panel{% endif %}" id="section-display" data-panel="display">
             <div class="card-header">
-              <h2>アラート</h2>
-              <p class="card-header-note">保存のみです。アラート判定は今後の機能で利用予定です（ステータスバーの表示切替のみ反映）。</p>
+              <h2>表示と印刷</h2>
+              <p class="card-header-note">シフトカレンダー・印刷の初期表示を設定します。保存後にカレンダーを再読み込みすると反映されます。</p>
             </div>
-            <div class="card-body settings-form-grid">
-              <label class="form-field">
-                <span class="form-label">休み希望 未処理の警告しきい値（時間）</span>
-                <input type="number" name="leave_alert_threshold" min="0" max="168">
-              </label>
-              <label class="form-field">
-                <span class="form-label">休み希望 充足率目標（%）</span>
-                <input type="number" name="leave_fulfill_target" min="0" max="100">
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="warn_overstaffing">
-                <span>過剰配置を警告</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="warn_understaffing">
-                <span>人員不足を警告</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="show_status_bar">
-                <span>画面下部のステータスバーを表示</span>
-              </label>
-            </div>
-          </section>
+            <div class="card-body">
+              <details class="settings-advanced"><summary>並び順・倍率</summary>
+              <div class="settings-form-grid">
+                <label class="form-field">
+                  <span class="form-label">カレンダー並び順</span>
+                  <select name="calendar_sort_mode">
+                    {% for opt in calendar_sort_options %}
+                      <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <span class="field-hint">職員管理の表示順の初期値にも使われます。</span>
+                </label>
+                <label class="form-field">
+                  <span class="form-label">初期表示倍率</span>
+                  <select name="default_table_zoom">
+                    {% for zoom in table_zoom_options %}
+                      <option value="{{ zoom }}">{{ zoom }}%</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
 
-          <section class="card settings-section{% if settings_panel != 'auto' %} is-hidden-panel{% endif %}" id="section-auto" data-panel="auto">
-            <div class="card-header">
-              <h2>シフト自動生成</h2>
-              <p class="card-header-note">カレンダー画面の「シフト自動生成」から実行できます。優先順位は下記のとおりです。</p>
+              </details><h3 class="settings-subtitle">カレンダーの表示</h3>
+              <div class="settings-checkbox-grid">
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="default_color_cells">
+                  <span>シフトセルを背景色で表示</span>
+                </label>
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="default_show_job_column">
+                  <span>職種列を表示</span>
+                </label>
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="default_show_dept_column">
+                  <span>フロア列を表示</span>
+                </label>
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="default_show_summary">
+                  <span>人員数集計行を表示</span>
+                </label>
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="show_shift_legend">
+                  <span>シフト凡例を表示</span>
+                </label>
+              </div>
+
+              <details class="settings-advanced"><summary>日付・入力操作の細かい調整</summary>
+              <div class="settings-form-grid settings-form-grid-compact">
+
+                <label class="form-field">
+                  <span class="form-label">週の始まり</span>
+                  <select name="week_start">
+                    {% for opt in week_start_options %}
+                      <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <span class="field-hint">週番号行の区切りに使用します。</span>
+                </label>
+
+              </div>
+              <div class="settings-checkbox-grid">
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="show_week_number">
+                  <span>週番号行を表示</span>
+                </label>
+              </div>
+
+              <h3 class="settings-subtitle">シフト入力</h3>
+              <div class="settings-checkbox-grid">
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="cell_flick_input_enabled">
+                  <span>長押しでフリック入力を使う</span>
+                </label>
+              </div>
+              <div class="settings-form-grid settings-form-grid-compact">
+                <label class="form-field">
+                  <span class="form-label">長押し時間（ミリ秒）</span>
+                  <input
+                    type="number"
+                    name="cell_long_press_ms"
+                    min="300"
+                    max="1500"
+                    step="50"
+                  >
+                  <span class="field-hint">セルを長押しすると方向フリックでシフトを選べます。短くタップすると従来の一覧から選択します（最大8区分までフリックに割り当て）。</span>
+                </label>
+              </div>
+
+              </details>
             </div>
-            <div class="card-body settings-form-grid">
-              <label class="check-row settings-check">
-                <input type="checkbox" name="prioritize_leave_requests">
-                <span>休み希望を優先</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="consider_night_eligibility">
-                <span>夜勤可否を考慮</span>
+<h3 class="settings-subtitle">印刷の標準</h3><div class="card-body settings-form-grid">
+              <label class="form-field">
+                <span class="form-label">用紙サイズ</span>
+                <select name="print_paper">
+                  {% for opt in print_paper_options %}
+                    <option value="{{ opt }}">{{ opt }}</option>
+                  {% endfor %}
+                </select>
               </label>
               <label class="form-field">
-                <span class="form-label">公平性モード</span>
-                <select name="fairness_mode">
-                  {% for opt in fairness_options %}
-                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                <span class="form-label">縮小率</span>
+                <select name="print_scale">
+                  {% for opt in print_scale_options %}
+                    <option value="{{ opt }}">{{ opt }}</option>
                   {% endfor %}
                 </select>
               </label>
               <label class="check-row settings-check">
-                <input type="checkbox" name="confirm_after_generate">
-                <span>生成後に確認画面を表示</span>
+                <input type="checkbox" name="print_color_cells">
+                <span>セル色付き印刷（デフォルト）</span>
               </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="auto_fill_holidays">
-                <span>祝日を自動で休みに設定</span>
-              </label>
+
+
             </div>
           </section>
 
-          <section class="card settings-section{% if settings_panel != 'account' %} is-hidden-panel{% endif %}" id="section-account-plan" data-panel="account">
+          <section class="card settings-section{% if settings_panel != 'facility' %} is-hidden-panel{% endif %}" id="section-facility" data-panel="facility">
             <div class="card-header">
-              <h2>アカウント・サブスクリプション</h2>
-              <p class="card-header-note">準備中です。ログイン・課金は未実装。管理者アカウント向けサブスクを今後追加予定。</p>
+              <h2>施設情報</h2>
             </div>
-            <div class="card-body settings-account-plan">
-              {% set plan = current_admin_plan | default({"label": "ローカル利用", "description": "ログイン・課金なし", "status": "not_implemented", "features": []}) %}
-              {% set status_labels = subscription_status_labels | default({"not_implemented": "未実装（ローカル利用）", "planned": "実装予定"}) %}
-              <div class="settings-plan-current">
-                <p class="settings-plan-label">現在のプラン</p>
-                <p class="settings-plan-name">{{ plan.label }}</p>
-                <p class="settings-plan-desc">{{ plan.description }}</p>
-                <p class="settings-plan-status">
-                  状態: {{ status_labels[plan.status] | default(plan.status) }}
-                </p>
-              </div>
-              <ul class="settings-plan-features">
-                {% for feature in plan.features | default([]) %}
-                  <li>{{ feature }}</li>
-                {% endfor %}
-              </ul>
-              <p class="settings-plan-note">{{ admin_auth_note | default("管理者向けログイン・サブスクリプションは今後追加予定です。") }}</p>
-              <p class="settings-plan-note">{{ portal_auth_note | default("職員向け休み希望ポータルはログインなしです。") }}</p>
-              {% if admin_plan_catalog %}
-              <div class="settings-plan-roadmap">
-                <p class="settings-plan-roadmap-title">今後の予定プラン（参考）</p>
-                <div class="settings-plan-grid">
-                  {% for plan_item in admin_plan_catalog if plan_item.id != plan.id %}
-                    <article class="settings-plan-card is-planned">
-                      <h3>{{ plan_item.label }}</h3>
-                      <p>{{ plan_item.description }}</p>
-                      <p class="settings-plan-card-status">{{ status_labels[plan_item.status] | default(plan_item.status) }}</p>
-                    </article>
+            <div class="card-body settings-form-grid">
+              <label class="form-field">
+                <span class="form-label">施設名</span>
+                <input type="text" name="facility_name" maxlength="100" required>
+              </label>
+              <label class="form-field">
+                <span class="form-label">施設種別</span>
+                <select name="facility_type">
+                  {% for opt in facility_type_options %}
+                    <option value="{{ opt.value }}">{{ opt.label }}</option>
                   {% endfor %}
-                </div>
+                </select>
+                <span class="field-hint">介護施設・病院を選ぶと、職種・カレンダー表示がその種別に合わせて切り替わります（フロアは 1F〜4F のみ使用）。</span>
+              </label>
+              <label class="form-field">
+                <span class="form-label">管理者表示名</span>
+                <input type="text" name="admin_name" maxlength="50" required>
+              </label>
+<label class="form-field">
+                  <span class="form-label">シフトの開始日（毎月）</span>
+                  <select name="calendar_start_day">
+                    {% for opt in calendar_start_day_options %}
+                      <option value="{{ opt.value }}">{{ opt.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <span class="field-hint">例: 16日 → 当月16日〜翌月15日を1ヶ月として表示します。1日は暦月（1日〜月末）です。</span>
+                </label>
+            </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">フロア</h3>
+              <p class="field-hint">施設のフロア名を追加・変更できます。内部IDは変えず、職員・配置・人数設定の関連を保ったまま名前だけ変えられます。使用中のフロアは削除できません。</p>
+              <div id="floors-editor" class="floors-editor"></div>
+              <button type="button" class="btn btn-sm" id="btn-add-floor">＋ フロアを追加</button>
+            </div>
+          </section>
+
+          <section class="card settings-section{% if settings_panel != 'data' %} is-hidden-panel{% endif %}" id="section-data" data-panel="data">
+            <div class="card-header">
+              <h2>データの保存と復元</h2>
+              <p class="card-header-note">職員・勤務表・配置・設定・希望休をまとめて保存／復元します。故障や入れ替えの前に保存しておくと安心です。</p>
+            </div>
+            <div class="card-body">
+              <h3 class="settings-subtitle">いまの状態を保存</h3>
+              <p class="field-hint">日時付きのファイル名で保存されます。ダウンロードしてUSBなどへ保管できます。</p>
+              <div class="backup-create-row">
+                <label class="form-field">
+                  <span class="form-label">メモ（任意）</span>
+                  <input type="text" id="backup-note" maxlength="100" placeholder="例: 9月確定前">
+                </label>
+                <button type="button" class="btn btn-primary" id="btn-backup-create">バックアップを作成</button>
               </div>
-              {% endif %}
-              <button type="button" class="btn" disabled title="ログイン実装後に有効化予定">プラン変更（準備中）</button>
+
+              <h3 class="settings-subtitle">保存済み一覧</h3>
+              <div id="backup-list" class="backup-list" aria-live="polite">
+                <p class="field-hint">読み込み中…</p>
+              </div>
+
+              <h3 class="settings-subtitle">ファイルから復元</h3>
+              <p class="field-hint">復元すると今のデータは置き換わります。実行前に内容確認があり、直前の状態は自動で退避します。</p>
+              <div class="backup-restore-row">
+                <input type="file" id="backup-file" accept=".zip,application/zip">
+                <button type="button" class="btn" id="btn-backup-validate">内容を確認</button>
+              </div>
+              <div id="backup-validate-result" class="backup-validate-result hidden"></div>
+              <button type="button" class="btn btn-danger hidden" id="btn-backup-restore" disabled>確認して復元する</button>
             </div>
           </section>
 
-          <section class="card settings-section{% if settings_panel != 'security' %} is-hidden-panel{% endif %}" id="section-security" data-panel="security">
-            <div class="card-header">
-              <h2>セキュリティ</h2>
-              <p class="card-header-note">保存のみです。ログイン・セッション制御は未実装（管理者ログイン実装時に連携予定）。</p>
-            </div>
-            <div class="card-body settings-form-grid">
-              <label class="form-field">
-                <span class="form-label">操作ログ 保存日数</span>
-                <input type="number" name="log_retention_days" min="7" max="3650">
-              </label>
-              <label class="form-field">
-                <span class="form-label">セッションタイムアウト（分）</span>
-                <input type="number" name="session_timeout_minutes" min="5" max="480">
-              </label>
-              <label class="form-field">
-                <span class="form-label">パスワード変更要求（日・0=無効）</span>
-                <input type="number" name="require_password_change_days" min="0" max="365">
-              </label>
-            </div>
-          </section>
-
-          <section class="card settings-section{% if settings_panel != 'notify' %} is-hidden-panel{% endif %}" id="section-notify" data-panel="notify">
-            <div class="card-header">
-              <h2>通知</h2>
-              <p class="card-header-note">保存のみです。通知送信は未実装です。</p>
-            </div>
-            <div class="card-body settings-form-grid">
-              <label class="check-row settings-check">
-                <input type="checkbox" name="notify_shift_update">
-                <span>シフト更新時に通知</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="notify_alerts">
-                <span>アラート発生時に通知</span>
-              </label>
-              <label class="check-row settings-check">
-                <input type="checkbox" name="notify_deadline">
-                <span>締切前にリマインド</span>
-              </label>
-              <label class="form-field">
-                <span class="form-label">締切日（毎月）</span>
-                <input type="number" name="deadline_day_of_month" min="1" max="28">
-              </label>
-            </div>
-          </section>
         </form>
           </div>
         </div>
@@ -592,6 +470,6 @@
     window.WORK_TYPE_TEMPLATES = {{ work_type_templates | default([]) | tojson }};
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=23"></script>
+  <script src="/static/js/settings.js?v=11"></script>
 </body>
 </html>

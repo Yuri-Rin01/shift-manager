@@ -47,10 +47,14 @@ def is_night_work_key(key: str | None) -> bool:
     return str(key or "").strip() in NIGHT_WORK_KEYS
 
 
-def get_floor_labels() -> list[str]:
-    from data.masters import get_departments
+def get_floor_labels(settings: dict | None = None) -> list[str]:
+    from data.floors import normalize_floors
 
-    return [item["label"] for item in get_departments()]
+    if settings is not None:
+        return [item["label"] for item in normalize_floors(settings.get("floors"))]
+    from data.floors import get_floor_labels as _labels
+
+    return _labels()
 
 
 def normalize_staffing_requirement_mode(value: str | None) -> str:
@@ -58,7 +62,7 @@ def normalize_staffing_requirement_mode(value: str | None) -> str:
     return cleaned if cleaned in STAFFING_REQUIREMENT_MODES else "work_type"
 
 
-def normalize_time_slot_rule(item: dict) -> dict | None:
+def normalize_time_slot_rule(item: dict, settings: dict | None = None) -> dict | None:
     if not isinstance(item, dict):
         return None
     label = str(item.get("label", "")).strip()
@@ -78,7 +82,7 @@ def normalize_time_slot_rule(item: dict) -> dict | None:
     except (TypeError, ValueError):
         return None
     floor = str(item.get("floor", "")).strip()
-    allowed_floors = set(get_floor_labels())
+    allowed_floors = set(get_floor_labels(settings))
     if floor and floor not in allowed_floors:
         return None
     return {
@@ -90,12 +94,12 @@ def normalize_time_slot_rule(item: dict) -> dict | None:
     }
 
 
-def normalize_time_slot_staffing_rules(raw: list | None) -> list[dict]:
+def normalize_time_slot_staffing_rules(raw: list | None, settings: dict | None = None) -> list[dict]:
     if not isinstance(raw, list):
         return [dict(item) for item in DEFAULT_TIME_SLOT_STAFFING_RULES]
     normalized: list[dict] = []
     for item in raw:
-        rule = normalize_time_slot_rule(item)
+        rule = normalize_time_slot_rule(item, settings)
         if rule:
             normalized.append(rule)
     return normalized if normalized else [dict(item) for item in DEFAULT_TIME_SLOT_STAFFING_RULES]
@@ -125,13 +129,15 @@ def apply_overnight_rules_to_night_mins(settings: dict) -> bool:
     """時間帯ルール内の夜勤帯をフロア別夜勤人数へ移し、時間帯からは外す。変更があれば True。"""
     raw_rules = settings.get("time_slot_staffing_rules")
     overnight = extract_overnight_night_requirements(raw_rules if isinstance(raw_rules, list) else None)
-    daytime = normalize_time_slot_staffing_rules(raw_rules if isinstance(raw_rules, list) else None)
+    daytime = normalize_time_slot_staffing_rules(
+        raw_rules if isinstance(raw_rules, list) else None, settings
+    )
     changed = settings.get("time_slot_staffing_rules") != daytime
     settings["time_slot_staffing_rules"] = daytime
     if not overnight:
         return changed
 
-    floors = get_floor_labels()
+    floors = get_floor_labels(settings)
     by_floor = settings.get("min_staff_by_floor")
     if not isinstance(by_floor, dict):
         by_floor = {}
@@ -232,7 +238,7 @@ def normalize_min_staff_by_floor(raw: dict | None, settings: dict | None = None)
     from db.settings_repository import get_settings
 
     cfg = settings or get_settings()
-    floors = get_floor_labels()
+    floors = get_floor_labels(cfg)
     global_defaults = normalize_min_staff_by_work_type(cfg.get("min_staff_by_work_type"), cfg)
     allowed = get_staffing_basis_keys(cfg)
     source = raw if isinstance(raw, dict) else {}
@@ -267,7 +273,7 @@ def validate_min_staff_by_floor(settings: dict) -> None:
         return
     if not isinstance(raw, dict):
         raise ValueError("フロア別必要人数の形式が不正です。")
-    allowed_floors = set(get_floor_labels())
+    allowed_floors = set(get_floor_labels(settings))
     allowed_keys = get_staffing_basis_keys(settings)
     mode = normalize_staffing_requirement_mode(settings.get("staffing_requirement_mode"))
     for floor, values in raw.items():
@@ -338,7 +344,7 @@ def validate_time_slot_staffing_rules(settings: dict) -> None:
                 f"時間帯ルール {index} 行目: 夜勤は時間帯ではなく下の「夜勤（人数固定）」で設定してください。"
             )
         floor = str(item.get("floor", "")).strip()
-        allowed_floors = set(get_floor_labels())
+        allowed_floors = set(get_floor_labels(settings))
         if floor and floor not in allowed_floors:
             raise ValueError(f"時間帯ルール {index} 行目: 未登録のフロアです。")
         try:
@@ -354,15 +360,16 @@ DEFAULT_NIGHT_LEADER_GROUPS: list[dict] = [
 ]
 
 
-def normalize_night_leader_group(item: dict) -> dict | None:
+def normalize_night_leader_group(item: dict, settings: dict | None = None) -> dict | None:
     if not isinstance(item, dict):
         return None
     label = str(item.get("label", "")).strip()[:20]
     raw_floors = item.get("floors")
     if not isinstance(raw_floors, list):
         return None
-    allowed = set(get_floor_labels())
-    order = {floor: index for index, floor in enumerate(get_floor_labels())}
+    labels = get_floor_labels(settings)
+    allowed = set(labels)
+    order = {floor: index for index, floor in enumerate(labels)}
     floors = sorted(
         dict.fromkeys(
             floor
@@ -384,7 +391,7 @@ def normalize_night_leader_group(item: dict) -> dict | None:
     }
 
 
-def normalize_night_leader_groups(raw: list | None) -> list[dict]:
+def normalize_night_leader_groups(raw: list | None, settings: dict | None = None) -> list[dict]:
     """空リストは施設全体1人の従来動作。Noneはデフォルト（1・2階 / 2・3階）。"""
     if raw is None:
         return [dict(item) for item in DEFAULT_NIGHT_LEADER_GROUPS]
@@ -392,7 +399,7 @@ def normalize_night_leader_groups(raw: list | None) -> list[dict]:
         return [dict(item) for item in DEFAULT_NIGHT_LEADER_GROUPS]
     normalized: list[dict] = []
     for item in raw:
-        group = normalize_night_leader_group(item)
+        group = normalize_night_leader_group(item, settings)
         if group:
             normalized.append(group)
     return normalized
@@ -406,7 +413,7 @@ def validate_night_leader_groups(settings: dict) -> None:
         return
     if not isinstance(raw, list):
         raise ValueError("夜勤リーダー配置グループの形式が不正です。")
-    allowed = set(get_floor_labels())
+    allowed = set(get_floor_labels(settings))
     for index, item in enumerate(raw, start=1):
         if not isinstance(item, dict):
             raise ValueError(f"夜勤リーダー配置 {index} 行目の形式が不正です。")
