@@ -390,8 +390,10 @@ function invertFilterGroupChecked(group) {
 }
 
 const FOREIGN_STUDENT_JOB = "留学生";
+const PINNED_SHEET_ID = "all";
 const BUILTIN_SHEET_ORDER = ["all", "foreign-students"];
 let sheetViewOrder = [...BUILTIN_SHEET_ORDER];
+let sheetTabSuppressClick = false;
 const DEFAULT_SHEET_VIEW_COLORS = {
   all: "#3B82F6",
   "foreign-students": "#217346",
@@ -452,7 +454,7 @@ function loadCustomSheetViews() {
   for (const key of Object.keys(SHEET_VIEW_META)) {
     if (!BUILTIN_SHEET_ORDER.includes(key)) delete SHEET_VIEW_META[key];
   }
-  sheetViewOrder = [...BUILTIN_SHEET_ORDER];
+  const customIds = [];
   for (const sheet of customSheetViews) {
     const jobs = sheet.job_types.map((job) => String(job));
     SHEET_VIEW_META[sheet.id] = {
@@ -463,8 +465,24 @@ function loadCustomSheetViews() {
       label: sheet.label,
     };
     sheetViewColors[sheet.id] = normalizeSheetHex(sheet.color, "#64748B");
-    sheetViewOrder.push(sheet.id);
+    customIds.push(sheet.id);
   }
+  sheetViewOrder = [PINNED_SHEET_ID, ...normalizeSheetTabOrder(serverDefaults.sheet_tab_order, customIds)];
+}
+
+function normalizeSheetTabOrder(value, customIds) {
+  const allowed = ["foreign-students", ...customIds];
+  const known = new Set(allowed);
+  const result = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    const key = String(raw || "").trim();
+    if (key === PINNED_SHEET_ID || !known.has(key) || result.includes(key)) continue;
+    result.push(key);
+  }
+  for (const key of allowed) {
+    if (!result.includes(key)) result.push(key);
+  }
+  return result;
 }
 
 function fixedJobsForSheet(view) {
@@ -489,7 +507,148 @@ function installCustomSheetTabs() {
     if (addButton) list.insertBefore(button, addButton);
     else list.appendChild(button);
   }
+  applySheetTabOrder();
   syncSheetAddButton();
+}
+
+function applySheetTabOrder() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list) return;
+  const addButton = document.getElementById("btn-add-sheet-tab");
+  const pinned = list.querySelector(`[data-sheet-view="${PINNED_SHEET_ID}"]`);
+  const buttons = new Map();
+  list.querySelectorAll(".sheet-tab[data-sheet-view]").forEach((el) => {
+    const view = el.dataset.sheetView || "";
+    if (view && view !== PINNED_SHEET_ID) buttons.set(view, el);
+    const fixed = view === PINNED_SHEET_ID;
+    el.classList.toggle("is-pinned", fixed);
+    if (fixed) el.removeAttribute("title");
+    else el.title = "ドラッグして並べ替え";
+  });
+  if (pinned) list.insertBefore(pinned, list.firstChild);
+  const order = sheetViewOrder.filter((id) => buttons.has(id));
+  for (const id of buttons.keys()) {
+    if (!order.includes(id)) order.push(id);
+  }
+  for (const id of order) {
+    if (addButton) list.insertBefore(buttons.get(id), addButton);
+    else list.appendChild(buttons.get(id));
+  }
+  sheetViewOrder = [PINNED_SHEET_ID, ...order];
+}
+
+function readMovableSheetOrder() {
+  return [...document.querySelectorAll(".sheet-tab[data-sheet-view]")]
+    .map((el) => el.dataset.sheetView || "")
+    .filter((id) => id && id !== PINNED_SHEET_ID);
+}
+
+function initSheetTabDrag() {
+  const list = document.querySelector(".sheet-tabs");
+  if (!list || list.dataset.reorderReady) return;
+  list.dataset.reorderReady = "1";
+  let drag = null;
+
+  const clearDrag = () => {
+    drag?.tab.classList.remove("is-dragging");
+    list.classList.remove("is-reordering");
+    drag = null;
+  };
+
+  list.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const tab = event.target.closest(".sheet-tab[data-sheet-view]");
+    if (!tab || !list.contains(tab) || tab.dataset.sheetView === PINNED_SHEET_ID) return;
+    drag = {
+      tab,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+  });
+
+  list.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (!drag.active) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+      drag.active = true;
+      sheetTabSuppressClick = true;
+      drag.tab.classList.add("is-dragging");
+      list.classList.add("is-reordering");
+      try {
+        drag.tab.setPointerCapture?.(event.pointerId);
+      } catch {
+        /* ポインタが既に解放されているときは並べ替えだけ続ける */
+      }
+    }
+    const target = sheetTabDropTarget(list, event.clientX, drag.tab);
+    if (!target || target === drag.tab) return;
+    if (target.id === "btn-add-sheet-tab") {
+      list.insertBefore(drag.tab, target);
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    const after = event.clientX > rect.left + rect.width / 2;
+    list.insertBefore(drag.tab, after ? target.nextElementSibling : target);
+  });
+
+  const finish = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const moved = drag.active;
+    clearDrag();
+    if (!moved) return;
+    sheetTabSuppressClick = true;
+    window.setTimeout(() => {
+      sheetTabSuppressClick = false;
+    }, 50);
+    const order = readMovableSheetOrder();
+    sheetViewOrder = [PINNED_SHEET_ID, ...order];
+    persistSheetTabOrder(order);
+  };
+  list.addEventListener("pointerup", finish);
+  list.addEventListener("pointercancel", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    clearDrag();
+    applySheetTabOrder();
+  });
+}
+
+function sheetTabDropTarget(list, clientX, dragging) {
+  const tabs = [...list.querySelectorAll(".sheet-tab[data-sheet-view]")].filter(
+    (el) => el !== dragging && el.dataset.sheetView !== PINNED_SHEET_ID
+  );
+  for (const tab of tabs) {
+    const rect = tab.getBoundingClientRect();
+    if (clientX >= rect.left && clientX <= rect.right) return tab;
+  }
+  const addButton = document.getElementById("btn-add-sheet-tab");
+  if (addButton && clientX >= addButton.getBoundingClientRect().left) return addButton;
+  return null;
+}
+
+async function persistSheetTabOrder(order) {
+  const previous = Array.isArray(serverDefaults.sheet_tab_order) ? serverDefaults.sheet_tab_order.slice() : [];
+  try {
+    const loaded = await fetch("/api/settings");
+    if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+    const settings = await loaded.json();
+    settings.sheet_tab_order = order;
+    const savedResponse = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    if (!savedResponse.ok) throw new Error("並びを保存できませんでした。");
+    const saved = await savedResponse.json();
+    serverDefaults.sheet_tab_order = Array.isArray(saved.sheet_tab_order) ? saved.sheet_tab_order : order;
+    sheetViewOrder = [PINNED_SHEET_ID, ...serverDefaults.sheet_tab_order];
+    applySheetTabOrder();
+  } catch {
+    serverDefaults.sheet_tab_order = previous;
+    sheetViewOrder = [PINNED_SHEET_ID, ...normalizeSheetTabOrder(previous, customSheetViews.map((sheet) => sheet.id))];
+    applySheetTabOrder();
+  }
 }
 
 const MAX_CUSTOM_SHEETS = 8;
@@ -1197,7 +1356,13 @@ function initSheetViews() {
   syncSheetTabColors();
   initSheetAddPopover();
 
+  initSheetTabDrag();
+
   tabList?.addEventListener("click", (event) => {
+    if (sheetTabSuppressClick) {
+      sheetTabSuppressClick = false;
+      return;
+    }
     const tab = event.target.closest(".sheet-tab[data-sheet-view]");
     if (!tab || !tabList.contains(tab)) return;
     setSheetView(tab.dataset.sheetView || "all");

@@ -6958,6 +6958,22 @@ input[type="checkbox"]:focus-visible {
   transform: translateY(-1px);
 }
 
+.sheet-tab:not(.is-pinned) {
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheet-tabs.is-reordering .sheet-tab.is-dragging {
+  cursor: grabbing;
+  opacity: 0.72;
+  z-index: 2;
+  transform: translateY(-2px);
+}
+
+.sheet-tabs.is-reordering {
+  user-select: none;
+}
+
 .sheet-tab.is-active {
   background: #fff;
   color: var(--sheet-tab-ink);

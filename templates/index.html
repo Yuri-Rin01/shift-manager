@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=119">
+  <link rel="stylesheet" href="/static/css/style.css?v=120">
 </head>
 <body>
   <div class="app">
@@ -197,7 +197,7 @@
             <div class="shift-workspace" data-sheet-view="all">
               <div class="shift-sheet-stage">
                 <div class="sheet-tabs" role="tablist" aria-label="シート切替">
-                  <button type="button" class="sheet-tab is-active" data-sheet-view="all" role="tab" aria-selected="true">
+                  <button type="button" class="sheet-tab is-active is-pinned" data-sheet-view="all" data-sheet-pinned="true" role="tab" aria-selected="true">
                     <span class="sheet-tab-label">全体</span>
                     <span class="sheet-tab-count" aria-hidden="true">0</span>
                   </button>
@@ -328,7 +328,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=74"></script>
+  <script src="/static/js/home.js?v=76"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

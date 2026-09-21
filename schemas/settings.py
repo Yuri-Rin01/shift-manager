@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
 
 from data.shift_symbols import DEFAULT_SHIFT_SYMBOLS, default_visible_work_types, normalize_visible_work_types
 from data.leave_request_config import (
@@ -16,7 +16,7 @@ from data.staffing_basis import normalize_staffing_basis_options
 from data.floors import validate_floors
 from data.flick_directions import default_cell_flick_directions, normalize_cell_flick_directions
 from data.sheet_view_colors import default_sheet_view_colors, normalize_sheet_view_colors
-from data.sheet_views import normalize_custom_sheet_views
+from data.sheet_views import normalize_custom_sheet_views, normalize_sheet_tab_order
 from data.student_labor_limits import default_student_labor_limits, normalize_student_labor_limits
 
 
@@ -50,6 +50,10 @@ class AppSettings(BaseModel):
     custom_sheet_views: list[dict] = Field(
         default_factory=list,
         description="追加シート（表示名・対象職種・アクセント色）",
+    )
+    sheet_tab_order: list[str] = Field(
+        default_factory=list,
+        description="全体タブの後ろに並べるシートID。全体は固定",
     )
     student_labor_limits: dict = Field(
         default_factory=default_student_labor_limits,
@@ -145,6 +149,12 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_custom_sheet_views_field(cls, value) -> list[dict]:
         return normalize_custom_sheet_views(value)
+
+    @model_validator(mode="after")
+    def align_sheet_tab_order(self):
+        custom_ids = [sheet["id"] for sheet in self.custom_sheet_views if isinstance(sheet, dict) and sheet.get("id")]
+        self.sheet_tab_order = normalize_sheet_tab_order(self.sheet_tab_order, custom_ids)
+        return self
 
     @field_validator("student_labor_limits", mode="before")
     @classmethod

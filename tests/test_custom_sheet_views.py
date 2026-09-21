@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from data.settings_defaults import DEFAULT_SETTINGS
-from data.sheet_views import normalize_custom_sheet_views
+from data.sheet_views import normalize_custom_sheet_views, normalize_sheet_tab_order
 from db.database import init_db
 from db.settings_repository import get_settings, save_settings
 from schemas.settings import AppSettings
@@ -45,6 +45,30 @@ def test_custom_sheet_round_trip():
 def test_schema_keeps_builtin_defaults_without_custom_sheets():
     payload = AppSettings(**DEFAULT_SETTINGS).model_dump()
     assert payload["custom_sheet_views"] == []
+    assert payload["sheet_tab_order"] == ["foreign-students"]
+
+
+def test_sheet_tab_order_keeps_all_pinned_and_appends_missing():
+    custom_ids = ["custom-2", "custom-1"]
+    assert normalize_sheet_tab_order(["all", "custom-1", "missing", "foreign-students"], custom_ids) == [
+        "custom-1",
+        "foreign-students",
+        "custom-2",
+    ]
+    assert normalize_sheet_tab_order(None, custom_ids) == ["foreign-students", "custom-2", "custom-1"]
+
+
+def test_sheet_tab_order_round_trip():
+    payload = AppSettings(
+        **{
+            **DEFAULT_SETTINGS,
+            "custom_sheet_views": [
+                {"id": "custom-1", "label": "看護", "job_types": ["看護師"], "color": "#0f766e"}
+            ],
+            "sheet_tab_order": ["custom-1", "foreign-students"],
+        }
+    ).model_dump()
+    assert payload["sheet_tab_order"] == ["custom-1", "foreign-students"]
 
 
 def test_display_settings_page_has_custom_sheet_editor():

@@ -8,6 +8,8 @@ from data.sheet_view_colors import normalize_sheet_color
 
 _ID_RE = re.compile(r"^custom-[a-z0-9][a-z0-9-]{0,23}$")
 MAX_CUSTOM_SHEETS = 8
+PINNED_SHEET_ID = "all"
+MOVABLE_BUILTIN_SHEETS = ("foreign-students",)
 
 
 def normalize_custom_sheet_views(value: object) -> list[dict]:
@@ -50,4 +52,21 @@ def normalize_custom_sheet_views(value: object) -> list[dict]:
                 "color": normalize_sheet_color(raw.get("color"), "#64748B"),
             }
         )
+    return result
+
+
+def normalize_sheet_tab_order(value: object, custom_ids: list[str] | None = None) -> list[str]:
+    """全体の後ろに並ぶシート順。全体は含めない。"""
+    allowed = [*MOVABLE_BUILTIN_SHEETS, *(custom_ids or [])]
+    known = set(allowed)
+    result: list[str] = []
+    if isinstance(value, list):
+        for raw in value:
+            key = str(raw or "").strip()
+            if key == PINNED_SHEET_ID or key not in known or key in result:
+                continue
+            result.append(key)
+    for key in allowed:
+        if key not in result:
+            result.append(key)
     return result
