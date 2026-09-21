@@ -21,4 +21,9 @@ def staff_can_be_night_leader(staff: dict | None) -> bool:
     """職員が夜勤リーダーになれるか。"""
     if not staff:
         return False
-    return bool(staff.get("can_be_night_leader")) and staff_can_work_night(staff)
+    if "can_be_night_leader" in staff:
+        leader = bool(staff.get("can_be_night_leader"))
+    else:
+        # 旧データ・生成テスト互換。明示フラグが保存された職員ではそちらを優先する。
+        leader = str(staff.get("position") or "") in {"リーダー", "主任", "管理者", "師長"}
+    return leader and staff_can_work_night(staff)
