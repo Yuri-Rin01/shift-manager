@@ -842,15 +842,35 @@ function applySheetViewContent(next, prev) {
   });
 }
 
+const PART_TIME_JOB = "パート";
+
+function laborAudience(view = getCurrentSheetView()) {
+  const jobs = fixedJobsForSheet(view);
+  const all = view === "all" || !jobs;
+  return {
+    students: all || view === "foreign-students" || jobs.includes(FOREIGN_STUDENT_JOB),
+    partTime: all || jobs.includes(PART_TIME_JOB),
+  };
+}
+
 function syncStudentLaborPanelVisibility(view = getCurrentSheetView()) {
   const panel = document.getElementById("student-labor-panel");
   if (!panel) return;
-  const show = view === "all" || view === "foreign-students";
+  const audience = laborAudience(view);
+  const show = audience.students || audience.partTime;
   panel.classList.toggle("hidden", !show);
+  panel.classList.toggle("is-split", audience.students && audience.partTime);
   panel.closest(".shift-workspace")?.classList.toggle("has-student-labor-panel", show);
-  if (show) {
-    loadStudentLaborSummary();
-  }
+  document.getElementById("student-labor-section")?.classList.toggle("hidden", !audience.students);
+  document.getElementById("part-time-labor-section")?.classList.toggle("hidden", !audience.partTime);
+  if (audience.students) loadStudentLaborSummary();
+  if (audience.partTime) loadPartTimeHours();
+}
+
+function refreshLaborPanels() {
+  const audience = laborAudience();
+  if (audience.students) loadStudentLaborSummary();
+  if (audience.partTime) loadPartTimeHours();
 }
 
 function formatStudentLaborDateRange(startIso, endIso) {
@@ -982,6 +1002,109 @@ function renderStudentLaborGaugeRow({ label, used, limit, pct, tone }) {
       aria-valuetext="${escapeHtml(ratio)}"
     >
       <span class="student-labor-gauge-fill" style="width:${pct}%"></span>
+    </div>
+  </div>`;
+}
+
+async function loadPartTimeHours() {
+  const list = document.getElementById("part-time-gauge-list");
+  const rangeEl = document.getElementById("part-time-week-range");
+  if (!list) return;
+
+  const year = getCalendarYear();
+  const month = getCalendarMonth();
+  if (!year || !month) return;
+
+  list.innerHTML = `<p class="student-labor-empty">読み込み中…</p>`;
+
+  try {
+    const response = await fetch(`/api/shifts/part-time-hours?year=${year}&month=${month}`);
+    if (!response.ok) {
+      list.innerHTML = `<p class="student-labor-empty">読み込みに失敗しました</p>`;
+      return;
+    }
+    const data = await response.json();
+    if (rangeEl) {
+      rangeEl.textContent = formatStudentLaborDateRange(data.period_start, data.period_end);
+    }
+    renderPartTimeGaugeCards(list, data.rows || [], data);
+  } catch {
+    list.innerHTML = `<p class="student-labor-empty">通信エラー</p>`;
+  }
+}
+
+function partTimeGaugeTone(usedMinutes, statutoryMinutes, insuranceMinutes) {
+  const used = Number(usedMinutes) || 0;
+  const statutory = Number(statutoryMinutes) || 40 * 60;
+  const insurance = Number(insuranceMinutes) || 20 * 60;
+  if (used > statutory) return "overtime";
+  if (used >= insurance) return "statutory";
+  return "within";
+}
+
+function renderPartTimeGaugeCards(list, rows, data) {
+  if (!rows.length) {
+    list.innerHTML = `<p class="student-labor-empty">対象のパート職員がいません</p>`;
+    return;
+  }
+  const statutory = Number(data.statutory_weekly_minutes) || 40 * 60;
+  const insurance = Number(data.insurance_weekly_minutes) || 20 * 60;
+  list.innerHTML = rows.map((row) => buildPartTimeGaugeCard(row, statutory, insurance)).join("");
+}
+
+function buildPartTimeGaugeCard(row, statutory, insurance) {
+  const name = row.name || "—";
+  const weeks = Array.isArray(row.weeks) && row.weeks.length ? row.weeks : [];
+  const status = row.status || "within";
+  const staffId = row.staff_id ?? "";
+  const markPct = statutory > 0 ? Math.round((insurance / statutory) * 100) : 50;
+
+  return `<article class="student-labor-gauge-card status-${escapeHtml(status)}" data-staff-id="${staffId}">
+    <h4 class="student-labor-gauge-name">${escapeHtml(name)}</h4>
+    <div class="student-labor-gauge-metrics">
+      ${weeks
+        .map((week, index) => {
+          const used = Number(week.week_minutes) || 0;
+          const limit = Number(week.limit_week_minutes) || statutory;
+          const dailyOver = Number(week.daily_over_count) || 0;
+          return renderPartTimeGaugeRow({
+            label: formatStudentLaborWeekLabel(week.display_start || week.week_start, week.display_end || week.week_end, index),
+            used,
+            limit,
+            pct: studentLaborUsagePercent(used, limit),
+            tone: partTimeGaugeTone(used, limit, Number(week.insurance_week_minutes) || insurance),
+            dailyOver,
+            markPct,
+          });
+        })
+        .join("")}
+    </div>
+  </article>`;
+}
+
+function renderPartTimeGaugeRow({ label, used, limit, pct, tone, dailyOver, markPct }) {
+  const ratio = `${formatStudentLaborClock(used)}/${formatStudentLaborClock(limit)}`;
+  const note = dailyOver > 0 ? `8時間超 ${dailyOver}日` : "";
+  const valueText = note ? `${ratio} ${note}` : ratio;
+  return `<div class="student-labor-gauge-row tone-${escapeHtml(tone)} is-part-time">
+    <div class="student-labor-gauge-meta">
+      <span class="student-labor-gauge-label">${escapeHtml(label)}</span>
+      <span class="student-labor-gauge-ratio">${escapeHtml(ratio)}</span>
+    </div>
+    ${note ? `<p class="part-time-daily-note">${escapeHtml(note)}</p>` : ""}
+    <div
+      class="part-time-gauge"
+      role="progressbar"
+      aria-label="${escapeHtml(label)}"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="${pct}"
+      aria-valuetext="${escapeHtml(valueText)}"
+    >
+      <span class="part-time-gauge-track">
+        <span class="student-labor-gauge-fill" style="width:${pct}%"></span>
+      </span>
+      <span class="part-time-gauge-mark" style="left:${markPct}%" title="週20時間"></span>
     </div>
   </div>`;
 }
@@ -2335,9 +2458,7 @@ async function saveBulkCellSymbols(cells, symbol) {
     [...afterStates, ...relatedAfterStates]
   );
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function saveCellSymbol(td, symbol, options = {}) {
@@ -2401,9 +2522,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   }
 
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function unlockBulkCells(cells) {
@@ -2495,9 +2614,7 @@ async function unlockBulkCells(cells) {
     [...afterStates, ...relatedAfterStates]
   );
   refreshSummaryCounts();
-  if (getCurrentSheetView() === "foreign-students") {
-    loadStudentLaborSummary();
-  }
+  refreshLaborPanels();
 }
 
 async function unlockManualCell(td) {

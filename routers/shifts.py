@@ -35,6 +35,13 @@ from services.morning_off import (
     would_block_day_work_after_night,
 )
 from services.shift_generator import generate_shifts
+from services.part_time_hours import (
+    INSURANCE_WEEKLY_MINUTES,
+    PART_TIME_JOB,
+    STATUTORY_DAILY_MINUTES,
+    STATUTORY_WEEKLY_MINUTES,
+    summarize_part_time_staff,
+)
 from services.student_labor import (
     REASON_MESSAGES,
     can_assign_shift,
@@ -178,6 +185,54 @@ def student_labor_summary(
         "period_end": period_end.isoformat(),
         "week_start": week_start.isoformat(),
         "week_end": week_end.isoformat(),
+        "rows": rows,
+    }
+
+
+@router.get("/part-time-hours")
+def part_time_hours(
+    year: int = Query(...),
+    month: int = Query(...),
+):
+    """パートの週労働時間。満量は週40時間、20時間は加入の目安。"""
+    if year < 2000 or year > 2100 or month < 1 or month > 12:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="年月が不正です")
+    settings = get_settings()
+    start_day = settings.get("calendar_start_day", 1)
+    period_start, period_end = period_bounds(year, month, start_day)
+    week_origin = str(settings.get("week_start") or "sunday")
+    first_week_start, _ = week_range_containing(period_start, week_origin)
+    _, last_week_end = week_range_containing(period_end, week_origin)
+    shifts = repo.get_shifts_between(first_week_start - timedelta(days=1), last_week_end + timedelta(days=1))
+
+    rows = []
+    for staff in list_staff():
+        if staff.get("job_type") != PART_TIME_JOB:
+            continue
+        assignments = [
+            (date.fromisoformat(day_str), cell["symbol"])
+            for (sid, day_str), cell in shifts.items()
+            if sid == staff["id"] and cell.get("symbol")
+        ]
+        rows.append(
+            summarize_part_time_staff(
+                staff=staff,
+                period_start=period_start,
+                period_end=period_end,
+                assignments=assignments,
+                settings=settings,
+            )
+        )
+
+    return {
+        "year": year,
+        "month": month,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "week_origin": week_origin,
+        "statutory_weekly_minutes": STATUTORY_WEEKLY_MINUTES,
+        "statutory_daily_minutes": STATUTORY_DAILY_MINUTES,
+        "insurance_weekly_minutes": INSURANCE_WEEKLY_MINUTES,
         "rows": rows,
     }
 
