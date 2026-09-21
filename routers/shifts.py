@@ -84,6 +84,8 @@ def _to_generate_response(raw: dict) -> ShiftGenerateResponse:
                 suggestion=item.get("suggestion"),
                 href=item.get("href"),
                 action_label=item.get("action_label"),
+                staff_ids=item.get("staff_ids") or [],
+                dates=item.get("dates") or [],
             )
         )
     summary_raw = raw.get("result_summary")

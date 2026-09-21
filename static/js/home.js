@@ -1634,8 +1634,15 @@ function shiftClassList(symbol) {
 function applyCellSymbol(td, symbol, options = {}) {
   const shiftClass = shiftClassList(symbol);
   const source = options.source ?? (options.manual ? "manual" : td.dataset.source ?? "");
+  const sameSymbol = td.dataset.symbol === symbol;
+  const retainedBadge = sameSymbol ? td.querySelector(".placement-badge")?.cloneNode(true) : null;
 
   td.dataset.symbol = symbol;
+  if (!sameSymbol) {
+    delete td.dataset.placementFloor;
+    delete td.dataset.placementRole;
+    td.title = "クリックで編集（配置先は次回の生成案で確認）";
+  }
   if (source) {
     td.dataset.source = source;
   } else {
@@ -1658,6 +1665,7 @@ function applyCellSymbol(td, symbol, options = {}) {
   paintShiftSymbolElement(span, symbol || "");
   // Transparent hit layer sits above the glyph so iOS callout has no text target
   td.replaceChildren(hit, span);
+  if (retainedBadge) td.appendChild(retainedBadge);
   syncShiftTableLongSymbolMode();
 }
 
@@ -3366,41 +3374,7 @@ async function executeAutoGenerate() {
   }
 }
 
-autoGenerateCloseBtn?.addEventListener("click", closeAutoGenerateModal);
-document.querySelectorAll("[data-close-auto-generate-modal]").forEach((element) => {
-  element.addEventListener("click", closeAutoGenerateModal);
-});
-document.querySelectorAll("[data-close-auto-generate-confirm]").forEach((element) => {
-  element.addEventListener("click", closeAutoGenerateConfirmModal);
-});
-autoGenerateConfirmRun?.addEventListener("click", () => {
-  if (pendingPreflight && pendingPreflight.can_generate === false) return;
-  executeAutoGenerate();
-});
-autoGenerateScopeRefresh?.addEventListener("click", () => {
-  refreshAutoGeneratePreflight({ syncControls: true });
-});
-[autoGenerateYear, autoGenerateMonth].forEach((element) => {
-  element?.addEventListener("change", () => {
-    if (autoGenerateScopeSyncing) return;
-    if (autoGenerateScopeStart) autoGenerateScopeStart.value = "";
-    if (autoGenerateScopeEnd) autoGenerateScopeEnd.value = "";
-    refreshAutoGeneratePreflight({ syncControls: true });
-  });
-});
-[autoGenerateScopeStart, autoGenerateScopeEnd].forEach((element) => {
-  element?.addEventListener("change", () => {
-    if (autoGenerateScopeSyncing) return;
-    refreshAutoGeneratePreflight({ syncControls: false });
-  });
-});
-autoGenerateFloors?.addEventListener("change", (event) => {
-  if (autoGenerateScopeSyncing) return;
-  if (!(event.target instanceof HTMLInputElement)) return;
-  if (event.target.dataset.autoGenerateFloor !== "1") return;
-  refreshAutoGeneratePreflight({ syncControls: false });
-});
-autoGenerateButton?.addEventListener("click", openAutoGenerateConfirm);
+// generation.js owns the auto-generation button and transactional preview flow.
 
 const clearShiftsButton = document.getElementById("btn-clear-shifts");
 

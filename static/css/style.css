@@ -7891,3 +7891,40 @@ body.is-ios .content-home .student-labor-panel ::selection {
 @media (max-width:760px) {
   .floor-editor-row { grid-template-columns:1fr; }
 }
+
+/* Transactional generation preview and per-shift placement badges. */
+.generation-dialog { width:min(1100px, calc(100vw - 32px)); max-width:1100px; max-height:92vh; display:flex; flex-direction:column; }
+.generation-content { padding:20px; overflow:auto; min-height:0; }
+.generation-content h4 { margin:8px 0 16px; }
+.generation-steps { display:flex; list-style:none; padding:0 20px; margin:0; gap:12px; }
+.generation-steps li { flex:1; padding:14px 0; border-bottom:3px solid var(--border); color:var(--text-muted); text-align:center; }
+.generation-steps li[aria-current] { color:var(--primary); border-color:var(--primary); font-weight:600; }
+.generation-row { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
+.generation-counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; }
+.generation-content input[type=number], .generation-content input[type=month], .generation-content select { min-height:42px; max-width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; font:inherit; }
+.generation-content input[type=number] { width:100%; }
+.generation-table-wrap { overflow:auto; max-height:440px; }
+.generation-table-wrap input { min-width:100px; }
+.generation-calendar th, .generation-calendar td { min-width:46px; text-align:center; }
+.generation-calendar th:first-child { position:sticky; left:0; background:var(--card); min-width:100px; z-index:1; }
+.generation-calendar thead th { position:sticky; top:0; background:var(--card); }
+.generation-note { padding:12px; background:#eff6ff; border-radius:8px; color:#244c83; }
+.generation-warnings { background:#fff6e7; color:#704615; padding:12px; border-radius:8px; margin-bottom:16px; }
+.generation-warnings ul { padding-left:20px; max-height:180px; overflow:auto; }
+.generation-footer { flex-wrap:wrap; flex-shrink:0; }
+#generation-status { margin-right:auto; }
+#generation-error { margin:12px 20px 0; }
+.generation-dialog .modal-header, .generation-steps { flex-shrink:0; }
+#generation-wizard { z-index:500; }
+.generation-focus { outline:3px solid #2563eb; outline-offset:-3px; background:#dbeafe !important; }
+.generation-warning-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.placement-badge { display:block; font-size:9px; line-height:12px; font-weight:700; color:#334155; white-space:nowrap; }
+.shift-td:has(.placement-badge) { height:38px; }
+@media(max-width:640px) {
+  .generation-dialog { width:calc(100vw - 16px); max-height:95dvh; }
+  .generation-content { padding:14px; }
+  .generation-steps { padding:0 12px; gap:6px; font-size:12px; }
+  .generation-counts { grid-template-columns:1fr 1fr; }
+  .generation-footer .btn-primary { flex:1; }
+  .generation-content input, .generation-content select { font-size:16px; }
+}
