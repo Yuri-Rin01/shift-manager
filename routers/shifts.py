@@ -20,12 +20,15 @@ from schemas.auto_shift import (
 from services.auto_generate_preflight import build_auto_generate_preflight
 from schemas.shift import (
     ShiftCellResponse,
+    ShiftHistoryRestore,
     ShiftCellUnlock,
     ShiftCellUpdate,
     ShiftClearRequest,
     ShiftClearResponse,
 )
+from schemas.generation_preview import GenerationPreviewRequest, GenerationApplyRequest
 from services.auth import require_admin
+from services.generation_preview import generation_context, create_preview, apply_preview
 from services.morning_off import (
     apply_morning_off_after_night,
     clear_auto_morning_off_after_night,
@@ -333,6 +336,27 @@ def update_shift_cell(data: ShiftCellUpdate):
     )
 
 
+@router.post("/history/restore")
+def restore_shift_history(data: ShiftHistoryRestore):
+    from services.shift_edit import restore_cells
+
+    states = [cell.model_dump(mode="json") for cell in data.states]
+    expected = [cell.model_dump(mode="json") for cell in data.expected]
+    valid = _valid_symbols()
+    for cell in states:
+        if cell["symbol"] and (cell["symbol"] not in valid or not cell["source"]):
+            raise HTTPException(
+                status_code=400,
+                detail="勤務記号または入力元が無効です。設定変更後は再読み込みしてください。",
+            )
+        if not cell["symbol"] and (cell["source"] or cell["placement"]):
+            raise HTTPException(status_code=400, detail="空欄の復元データが不正です。")
+    try:
+        return {"cells": restore_cells(states, expected)}
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @router.post("/cell/unlock", response_model=ShiftCellResponse)
 def unlock_shift_cell(data: ShiftCellUnlock):
     """手動確定を解除し、自動生成で上書き可能な状態に戻す（記号は維持）。"""
@@ -452,3 +476,24 @@ def generate_shift_schedule(data: ShiftGenerateRequest):
             floors=data.floors,
         )
     )
+
+
+@router.get("/generation/context")
+def get_generation_context():
+    return generation_context()
+
+
+@router.post("/generation/preview")
+def preview_generation(data: GenerationPreviewRequest):
+    try:
+        return create_preview(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/generation/apply")
+def apply_generation(data: GenerationApplyRequest):
+    try:
+        return apply_preview(data.token)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

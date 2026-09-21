@@ -45,7 +45,7 @@
     </thead>
     <tbody>
       {% for row in staff_rows %}
-        <tr data-dept="{{ row.dept }}" data-floors="{{ row.floors }}" data-job="{{ row.job }}" data-position="{{ row.position }}" data-staff-id="{{ row.id }}">
+        <tr data-dept="{{ row.dept }}" data-floors="{{ row.floors }}" data-job="{{ row.job }}" data-position="{{ row.position }}" data-staff-id="{{ row.id }}" data-exclude-from-staffing="{{ 'true' if row.exclude_from_staffing else 'false' }}">
           <td class="col-name{% if not compact %} sticky-col{% endif %}{% if editable %} is-staff-name{% endif %}">
             {% if editable %}
               <button type="button" class="staff-name-link" data-staff-edit="{{ row.id }}" aria-label="{{ row.name }}の職員情報を編集">{{ row.name }}</button>
@@ -66,10 +66,14 @@
                 data-month="{{ cell.month }}"
                 data-day="{{ cell.day }}"
                 data-symbol="{{ cell.symbol }}"
+                data-placement-floor="{{ cell.placement_floor }}"
+                data-placement-role="{{ cell.placement_role }}"
                 {% if cell.source %}data-source="{{ cell.source }}"{% endif %}
+                title="{{ cell.placement_label }}{% if cell.placement_label %} / {% endif %}クリックで編集"
               >
                 <span class="shift-cell-hit" aria-hidden="true"></span>
                 <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
+                {% if cell.placement_badge %}<small class="placement-badge" aria-label="{{ cell.placement_label }}">{{ cell.placement_badge }}</small>{% endif %}
               </td>
             {% else %}
               <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">

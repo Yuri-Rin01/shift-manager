@@ -86,14 +86,22 @@ def get_shift_cell(staff_id: int, shift_date: date) -> ShiftCell | None:
     }
 
 
+def get_placements_between(start: date, end: date) -> dict:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM shift_placements WHERE shift_date BETWEEN ? AND ?",
+            (start.isoformat(), end.isoformat()),
+        ).fetchall()
+    return {(row['staff_id'], row['shift_date']): {'floor': row['floor'], 'role': row['role']}
+            for row in rows}
+
+
 def save_placements(conn, placements: list[dict]) -> None:
     """Save in the same transaction as the corresponding shift assignments."""
     conn.executemany(
-        """
-        INSERT INTO shift_placements(staff_id, shift_date, floor, role) VALUES (?, ?, ?, ?)
-        ON CONFLICT(staff_id, shift_date) DO UPDATE SET floor=excluded.floor, role=excluded.role
-        """,
-        [(p["staff_id"], p["date"], p["floor"], p["role"]) for p in placements],
+        """INSERT INTO shift_placements(staff_id,shift_date,floor,role) VALUES (?,?,?,?)
+        ON CONFLICT(staff_id,shift_date) DO UPDATE SET floor=excluded.floor, role=excluded.role""",
+        [(p['staff_id'], p['date'], p['floor'], p['role']) for p in placements],
     )
 
 
@@ -111,37 +119,16 @@ def delete_shift_cell(staff_id: int, shift_date: date) -> bool:
         return cursor.rowcount > 0
 
 
-def delete_shifts_between(
-    start: date,
-    end: date,
-    *,
-    staff_ids: list[int] | None = None,
-) -> int:
-    """指定期間のシフト割当を削除。削除件数を返す。
-
-    staff_ids を渡すとその職員のみ削除する（フロア限定生成用）。
-    """
+def delete_shifts_between(start: date, end: date) -> int:
+    """指定期間のシフト割当を削除。削除件数を返す。"""
     with get_connection() as conn:
-        if staff_ids is not None:
-            if not staff_ids:
-                return 0
-            placeholders = ",".join("?" for _ in staff_ids)
-            cursor = conn.execute(
-                f"""
-                DELETE FROM shift_assignments
-                WHERE shift_date >= ? AND shift_date <= ?
-                  AND staff_id IN ({placeholders})
-                """,
-                (start.isoformat(), end.isoformat(), *staff_ids),
-            )
-        else:
-            cursor = conn.execute(
-                """
-                DELETE FROM shift_assignments
-                WHERE shift_date >= ? AND shift_date <= ?
-                """,
-                (start.isoformat(), end.isoformat()),
-            )
+        cursor = conn.execute(
+            """
+            DELETE FROM shift_assignments
+            WHERE shift_date >= ? AND shift_date <= ?
+            """,
+            (start.isoformat(), end.isoformat()),
+        )
         conn.commit()
         return cursor.rowcount
 

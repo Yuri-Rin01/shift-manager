@@ -26,6 +26,8 @@ class ShiftGenerateWarning(BaseModel):
     suggestion: str | None = None
     href: str | None = None
     action_label: str | None = None
+    staff_ids: list[int] = Field(default_factory=list)
+    dates: list[str] = Field(default_factory=list)
 
 
 class ShiftGenerateSuggestion(BaseModel):

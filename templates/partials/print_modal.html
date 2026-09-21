@@ -14,7 +14,7 @@
       <aside class="print-panel">
         <section class="print-section">
           <h4 class="print-section-title">① フロア・職種</h4>
-          <p class="field-hint">フィルターは準備中です。現在はすべての職員が印刷対象です。</p>
+          <p class="field-hint">担当可能フロア・職種で印刷する職員を選べます。</p>
           <div class="print-filter-grid">
             <div class="print-filter-box">
               <div class="print-filter-head">
@@ -27,7 +27,7 @@
               </div>
               <div class="print-filter-list" data-group="dept">
                 {% for dept in departments %}
-                  <label class="check-row"><input type="checkbox" checked>{{ floor_badge(dept.label) }}</label>
+                  <label class="check-row"><input type="checkbox" value="{{ dept.label }}" checked>{{ floor_badge(dept.label) }}</label>
                 {% endfor %}
               </div>
             </div>
@@ -42,7 +42,7 @@
               </div>
               <div class="print-filter-list" data-group="job">
                 {% for job in job_types %}
-                  <label class="check-row"><input type="checkbox" checked><span>{{ job.label }}</span></label>
+                  <label class="check-row"><input type="checkbox" value="{{ job.label }}" checked><span>{{ job.label }}</span></label>
                 {% endfor %}
               </div>
             </div>
@@ -63,14 +63,6 @@
                 <span>フロア</span>
               </label>
             </div>
-            <label class="print-form-field">
-              <span>表示グループ（準備中）</span>
-              <select disabled aria-disabled="true">
-                {% for group in display_groups %}
-                  <option>{{ group.label }}</option>
-                {% endfor %}
-              </select>
-            </label>
             <label class="print-form-field">
               <span>用紙サイズ</span>
               <select id="print-paper">
