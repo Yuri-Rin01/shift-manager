@@ -4,6 +4,7 @@ from data.routes import ROUTES
 MENU = [
     {"label": "ダッシュボード", "key": "dashboard", "icon": "dashboard"},
     {"label": "シフトカレンダー", "key": "calendar", "icon": "calendar"},
+    {"label": "デイリー役割表", "key": "daily-duties", "icon": "calendar"},
     {"label": "休み希望管理", "key": "leave-request", "icon": "leave"},
     {"label": "職員管理", "key": "staff", "icon": "staff"},
     {"label": "各種設定", "key": "settings", "icon": "settings"},

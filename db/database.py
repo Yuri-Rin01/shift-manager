@@ -106,6 +106,8 @@ def init_db() -> None:
         conn.execute(CREATE_STAFF_TABLE)
         conn.execute(CREATE_SETTINGS_TABLE)
         conn.execute(CREATE_SHIFT_TABLE)
+        from db.daily_duties import init_daily_tables
+        init_daily_tables(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS shift_placements (

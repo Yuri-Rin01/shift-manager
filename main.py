@@ -45,6 +45,7 @@ from routers.leave_requests import router as leave_requests_router
 from routers.settings import router as settings_router
 from routers.shifts import router as shifts_router
 from routers.staff import router as staff_router
+from routers.daily_duties import router as daily_duties_router
 from routers.backup import router as backup_router
 from routers.auth import router as auth_router
 from services.backup import is_write_blocked
@@ -80,6 +81,7 @@ async def block_writes_during_restore(request: Request, call_next):
 
 
 app.include_router(staff_router)
+app.include_router(daily_duties_router)
 app.include_router(settings_router)
 app.include_router(shifts_router)
 app.include_router(backup_router)
@@ -262,3 +264,15 @@ async def local_auth_guide(request: Request):
         "auth/local_guide.html",
         _base_context(),
     )
+
+
+@app.get('/daily-duties', response_class=HTMLResponse)
+async def daily_duties_page(request: Request):
+    from services.auth import admin_login_redirect
+    redirect = admin_login_redirect(request)
+    if redirect:
+        return redirect
+    from datetime import timedelta
+    today = date.today()
+    return templates.TemplateResponse(request, 'daily_duties.html',
+        _page_context('daily-duties', initial_start=(today - timedelta(days=today.weekday())).isoformat()))

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>デイリー役割表 - {{ facility_name }}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=daily1">
+  <link rel="stylesheet" href="/static/css/daily_duties.css?v=1">
+</head>
+<body class="daily-page">
+<div class="app">
+  {% include 'partials/sidebar.html' %}
+  <main class="main">
+    {% set page_heading = 'デイリー役割表' %}{% include 'partials/topbar.html' %}
+    <div class="content daily-content">
+      <section class="daily-intro"><h2>出勤する人に、今日の担当を。</h2><p>シフト表の勤務記号・配置を読み込みます。AM／PMの枠を押して担当を選択してください。</p></section>
+      <form id="daily-controls" class="daily-toolbar">
+        <label>開始日<input id="daily-start" type="date" min="2000-01-01" max="2099-12-31" value="{{ initial_start }}" required></label>
+        <label>表示<select id="daily-days"><option value="7">7日間</option><option value="1">1日</option></select></label>
+        <label>担当可能フロア<select id="daily-floor"><option value="">すべて</option></select></label>
+        <button class="btn" type="button" id="daily-prev">前へ</button><button class="btn" type="button" id="daily-next">次へ</button>
+        <button class="btn" type="submit">表示・再読み込み</button>
+        <button class="btn" type="button" id="daily-options">担当項目の編集</button>
+        <label>印刷用紙<select id="daily-paper"><option value="A4">A4 横</option><option value="A3">A3 横</option></select></label>
+        <button class="btn btn-primary" type="button" id="daily-print" disabled>印刷・PDF</button>
+      </form>
+      <p id="daily-status" role="status" aria-live="polite">読み込み中…</p>
+      <p id="daily-error" class="daily-error" role="alert" hidden></p>
+      <section id="daily-output"><h2 id="daily-title"></h2><p id="daily-range"></p>
+        <div class="daily-scroll" tabindex="0" role="region" aria-label="デイリー役割表。横にスクロールできます"><table id="daily-table"></table></div>
+        <p class="daily-legend">勤務＝シフト表の記号。記号下は実際の配置先。未配置＝配置未確定。夜勤の担当フロアはPM欄に表示します。AM／PMの境目は12時です。</p>
+      </section>
+    </div>
+  </main>
+</div>
+<dialog id="daily-editor" aria-labelledby="daily-editor-title">
+  <form id="daily-cell-form"><h2 id="daily-editor-title"></h2><p id="daily-editor-note"></p>
+    <label>AM担当<input id="daily-am" list="daily-role-list" maxlength="40" placeholder="候補から選択、または直接入力" autocomplete="off"></label>
+    <label>PM担当<input id="daily-pm" list="daily-role-list" maxlength="40" placeholder="候補から選択、または直接入力" autocomplete="off"></label>
+    <datalist id="daily-role-list"></datalist><p class="field-hint">担当を消す場合は空欄にします。元のシフトは変更しません。</p>
+    <p id="daily-cell-error" class="daily-error" role="alert"></p>
+    <div class="daily-dialog-actions"><button type="button" class="btn" id="daily-clear">担当をすべて解除</button><button type="button" class="btn" data-close-duty>キャンセル</button><button type="submit" class="btn btn-primary">保存</button></div>
+  </form>
+</dialog>
+<dialog id="daily-role-editor" aria-labelledby="daily-role-title">
+  <form id="daily-role-form"><h2 id="daily-role-title">担当項目の編集</h2><p>候補を1行に1つ入力してください。BB・Lなどの略称は施設に合わせて変更できます。</p>
+    <label>担当候補<textarea id="daily-role-text" rows="12" maxlength="4100"></textarea></label>
+    <p class="field-hint">候補の変更・削除で、すでに保存した担当は変わりません。各担当は40文字、候補は100件までです。</p>
+    <p id="daily-role-error" class="daily-error" role="alert"></p>
+    <div class="daily-dialog-actions"><button class="btn" type="button" data-close-duty>キャンセル</button><button class="btn btn-primary" type="submit">候補を保存</button></div>
+  </form>
+</dialog>
+<script src="/static/js/daily_duties.js?v=1"></script>
+</body></html>

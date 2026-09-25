@@ -3,6 +3,7 @@
 ROUTES: dict[str, str] = {
     "dashboard": "/dashboard",
     "calendar": "/",
+    "daily-duties": "/daily-duties",
     "leave-request": "/leave-requests",
     "auto-shift": "/auto-shift",
     "confirm-shift": "/shift/confirm",
