@@ -115,10 +115,6 @@
                           <input type="checkbox" id="home-show-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
                           <span>職種</span>
                         </label>
-                        <label class="home-toggle-chip" title="フロア列を表示">
-                          <input type="checkbox" id="home-show-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
-                          <span>フロア</span>
-                        </label>
                         <label class="home-toggle-chip" title="人員集計行を表示">
                           <input type="checkbox" id="home-show-summary"{% if app_settings.default_show_summary %} checked{% endif %}>
                           <span>集計</span>
@@ -234,7 +230,7 @@
                       <div class="sheet-main-scroll" id="sheet-main-scroll">
                       <div
                         id="shift-calendar"
-                        class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_dept_column %} hide-col-dept{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
+                        class="calendar-scroll{% if app_settings.default_color_cells %} color-cells{% else %} mono-cells{% endif %}{% if not app_settings.default_show_job_column %} hide-col-job{% endif %}{% if not app_settings.default_show_summary %} hide-summary{% endif %}"
                       >
                         {% with show_summary=true, editable=true, show_week_number=app_settings.show_week_number %}
                           {% include "partials/shift_table.html" %}
@@ -329,7 +325,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=79"></script>
-  <script src="/static/js/generation.js?v=3"></script>
+  <script src="/static/js/home.js?v=80"></script>
+  <script src="/static/js/generation.js?v=4"></script>
 </body>
 </html>
