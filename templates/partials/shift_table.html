@@ -1,4 +1,3 @@
-{% from "partials/floor_badges.html" import floor_badges %}
 {% set ns = namespace(max_sym=1) %}
 {% if legend is defined %}
   {% for item in legend %}
@@ -21,7 +20,6 @@
         <tr class="week-number-row">
           <th class="col-name{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
           <th class="col-job{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
-          <th class="col-dept{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
           {% for day in days %}
             <th class="day-col day-week-number{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
               {{ day.week_number }}週
@@ -32,7 +30,6 @@
       <tr>
         <th class="col-name{% if not compact %} sticky-col{% endif %}">職員名</th>
         <th class="col-job{% if not compact %} sticky-col{% endif %}">職種</th>
-        <th class="col-dept{% if not compact %} sticky-col{% endif %}">フロア</th>
         {% for day in days %}
           <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
             <span class="day-head">
@@ -54,9 +51,6 @@
             {% endif %}
           </td>
           <td class="col-job{% if not compact %} sticky-col{% endif %}">{{ row.job }}</td>
-          <td class="col-dept{% if not compact %} sticky-col{% endif %}">
-            {{ floor_badges(row.departments if row.departments else ([row.dept] if row.dept else [])) }}
-          </td>
           {% for cell in row.cells %}
             {% if editable %}
               <td
@@ -66,14 +60,11 @@
                 data-month="{{ cell.month }}"
                 data-day="{{ cell.day }}"
                 data-symbol="{{ cell.symbol }}"
-                data-placement-floor="{{ cell.placement_floor }}"
-                data-placement-role="{{ cell.placement_role }}"
                 {% if cell.source %}data-source="{{ cell.source }}"{% endif %}
-                title="{{ cell.placement_label }}{% if cell.placement_label %} / {% endif %}クリックで編集"
+                title="クリックで編集"
               >
                 <span class="shift-cell-hit" aria-hidden="true"></span>
                 <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
-                {% if cell.placement_badge %}<small class="placement-badge" aria-label="{{ cell.placement_label }}">{{ cell.placement_badge }}</small>{% endif %}
               </td>
             {% else %}
               <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
@@ -91,7 +82,6 @@
           <tr data-summary-symbol="{{ row.symbol }}">
             <td class="col-name summary-label{% if not compact %} sticky-col{% endif %}">{{ row.label }}</td>
             <td class="col-job{% if not compact %} sticky-col{% endif %}"></td>
-            <td class="col-dept{% if not compact %} sticky-col{% endif %}"></td>
             {% for count in row.counts %}
               <td class="day-col summary-count">{{ count }}</td>
             {% endfor %}
