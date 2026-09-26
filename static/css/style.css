@@ -2311,6 +2311,11 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   background: rgba(248, 250, 252, 0.95);
 }
 
+.shift-cell-picker:has(.shift-picker-bulk-actions) {
+  overflow: hidden;
+  max-height: min(380px, 72vh);
+}
+
 .shift-picker-bulk-body {
   display: flex;
   flex-direction: column;
