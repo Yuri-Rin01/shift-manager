@@ -101,7 +101,9 @@ class DailyDutyApiTests(unittest.TestCase):
         from services.auth import require_admin
         from fastapi import HTTPException
         client=TestClient(app)
-        self.assertEqual(client.get('/daily-duties').status_code,200)
+        page=client.get('/daily-duties')
+        self.assertEqual(page.status_code,200)
+        self.assertNotIn('出勤する人に、今日の担当を。', page.text)
         c=self.cell()
         body=dict(staff_id=self.sid,date=self.day.isoformat(),am='L',pm='入浴準備',signature=c['signature'],revision=c['revision'])
         response=client.put('/api/daily-duties/cell',json=body)

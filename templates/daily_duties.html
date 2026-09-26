@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>デイリー役割表 - {{ facility_name }}</title>
   <link rel="stylesheet" href="/static/css/style.css?v=daily1">
-  <link rel="stylesheet" href="/static/css/daily_duties.css?v=1">
+  <link rel="stylesheet" href="/static/css/daily_duties.css?v=2">
 </head>
 <body class="daily-page">
 <div class="app">
@@ -12,7 +12,7 @@
   <main class="main">
     {% set page_heading = 'デイリー役割表' %}{% include 'partials/topbar.html' %}
     <div class="content daily-content">
-      <section class="daily-intro"><h2>出勤する人に、今日の担当を。</h2><p>シフト表の勤務記号・配置を読み込みます。AM／PMの枠を押して担当を選択してください。</p></section>
+      <section class="daily-intro"><p>シフト表の勤務記号・配置を読み込みます。AM／PMの枠を押して担当を選択してください。</p></section>
       <form id="daily-controls" class="daily-toolbar">
         <label>開始日<input id="daily-start" type="date" min="2000-01-01" max="2099-12-31" value="{{ initial_start }}" required></label>
         <label>表示<select id="daily-days"><option value="7">7日間</option><option value="1">1日</option></select></label>
