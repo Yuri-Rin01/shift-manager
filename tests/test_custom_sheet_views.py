@@ -102,3 +102,6 @@ def test_display_settings_page_has_custom_sheet_editor():
             assert "placement-badge" not in home_html
             assert 'id="home-show-dept"' not in home_html
             assert "フロア列を表示" not in html
+            assert "フロア順" not in home_html
+            assert 'data-filter-group="dept"' not in home_html
+            assert "print-col-dept" not in home_html

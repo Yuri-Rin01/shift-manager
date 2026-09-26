@@ -1,4 +1,3 @@
-{% from "partials/floor_badges.html" import floor_badge %}
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -35,12 +34,13 @@
                     <button type="button" class="home-period-skip" id="btn-next-year" aria-label="翌年">»</button>
                   </div>
 
-                  {% set sort_options = calendar_sort_options if calendar_sort_options else [
+                  {% set sort_source = calendar_sort_options if calendar_sort_options else [
                     {"value": "position", "label": "役職順"},
-                    {"value": "dept", "label": "フロア順"},
                     {"value": "job", "label": "職種順"},
                     {"value": "name", "label": "名前順"}
                   ] %}
+                  {% set sort_options = sort_source | rejectattr('value', 'equalto', 'dept') | list %}
+                  {% set home_sort_mode = calendar_sort_mode if calendar_sort_mode != 'dept' else 'position' %}
                   {% set zoom_options = table_zoom_options if table_zoom_options else [50, 70, 80, 90, 100, 110, 120, 130, 150, 200] %}
                   <div class="home-toolbar-inline-tools">
                     <div class="home-toolbar-block">
@@ -63,7 +63,7 @@
                         id="btn-toggle-filters"
                         aria-expanded="false"
                         aria-controls="home-filters-body"
-                        title="並び順・表示・フロア・職種・役職を設定します"
+                        title="並び順・表示・職種・役職を設定します"
                       >
                         <span class="home-filters-btn-text" id="home-filters-btn-text">開く</span>
                         <span class="home-filters-btn-badge hidden" id="home-filters-btn-badge"></span>
@@ -93,14 +93,14 @@
                         {% for opt in sort_options %}
                           <button
                             type="button"
-                            class="home-segment-btn{% if opt.value == calendar_sort_mode %} is-active{% endif %}"
+                            class="home-segment-btn{% if opt.value == home_sort_mode %} is-active{% endif %}"
                             data-sort-mode="{{ opt.value }}"
                           >{{ opt.label }}</button>
                         {% endfor %}
                       </div>
                       <select id="calendar-sort-mode" class="visually-hidden" aria-label="カレンダー並び順" tabindex="-1">
                         {% for opt in sort_options %}
-                          <option value="{{ opt.value }}"{% if opt.value == calendar_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
+                          <option value="{{ opt.value }}"{% if opt.value == home_sort_mode %} selected{% endif %}>{{ opt.label }}</option>
                         {% endfor %}
                       </select>
                     </div>
@@ -123,25 +123,6 @@
                     </div>
                   </div>
                   <div class="home-controls-checkboxes">
-                    <section class="home-check-panel">
-                      <div class="home-check-panel-head">
-                        <span class="home-toolbar-label">フロア</span>
-                        <span class="home-filter-actions">
-                          <button type="button" class="home-filter-action" data-select-filter="dept">すべて</button>
-                          <button type="button" class="home-filter-action" data-clear-filter="dept">クリア</button>
-                          <button type="button" class="home-filter-action" data-invert-filter="dept">反転</button>
-                        </span>
-                      </div>
-                      <div class="home-chip-grid" data-filter-group="dept">
-                        {% for dept in departments %}
-                          <label class="home-chip">
-                            <input type="checkbox" class="filter-dept-cb" value="{{ dept.label }}" checked>
-                            <span class="home-chip-face home-chip-face-badge">{{ floor_badge(dept.label) }}</span>
-                          </label>
-                        {% endfor %}
-                      </div>
-                    </section>
-
                     <section class="home-check-panel" id="home-filter-panel-job" data-filter-panel="job">
                       <div class="home-check-panel-head">
                         <span class="home-toolbar-label">職種</span>
@@ -325,7 +306,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=80"></script>
+  <script src="/static/js/home.js?v=81"></script>
   <script src="/static/js/generation.js?v=4"></script>
 </body>
 </html>

@@ -266,8 +266,12 @@ function getCalendarSortSelect() {
   return document.getElementById("calendar-sort-mode");
 }
 
+function visibleSortMode(mode) {
+  return mode && mode !== "dept" ? mode : "position";
+}
+
 function getCurrentSortMode() {
-  return getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode || "dept";
+  return visibleSortMode(getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode);
 }
 
 function rowStaffName(row) {
@@ -326,13 +330,13 @@ function syncCalendarSortUrl(mode = getCurrentSortMode()) {
 function resolveInitialSortMode() {
   const display = new URLSearchParams(window.location.search).get("display");
   if (display && DISPLAY_TO_SORT[display]) {
-    return DISPLAY_TO_SORT[display];
+    return visibleSortMode(DISPLAY_TO_SORT[display]);
   }
   const saved = loadPrefs().calendarSortMode;
   if (saved && SORT_TO_DISPLAY[saved]) {
-    return saved;
+    return visibleSortMode(saved);
   }
-  return getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode || "dept";
+  return getCurrentSortMode();
 }
 
 function initSortState() {
@@ -1587,7 +1591,7 @@ function updateFiltersSummary() {
     ? "絞り込みパネルを閉じます"
     : isFiltered
       ? `絞り込み中（非表示 ${hiddenCount} 項目）`
-      : "並び順・表示・フロア・職種・役職を設定します";
+      : "並び順・表示・職種・役職を設定します";
 
   if (badge) {
     if (isFiltered) {
@@ -1679,7 +1683,7 @@ function initCalendarControls() {
     if (!button || !filtersBody.contains(button)) return;
     const sortSelect = getCalendarSortSelect();
     if (!sortSelect) return;
-    sortSelect.value = button.dataset.sortMode ?? "dept";
+    sortSelect.value = button.dataset.sortMode ?? "position";
     onCalendarSortChange();
   });
   getCalendarSortSelect()?.addEventListener("change", onCalendarSortChange);
