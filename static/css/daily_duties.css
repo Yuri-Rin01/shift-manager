@@ -1,5 +1,4 @@
 .daily-content { display:block; padding:24px; }
-.daily-intro h2 { margin:0 0 8px; font-size:20px; }
 .daily-intro p,.daily-legend { color:#526275; }
 .daily-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:end; padding:18px 0; }
 .daily-toolbar label, .daily-page dialog label { display:grid; gap:6px; font-weight:600; }

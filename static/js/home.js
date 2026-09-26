@@ -12,7 +12,6 @@ function escapeHtml(value) {
 function defaultPrefs() {
   return {
     showJob: serverDefaults.default_show_job_column ?? true,
-    showDept: serverDefaults.default_show_dept_column ?? true,
     colorCells: serverDefaults.default_color_cells ?? true,
     showSummary: serverDefaults.default_show_summary ?? true,
     tableZoom: (serverDefaults.default_table_zoom ?? 100) / 100,
@@ -32,7 +31,6 @@ const calendarZoomSelect = document.getElementById("calendar-zoom-select");
 const calendarSortSelect = document.getElementById("calendar-sort-mode");
 const homeColorCells = document.getElementById("home-color-cells");
 const homeShowJob = document.getElementById("home-show-job");
-const homeShowDept = document.getElementById("home-show-dept");
 const homeShowSummary = document.getElementById("home-show-summary");
 
 const ZOOM_MIN = 0.5;
@@ -43,7 +41,6 @@ const SUPPORTS_CSS_ZOOM = typeof CSS !== "undefined" && CSS.supports?.("zoom", "
 let tableZoom = defaultPrefs().tableZoom;
 const previewBox = document.getElementById("print-preview-box");
 const printColJob = document.getElementById("print-col-job");
-const printColDept = document.getElementById("print-col-dept");
 const printColorMode = document.getElementById("print-color-mode");
 const btnPrevMonth = document.getElementById("btn-prev-month");
 const btnNextMonth = document.getElementById("btn-next-month");
@@ -87,7 +84,6 @@ function getHomeDisplayInputs() {
   return {
     colorCells: document.getElementById("home-color-cells"),
     showJob: document.getElementById("home-show-job"),
-    showDept: document.getElementById("home-show-dept"),
     showSummary: document.getElementById("home-show-summary"),
   };
 }
@@ -97,7 +93,6 @@ function getPrefs() {
   const homeInputs = getHomeDisplayInputs();
   return {
     showJob: homeInputs.showJob?.checked ?? printColJob?.checked ?? defaults.showJob,
-    showDept: homeInputs.showDept?.checked ?? printColDept?.checked ?? defaults.showDept,
     colorCells: homeInputs.colorCells?.checked ?? printColorMode?.checked ?? defaults.colorCells,
     showSummary: homeInputs.showSummary?.checked ?? defaults.showSummary,
   };
@@ -107,14 +102,12 @@ function applyDisplayPrefs(prefs = getPrefs()) {
   if (shiftCalendar) {
     const foreignSheet = getCurrentSheetView() === "foreign-students";
     shiftCalendar.classList.toggle("hide-col-job", foreignSheet || !prefs.showJob);
-    shiftCalendar.classList.toggle("hide-col-dept", !prefs.showDept);
     shiftCalendar.classList.toggle("hide-summary", foreignSheet || !prefs.showSummary);
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
     shiftCalendar.classList.toggle("mono-cells", !prefs.colorCells);
   }
   if (previewBox?.querySelector(".shift-table")) {
     previewBox.classList.toggle("hide-col-job", !prefs.showJob);
-    previewBox.classList.toggle("hide-col-dept", !prefs.showDept);
     previewBox.classList.toggle("hide-summary", !prefs.showSummary);
     previewBox.classList.toggle("color-cells", prefs.colorCells);
     previewBox.classList.toggle("mono-cells", !prefs.colorCells);
@@ -124,11 +117,9 @@ function applyDisplayPrefs(prefs = getPrefs()) {
 function syncControlsFromPrefs(prefs) {
   const homeInputs = getHomeDisplayInputs();
   if (homeInputs.showJob) homeInputs.showJob.checked = prefs.showJob;
-  if (homeInputs.showDept) homeInputs.showDept.checked = prefs.showDept;
   if (homeInputs.colorCells) homeInputs.colorCells.checked = prefs.colorCells;
   if (homeInputs.showSummary) homeInputs.showSummary.checked = prefs.showSummary;
   if (printColJob) printColJob.checked = prefs.showJob;
-  if (printColDept) printColDept.checked = prefs.showDept;
   if (printColorMode) printColorMode.checked = prefs.colorCells;
 }
 
@@ -139,7 +130,6 @@ function updatePreviewNote() {
   const prefs = getPrefs();
   const cols = ["職員名"];
   if (prefs.showJob) cols.push("職種");
-  if (prefs.showDept) cols.push("フロア");
   previewNote.textContent = `${paper} / ${scale} / ${cols.join("・")}${prefs.colorCells ? " / 色付き" : ""}`;
 }
 
@@ -276,8 +266,12 @@ function getCalendarSortSelect() {
   return document.getElementById("calendar-sort-mode");
 }
 
+function visibleSortMode(mode) {
+  return mode && mode !== "dept" ? mode : "position";
+}
+
 function getCurrentSortMode() {
-  return getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode || "dept";
+  return visibleSortMode(getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode);
 }
 
 function rowStaffName(row) {
@@ -336,13 +330,13 @@ function syncCalendarSortUrl(mode = getCurrentSortMode()) {
 function resolveInitialSortMode() {
   const display = new URLSearchParams(window.location.search).get("display");
   if (display && DISPLAY_TO_SORT[display]) {
-    return DISPLAY_TO_SORT[display];
+    return visibleSortMode(DISPLAY_TO_SORT[display]);
   }
   const saved = loadPrefs().calendarSortMode;
   if (saved && SORT_TO_DISPLAY[saved]) {
-    return saved;
+    return visibleSortMode(saved);
   }
-  return getCalendarSortSelect()?.value || serverDefaults.calendar_sort_mode || "dept";
+  return getCurrentSortMode();
 }
 
 function initSortState() {
@@ -1597,7 +1591,7 @@ function updateFiltersSummary() {
     ? "絞り込みパネルを閉じます"
     : isFiltered
       ? `絞り込み中（非表示 ${hiddenCount} 項目）`
-      : "並び順・表示・フロア・職種・役職を設定します";
+      : "並び順・表示・職種・役職を設定します";
 
   if (badge) {
     if (isFiltered) {
@@ -1689,7 +1683,7 @@ function initCalendarControls() {
     if (!button || !filtersBody.contains(button)) return;
     const sortSelect = getCalendarSortSelect();
     if (!sortSelect) return;
-    sortSelect.value = button.dataset.sortMode ?? "dept";
+    sortSelect.value = button.dataset.sortMode ?? "position";
     onCalendarSortChange();
   });
   getCalendarSortSelect()?.addEventListener("change", onCalendarSortChange);
@@ -1703,7 +1697,7 @@ function initCalendarControls() {
   filtersBody?.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    if (!["home-color-cells", "home-show-job", "home-show-dept", "home-show-summary"].includes(input.id)) {
+    if (!["home-color-cells", "home-show-job", "home-show-summary"].includes(input.id)) {
       return;
     }
     onHomeDisplayChange();
@@ -1761,7 +1755,6 @@ function initDisplayFromSettings() {
   const prefs = {
     ...defaultPrefs(),
     showJob: saved.showJob ?? defaultPrefs().showJob,
-    showDept: saved.showDept ?? defaultPrefs().showDept,
     colorCells: saved.colorCells ?? defaultPrefs().colorCells,
     showSummary: saved.showSummary ?? defaultPrefs().showSummary,
   };
@@ -1931,7 +1924,7 @@ document.querySelectorAll("[data-invert-group]").forEach((button) => {
   });
 });
 
-[printColJob, printColDept, printColorMode].forEach((input) => {
+[printColJob, printColorMode].forEach((input) => {
   input?.addEventListener("change", refreshDisplay);
 });
 
@@ -2337,15 +2330,10 @@ function shiftClassList(symbol) {
 function applyCellSymbol(td, symbol, options = {}) {
   const shiftClass = shiftClassList(symbol);
   const source = options.source ?? (options.manual ? "manual" : td.dataset.source ?? "");
-  const sameSymbol = td.dataset.symbol === symbol;
-  const retainedBadge = sameSymbol ? td.querySelector(".placement-badge")?.cloneNode(true) : null;
-
   td.dataset.symbol = symbol;
-  if (!sameSymbol) {
-    delete td.dataset.placementFloor;
-    delete td.dataset.placementRole;
-    td.title = "クリックで編集（配置先は次回の生成案で確認）";
-  }
+  td.title = "クリックで編集";
+  delete td.dataset.placementFloor;
+  delete td.dataset.placementRole;
   if (source) {
     td.dataset.source = source;
   } else {
@@ -2368,7 +2356,6 @@ function applyCellSymbol(td, symbol, options = {}) {
   paintShiftSymbolElement(span, symbol || "");
   // Transparent hit layer sits above the glyph so iOS callout has no text target
   td.replaceChildren(hit, span);
-  if (retainedBadge) td.appendChild(retainedBadge);
   syncShiftTableLongSymbolMode();
 }
 
@@ -2553,8 +2540,17 @@ function openCellEditor(td) {
   const picker = ensureShiftPicker();
   picker.classList.remove("is-bulk");
   const currentSymbol = td.dataset.symbol ?? "";
+  const hasManual = td.dataset.source === "manual";
 
   picker.replaceChildren();
+
+  const body = document.createElement("div");
+  body.className = "shift-picker-bulk-body";
+
+  const optionsCol = document.createElement("div");
+  optionsCol.className = "shift-picker-bulk-options";
+  optionsCol.setAttribute("role", "listbox");
+
   shiftOptions.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -2578,8 +2574,37 @@ function openCellEditor(td) {
       event.stopPropagation();
       saveCellSymbol(td, option.symbol);
     });
-    picker.appendChild(button);
+    optionsCol.appendChild(button);
   });
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "shift-picker-bulk-actions";
+
+  const unlockBtn = document.createElement("button");
+  unlockBtn.type = "button";
+  unlockBtn.className = "shift-picker-action shift-picker-action-unlock";
+  unlockBtn.textContent = "固定解除";
+  unlockBtn.title = "このセルの手動固定を解除";
+  unlockBtn.disabled = !hasManual;
+  unlockBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeCellEditor();
+    unlockManualCell(td);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "shift-picker-action shift-picker-action-delete";
+  deleteBtn.textContent = "削除";
+  deleteBtn.title = "このセルのシフトを削除";
+  deleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    saveCellSymbol(td, "");
+  });
+
+  actionsRow.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsRow);
+  picker.appendChild(body);
 
   picker.classList.remove("hidden");
   picker.setAttribute("aria-label", "シフトを選択");
@@ -2796,7 +2821,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   const previousSource = td.dataset.source;
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
-  applyCellSymbol(td, symbol, { source: "manual" });
+  applyCellSymbol(td, symbol, { source: symbol ? "manual" : "" });
 
   const response = await fetch("/api/shifts/cell", {
     method: "PUT",

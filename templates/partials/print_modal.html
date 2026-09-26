@@ -1,4 +1,3 @@
-{% from "partials/floor_badges.html" import floor_badge %}
 <div class="modal hidden" id="print-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close-print-modal></div>
   <div class="modal-dialog modal-dialog-wide" role="dialog" aria-labelledby="print-modal-title">
@@ -13,24 +12,9 @@
     <div class="print-modal-layout">
       <aside class="print-panel">
         <section class="print-section">
-          <h4 class="print-section-title">① フロア・職種</h4>
-          <p class="field-hint">担当可能フロア・職種で印刷する職員を選べます。</p>
+          <h4 class="print-section-title">① 職種</h4>
+          <p class="field-hint">職種で印刷する職員を選べます。</p>
           <div class="print-filter-grid">
-            <div class="print-filter-box">
-              <div class="print-filter-head">
-                <span class="print-filter-label">フロア</span>
-                <span class="print-filter-links">
-                  <button type="button" class="btn-link" data-select-group="dept">すべて選択</button>
-                  <button type="button" class="btn-link" data-clear-group="dept">すべて解除</button>
-                  <button type="button" class="btn-link" data-invert-group="dept">反転</button>
-                </span>
-              </div>
-              <div class="print-filter-list" data-group="dept">
-                {% for dept in departments %}
-                  <label class="check-row"><input type="checkbox" value="{{ dept.label }}" checked>{{ floor_badge(dept.label) }}</label>
-                {% endfor %}
-              </div>
-            </div>
             <div class="print-filter-box">
               <div class="print-filter-head">
                 <span class="print-filter-label">職種</span>
@@ -57,10 +41,6 @@
               <label class="check-row print-form-check" for="print-col-job">
                 <input type="checkbox" id="print-col-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
                 <span>職種</span>
-              </label>
-              <label class="check-row print-form-check" for="print-col-dept">
-                <input type="checkbox" id="print-col-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
-                <span>フロア</span>
               </label>
             </div>
             <label class="print-form-field">
