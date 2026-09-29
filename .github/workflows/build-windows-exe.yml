@@ -70,11 +70,11 @@ jobs:
             --prerelease \
             --title "Windows EXE（面接提出用）" \
             --notes-file "$RUNNER_TEMP/pre-release-notes.md"
+          cp packaging/README_EXE.txt dist/HowToUse.txt
           gh release upload windows-exe-interview \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
             dist/ShiftManager.exe \
-            "dist/使い方.txt"
-          for stale in HowToUse.txt default.txt; do
-            gh release delete-asset windows-exe-interview "$stale" --repo "$GITHUB_REPOSITORY" --yes || true
-          done
+            dist/HowToUse.txt
+          gh release delete-asset windows-exe-interview default.txt --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release delete-asset windows-exe-interview README_EXE.txt --repo "$GITHUB_REPOSITORY" --yes || true
