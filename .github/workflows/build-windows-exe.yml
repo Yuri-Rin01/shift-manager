@@ -58,29 +58,24 @@ jobs:
             dist/使い方.txt
           if-no-files-found: error
 
-      - name: Create GitHub Release
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: windows-exe-${{ github.run_number }}
-          name: "Windows EXE (面接提出用) #${{ github.run_number }}"
-          draft: false
-          prerelease: true
-          files: |
-            dist/ShiftManager.exe
-            dist/使い方.txt
-          body: |
-            ## シフト作成システム（Windows EXE）
-
-            面接・デモ提出用の単体実行ファイルです。
-
-            ### 使い方
-            1. `ShiftManager.exe` をダウンロード
-            2. ダブルクリックで起動（ブラウザが開きます）
-            3. 終了はコンソール窓を閉じる
-
-            データは EXE と同じフォルダの `shift.db` に保存されます。
-
-            初回起動で SmartScreen 警告が出る場合は「詳細情報」→「実行」を選んでください。
+      - name: Update GitHub Pre-release
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp packaging/pre-release-notes.md "$RUNNER_TEMP/pre-release-notes.md"
+          printf '\n\nビルド: `%s`\n' "$GITHUB_SHA" >> "$RUNNER_TEMP/pre-release-notes.md"
+          gh release edit windows-exe-interview \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "Windows EXE（面接提出用）" \
+            --notes-file "$RUNNER_TEMP/pre-release-notes.md"
+          gh release upload windows-exe-interview \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            dist/ShiftManager.exe \
+            "dist/使い方.txt"
+          for stale in HowToUse.txt default.txt; do
+            gh release delete-asset windows-exe-interview "$stale" --repo "$GITHUB_REPOSITORY" --yes || true
+          done
