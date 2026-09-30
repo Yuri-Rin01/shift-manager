@@ -679,10 +679,14 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 .home-filters-collapse {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-rows: 1fr;
   min-width: 0;
+  transition: grid-template-rows 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-filters-collapse.is-collapsed {
+  grid-template-rows: 0fr;
 }
 
 .home-filters-btn {
@@ -754,8 +758,37 @@ body.sidebar-collapsed .nav-item-glyph {
   transform: rotate(180deg);
 }
 
+#home-filters-body {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .home-filters-collapse.is-collapsed #home-filters-body {
+  opacity: 0;
+  transform: translateY(-6px);
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+  pointer-events: none;
+}
+
+#home-filters-body[hidden] {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-filters-collapse,
+  #home-filters-body {
+    transition: none;
+  }
 }
 
 .home-controls-panel {

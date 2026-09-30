@@ -1621,20 +1621,50 @@ function updateFiltersSummary() {
   }
 }
 
-function setFiltersPanelCollapsed(collapsed) {
+let filterPanelMotion = 0;
+
+function prefersReducedFilterMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
+
+function setFiltersPanelCollapsed(collapsed, options = {}) {
   const block = document.getElementById("home-filters-collapse");
   const toggle = document.getElementById("btn-toggle-filters");
   const body = document.getElementById("home-filters-body");
   if (!block || !toggle) return;
-  block.classList.toggle("is-collapsed", collapsed);
+  const animate = options.animate !== false && !prefersReducedFilterMotion();
+  const motion = ++filterPanelMotion;
+
   toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  if (body) {
-    body.hidden = collapsed;
-  }
-  updateFiltersSummary();
+
   if (!collapsed) {
-    scheduleSortSegmentIndicatorUpdate();
+    if (body) body.hidden = false;
+    if (!animate) {
+      block.classList.remove("is-collapsed");
+      scheduleSortSegmentIndicatorUpdate();
+    } else {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (motion !== filterPanelMotion) return;
+          block.classList.remove("is-collapsed");
+          scheduleSortSegmentIndicatorUpdate();
+        });
+      });
+    }
+  } else {
+    block.classList.add("is-collapsed");
+    const finish = () => {
+      if (motion !== filterPanelMotion || !block.classList.contains("is-collapsed")) return;
+      if (body) body.hidden = true;
+    };
+    if (!animate || !body || body.hidden) {
+      finish();
+    } else {
+      window.setTimeout(finish, 340);
+    }
   }
+
+  updateFiltersSummary();
   savePrefs({
     ...loadPrefs(),
     ...getPrefs(),
@@ -1650,29 +1680,23 @@ function initFiltersPanelCollapse() {
   if (!toggle) return;
   const saved = loadPrefs();
   const collapsed = saved.filtersPanelCollapsed !== false;
-  setFiltersPanelCollapsed(collapsed);
+  setFiltersPanelCollapsed(collapsed, { animate: false });
   toggle.addEventListener("click", () => {
     const block = document.getElementById("home-filters-collapse");
     setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
   });
 
   if (!panel) return;
-  let closeTimer = null;
-  const cancelClose = () => {
-    if (closeTimer) {
-      window.clearTimeout(closeTimer);
-      closeTimer = null;
+  panel.addEventListener("mouseenter", () => {
+    const block = document.getElementById("home-filters-collapse");
+    if (block?.classList.contains("is-collapsed") && !panel.hidden) {
+      setFiltersPanelCollapsed(false);
     }
-  };
-  panel.addEventListener("mouseenter", cancelClose);
+  });
   panel.addEventListener("mouseleave", () => {
-    cancelClose();
-    closeTimer = window.setTimeout(() => {
-      closeTimer = null;
-      const block = document.getElementById("home-filters-collapse");
-      if (!block || block.classList.contains("is-collapsed")) return;
-      setFiltersPanelCollapsed(true);
-    }, 180);
+    const block = document.getElementById("home-filters-collapse");
+    if (!block || block.classList.contains("is-collapsed")) return;
+    setFiltersPanelCollapsed(true);
   });
 }
 
