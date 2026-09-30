@@ -41,7 +41,7 @@
           <th class="col-position{% if not compact %} sticky-col{% endif %}"></th>
           <th class="col-dept{% if not compact %} sticky-col{% endif %}"></th>
           {% for day in days %}
-            <th class="day-col{% if day.event_label %} is-event{% endif %}">
+            <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}">
               {% if day.event_label %}<span class="day-head-event">{{ day.event_label }}</span>{% endif %}
             </th>
           {% endfor %}
@@ -53,7 +53,7 @@
         <th class="col-position{% if not compact %} sticky-col{% endif %}">役職</th>
         <th class="col-dept{% if not compact %} sticky-col{% endif %}">フロア</th>
         {% for day in days %}
-          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
+          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}">
             <span class="day-head">
               <span class="day-head-num">{{ day.day }}</span>
               <span class="day-head-weekday">{{ day.weekday_label }}</span>
@@ -78,9 +78,10 @@
             {{ floor_badges(row.departments if row.departments else ([row.dept] if row.dept else [])) }}
           </td>
           {% for cell in row.cells %}
+            {% set day = days[loop.index0] %}
             {% if editable %}
               <td
-                class="day-col shift-td shift-td-editable {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
+                class="day-col shift-td shift-td-editable {{ cell.class }}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
                 data-staff-id="{{ row.id }}"
                 data-year="{{ cell.year }}"
                 data-month="{{ cell.month }}"
@@ -96,7 +97,7 @@
                 {% if cell.placement_badge %}<small class="placement-badge" aria-label="{{ cell.placement_label }}">{{ cell.placement_badge }}</small>{% endif %}
               </td>
             {% else %}
-              <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
+              <td class="day-col shift-td {{ cell.class }}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
                 <span class="shift-cell-hit" aria-hidden="true"></span>
                 <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
               </td>
@@ -114,7 +115,8 @@
             <td class="col-position{% if not compact %} sticky-col{% endif %}"></td>
             <td class="col-dept{% if not compact %} sticky-col{% endif %}"></td>
             {% for count in row.counts %}
-              <td class="day-col summary-count">{{ count }}</td>
+              {% set day = days[loop.index0] %}
+              <td class="day-col summary-count{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}">{{ count }}</td>
             {% endfor %}
           </tr>
         {% endfor %}

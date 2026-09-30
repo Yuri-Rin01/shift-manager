@@ -3213,9 +3213,33 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 
 .print-preview-box .shift-table th.col-name,
 .print-preview-box .shift-table td.col-name {
-  background: #e5e7eb;
+  background: #fff;
   color: #111;
   font-weight: 700;
+}
+
+.shift-table th.col-sat,
+.shift-table td.col-sat,
+.color-cells .shift-td.col-sat,
+.print-preview-box .shift-table th.col-sat,
+.print-preview-box .shift-table td.col-sat {
+  background-color: #dbeafe;
+}
+
+.shift-table th.col-sun,
+.shift-table td.col-sun,
+.color-cells .shift-td.col-sun,
+.print-preview-box .shift-table th.col-sun,
+.print-preview-box .shift-table td.col-sun {
+  background-color: #fee2e2;
+}
+
+.shift-table th.is-event,
+.shift-table td.is-event,
+.color-cells .shift-td.is-event,
+.print-preview-box .shift-table th.is-event,
+.print-preview-box .shift-table td.is-event {
+  background-color: #fef3c7;
 }
 
 .print-preview-box .floor-badge {
@@ -3229,14 +3253,22 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   background: #fff;
 }
 
+.print-preview-box.color-cells .shift-td.col-sat,
 .print-preview-box.color-cells thead .col-sat {
-  background: #fff;
+  background: #dbeafe;
   color: #1d4ed8;
 }
 
+.print-preview-box.color-cells .shift-td.col-sun,
 .print-preview-box.color-cells thead .col-sun {
-  background: #fff;
+  background: #fee2e2;
   color: #b91c1c;
+}
+
+.print-preview-box.color-cells .shift-td.is-event,
+.print-preview-box.color-cells thead .is-event {
+  background: #fef3c7;
+  color: #111;
 }
 
 .print-preview-box.color-cells .shift-td.shift-early .shift-cell { color: #166534; }
@@ -7508,6 +7540,28 @@ input[type="checkbox"]:focus-visible {
 
 .shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td {
   background: var(--sheet-accent-soft);
+}
+
+.shift-workspace.is-sheet-themed .shift-table td.shift-td {
+  background: #fff;
+}
+
+.shift-workspace.is-sheet-themed .shift-table th.col-sat,
+.shift-workspace.is-sheet-themed .shift-table td.col-sat {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.shift-workspace.is-sheet-themed .shift-table th.col-sun,
+.shift-workspace.is-sheet-themed .shift-table td.col-sun {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.shift-workspace.is-sheet-themed .shift-table th.is-event,
+.shift-workspace.is-sheet-themed .shift-table td.is-event {
+  background: #fef3c7;
+  color: #111;
 }
 
 /* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
