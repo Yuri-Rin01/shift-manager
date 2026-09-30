@@ -1218,6 +1218,176 @@ async function showStaffGaugePopover(link) {
   renderStaffGaugePopover(link, staffId);
 }
 
+const EVENT_ROW_MIN = 20;
+const EVENT_ROW_MAX = 220;
+const EVENT_ROW_KEY = "shift-event-row-height";
+let eventEditPop = null;
+let eventEditClosing = false;
+
+function applyEventRowHeight(px) {
+  const height = Math.round(Math.min(EVENT_ROW_MAX, Math.max(EVENT_ROW_MIN, Number(px) || EVENT_ROW_MIN)));
+  document.documentElement.style.setProperty("--event-row-height", `${height}px`);
+  try {
+    localStorage.setItem(EVENT_ROW_KEY, String(height));
+  } catch {
+    /* 高さは画面上だけ使う */
+  }
+  return height;
+}
+
+function initEventRowResize() {
+  const grip = document.querySelector("#shift-calendar .event-row-size");
+  if (!grip || grip.dataset.resizeReady) return;
+  grip.dataset.resizeReady = "1";
+  const saved = Number(localStorage.getItem(EVENT_ROW_KEY));
+  if (saved) applyEventRowHeight(saved);
+
+  grip.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startY = event.clientY;
+    const start = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--event-row-height"), 10) || EVENT_ROW_MIN;
+    const scale = tableZoom || 1;
+    const move = (ev) => {
+      applyEventRowHeight(start + (ev.clientY - startY) / scale);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
+}
+
+function paintEventCell(cell, label) {
+  cell.dataset.eventLabel = label;
+  cell.classList.toggle("is-event", Boolean(label));
+  if (!label) {
+    cell.replaceChildren();
+    return;
+  }
+  const span = document.createElement("span");
+  span.className = "day-head-event";
+  span.tabIndex = 0;
+  span.dataset.eventLabel = label;
+  span.setAttribute("aria-label", label);
+  span.textContent = label;
+  cell.replaceChildren(span);
+}
+
+function syncEventColumn(date, label) {
+  document.querySelectorAll(`#shift-calendar [data-date="${date}"]`).forEach((el) => {
+    if (el.classList.contains("event-cell")) paintEventCell(el, label);
+    else el.classList.toggle("is-event", Boolean(label));
+  });
+  if (printModal && !printModal.classList.contains("hidden")) syncPreviewFromCalendar();
+}
+
+async function saveEventLabel(date, label) {
+  const loaded = await fetch("/api/settings");
+  if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+  const settings = await loaded.json();
+  const events = Array.isArray(settings.calendar_events) ? settings.calendar_events.filter((item) => item?.date !== date) : [];
+  if (label) events.push({ date, label });
+  settings.calendar_events = events;
+  const savedResponse = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  if (!savedResponse.ok) throw new Error("イベントを保存できませんでした。");
+  const saved = await savedResponse.json();
+  serverDefaults.calendar_events = Array.isArray(saved.calendar_events) ? saved.calendar_events : events;
+  const stored = serverDefaults.calendar_events.find((item) => item.date === date);
+  return stored?.label || "";
+}
+
+function closeEventEditor(restore) {
+  if (!eventEditPop || eventEditPop.hidden) return;
+  const cell = eventEditPop.cell;
+  const label = restore ? eventEditPop.original : eventEditPop.querySelector("input")?.value.trim() || "";
+  eventEditPop.hidden = true;
+  eventEditPop.cell = null;
+  if (cell) paintEventCell(cell, label);
+}
+
+function openEventEditor(cell) {
+  if (!cell) return;
+  if (!eventEditPop) {
+    eventEditPop = document.createElement("form");
+    eventEditPop.className = "event-edit-pop";
+    eventEditPop.hidden = true;
+    eventEditPop.innerHTML = `<input type="text" maxlength="40" aria-label="イベント名" placeholder="イベント名"><button type="submit" class="btn btn-sm">保存</button>`;
+    document.body.appendChild(eventEditPop);
+    eventEditPop.addEventListener("submit", (event) => {
+      event.preventDefault();
+      commitEventEditor(true);
+    });
+    eventEditPop.querySelector("input").addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        commitEventEditor(false);
+      }
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!eventEditPop || eventEditPop.hidden) return;
+      if (eventEditPop.contains(event.target)) return;
+      commitEventEditor(true);
+    });
+  }
+  document.querySelector(".event-label-tip")?.setAttribute("hidden", "");
+  const input = eventEditPop.querySelector("input");
+  eventEditPop.original = cell.dataset.eventLabel || "";
+  eventEditPop.cell = cell;
+  input.value = eventEditPop.original;
+  eventEditPop.hidden = false;
+  const rect = cell.getBoundingClientRect();
+  const popRect = eventEditPop.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (top + popRect.height > window.innerHeight - 8) top = Math.max(8, rect.top - popRect.height - 6);
+  left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+  eventEditPop.style.left = `${Math.round(left)}px`;
+  eventEditPop.style.top = `${Math.round(top)}px`;
+  input.focus();
+  input.select();
+}
+
+async function commitEventEditor(save) {
+  if (!eventEditPop || eventEditPop.hidden || eventEditClosing) return;
+  eventEditClosing = true;
+  const cell = eventEditPop.cell;
+  const date = cell?.dataset.date || "";
+  const original = eventEditPop.original || "";
+  const next = save ? eventEditPop.querySelector("input").value.trim() : original;
+  eventEditPop.hidden = true;
+  eventEditPop.cell = null;
+  try {
+    const label = !save || next === original ? original : await saveEventLabel(date, next);
+    if (cell) syncEventColumn(date, save ? (next === original ? original : label) : original);
+  } catch (error) {
+    if (cell) paintEventCell(cell, original);
+    window.alert(error.message || "イベントを保存できませんでした。");
+  } finally {
+    eventEditClosing = false;
+  }
+}
+
+function initEventCellEditor() {
+  const calendar = document.getElementById("shift-calendar");
+  if (!calendar || calendar.dataset.eventEditReady) return;
+  calendar.dataset.eventEditReady = "1";
+  calendar.addEventListener("dblclick", (event) => {
+    const cell = event.target.closest(".event-cell");
+    if (!cell || !calendar.contains(cell)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openEventEditor(cell);
+  });
+}
+
 function initEventLabelHover() {
   const calendar = document.getElementById("shift-calendar");
   if (!calendar || calendar.dataset.eventTipReady) return;
@@ -1235,6 +1405,8 @@ function initEventLabelHover() {
   const place = (anchor) => {
     const label = anchor.dataset.eventLabel || "";
     if (!label) return;
+    const rowHeight = anchor.clientHeight || anchor.parentElement?.clientHeight || 0;
+    if (rowHeight >= label.length * 12) return;
     tip.textContent = label;
     tip.hidden = false;
     const rect = anchor.getBoundingClientRect();
@@ -1663,6 +1835,8 @@ function initSheetViews() {
   syncSheetTabColors();
   initSheetAddPopover();
   initEventLabelHover();
+  initEventRowResize();
+  initEventCellEditor();
   initStaffGaugeHover();
 
   initSheetTabDrag();
