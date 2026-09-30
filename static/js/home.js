@@ -1273,7 +1273,10 @@ function paintEventCell(cell, label) {
   span.tabIndex = 0;
   span.dataset.eventLabel = label;
   span.setAttribute("aria-label", label);
-  span.textContent = label;
+  const box = document.createElement("span");
+  box.className = "day-head-event-box";
+  box.textContent = label;
+  span.append(box);
   cell.replaceChildren(span);
 }
 
@@ -1345,7 +1348,7 @@ function openEventEditor(cell) {
   eventEditPop.hidden = false;
   const rect = cell.getBoundingClientRect();
   const popRect = eventEditPop.getBoundingClientRect();
-  let left = rect.left;
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
   let top = rect.bottom + 6;
   if (top + popRect.height > window.innerHeight - 8) top = Math.max(8, rect.top - popRect.height - 6);
   left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
@@ -1409,7 +1412,8 @@ function initEventLabelHover() {
     if (rowHeight >= label.length * 12) return;
     tip.textContent = label;
     tip.hidden = false;
-    const rect = anchor.getBoundingClientRect();
+    const cell = anchor.closest("th, td") || anchor;
+    const rect = cell.getBoundingClientRect();
     const tipRect = tip.getBoundingClientRect();
     let left = rect.left + rect.width / 2 - tipRect.width / 2;
     let top = rect.bottom + 6;

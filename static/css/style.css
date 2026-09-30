@@ -1924,6 +1924,10 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 .shift-table {
+  --col-name-w: 72px;
+  --col-job-w: 96px;
+  --col-position-w: 88px;
+  --col-dept-w: 108px;
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
@@ -2030,16 +2034,31 @@ body.sidebar-collapsed .nav-item-glyph {
 .day-head-event {
   position: absolute;
   inset: 0;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: text;
+}
+
+.day-head-event-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 100%;
   overflow: hidden;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   white-space: nowrap;
+  box-sizing: border-box;
+  padding: 2px 1px;
+  border: 1px solid #b91c1c;
+  border-radius: 3px;
+  background: #fff;
   color: #b91c1c;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
-  cursor: text;
 }
 
 .day-head-event:focus-visible {
@@ -2098,6 +2117,15 @@ body.sidebar-collapsed .nav-item-glyph {
   display: none;
 }
 
+.print-preview-box .name-box,
+.print-preview-box .day-head-event-box {
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  min-height: 0;
+}
+
 .calendar-event-list {
   display: flex;
   flex-direction: column;
@@ -2122,36 +2150,41 @@ body.sidebar-collapsed .nav-item-glyph {
   background: #f8fafc;
   z-index: 1;
   min-width: 56px;
-  text-align: left;
-  padding-left: 8px;
+  text-align: center;
+  padding: 2px 4px;
 }
 
 .shift-table thead .sticky-col {
   z-index: 3;
 }
 
-.shift-table .col-name { left: 0; min-width: 56px; }
+.shift-table .col-name {
+  left: 0;
+  width: var(--col-name-w);
+  min-width: var(--col-name-w);
+  max-width: var(--col-name-w);
+}
 .shift-table td.col-name.is-staff-name {
-  padding: 0;
+  padding: 2px 4px;
   vertical-align: middle;
+  text-align: center;
 }
 .shift-table .staff-name-link {
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  height: auto;
   margin: 0;
-  border: none;
-  background: transparent;
   color: inherit;
   text-decoration: none;
   font: inherit;
   font-weight: inherit;
   line-height: 1.35;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   appearance: none;
-  transition: background 0.15s ease;
 }
 .shift-table tbody tr:hover .staff-name-link {
   background: rgba(15, 23, 42, 0.04);
@@ -2166,9 +2199,45 @@ body.sidebar-collapsed .nav-item-glyph {
     padding: 4px 8px;
   }
 }
-.shift-table .col-job { left: 56px; min-width: 96px; text-align: center; }
-.shift-table .col-position { left: 152px; min-width: 88px; text-align: center; white-space: nowrap; }
-.shift-table .col-dept { left: 240px; min-width: 108px; text-align: center; }
+.shift-table .col-job {
+  left: var(--col-name-w);
+  width: var(--col-job-w);
+  min-width: var(--col-job-w);
+  max-width: var(--col-job-w);
+  text-align: center;
+}
+.shift-table .col-position {
+  left: calc(var(--col-name-w) + var(--col-job-w));
+  width: var(--col-position-w);
+  min-width: var(--col-position-w);
+  max-width: var(--col-position-w);
+  text-align: center;
+  white-space: nowrap;
+}
+.shift-table .col-dept {
+  left: calc(var(--col-name-w) + var(--col-job-w) + var(--col-position-w));
+  width: var(--col-dept-w);
+  min-width: var(--col-dept-w);
+  max-width: var(--col-dept-w);
+  text-align: center;
+}
+.name-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #1e293b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
 .shift-table-compact .col-position { min-width: 88px; text-align: center; white-space: nowrap; }
 .shift-table-compact .col-dept { min-width: 108px; text-align: center; white-space: normal; }
 
@@ -2789,23 +2858,23 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 
 /* 職種／役職／フロアを隠したとき、隣の sticky 列の left を詰め直す */
 .hide-col-job .col-position {
-  left: 56px;
+  left: var(--col-name-w);
 }
 
 .hide-col-job:not(.hide-col-position) .col-dept {
-  left: 144px;
+  left: calc(var(--col-name-w) + var(--col-position-w));
 }
 
 .hide-col-position:not(.hide-col-job) .col-dept {
-  left: 152px;
+  left: calc(var(--col-name-w) + var(--col-job-w));
 }
 
 .hide-col-job.hide-col-position .col-dept {
-  left: 56px;
+  left: var(--col-name-w);
 }
 
 .hide-col-dept .col-job {
-  left: 56px;
+  left: var(--col-name-w);
 }
 
 .hide-col-job.hide-col-dept .col-name {
@@ -4680,36 +4749,11 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
     min-width: 34px;
   }
 
-  /* スタッフ名・職種・フロア列の幅をFHD に合わせてわずかに拡張 */
-  .shift-table .col-name {
-    min-width: 64px;
-  }
-  .shift-table .col-job {
-    left: 64px;
-    min-width: 108px;
-  }
-  .shift-table .col-position {
-    left: 172px;
-    min-width: 96px;
-  }
-  .shift-table .col-dept {
-    left: 268px; /* 64 + 108 + 96 */
-    min-width: 120px;
-  }
-  .hide-col-job .col-position {
-    left: 64px;
-  }
-  .hide-col-job:not(.hide-col-position) .col-dept {
-    left: 160px; /* 64 + 96 */
-  }
-  .hide-col-position:not(.hide-col-job) .col-dept {
-    left: 172px; /* 64 + 108 */
-  }
-  .hide-col-job.hide-col-position .col-dept {
-    left: 64px;
-  }
-  .hide-col-dept .col-job {
-    left: 64px;
+  .shift-table {
+    --col-name-w: 80px;
+    --col-job-w: 108px;
+    --col-position-w: 96px;
+    --col-dept-w: 120px;
   }
 
   /* 検索ボックスなどツールの可視性を上げる */
@@ -6837,6 +6881,7 @@ input[type="checkbox"]:focus-visible {
 
   .content-home .shift-table .col-name {
     left: 0;
+    width: auto;
     min-width: 76px;
     max-width: 110px;
     font-size: 13px;
@@ -8482,6 +8527,7 @@ body.is-phone .content-home .shift-table .col-dept {
 }
 
 body.is-phone .content-home .shift-table .col-name {
+  width: auto;
   min-width: 80px;
   max-width: 120px;
   font-size: 13px;
