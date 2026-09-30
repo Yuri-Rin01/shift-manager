@@ -30,17 +30,33 @@
           {% endfor %}
         </tr>
       {% endif %}
+      {% set event_ns = namespace(found=false) %}
+      {% for day in days %}
+        {% if day.event_label %}{% set event_ns.found = true %}{% endif %}
+      {% endfor %}
+      {% if event_ns.found %}
+        <tr class="event-row">
+          <th class="col-name{% if not compact %} sticky-col{% endif %}"></th>
+          <th class="col-job{% if not compact %} sticky-col{% endif %}"></th>
+          <th class="col-position{% if not compact %} sticky-col{% endif %}"></th>
+          <th class="col-dept{% if not compact %} sticky-col{% endif %}"></th>
+          {% for day in days %}
+            <th class="day-col{% if day.event_label %} is-event{% endif %}">
+              {% if day.event_label %}<span class="day-head-event">{{ day.event_label }}</span>{% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      {% endif %}
       <tr>
         <th class="col-name{% if not compact %} sticky-col{% endif %}">職員名</th>
         <th class="col-job{% if not compact %} sticky-col{% endif %}">職種</th>
         <th class="col-position{% if not compact %} sticky-col{% endif %}">役職</th>
         <th class="col-dept{% if not compact %} sticky-col{% endif %}">フロア</th>
         {% for day in days %}
-          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}">
+          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
             <span class="day-head">
               <span class="day-head-num">{{ day.day }}</span>
               <span class="day-head-weekday">{{ day.weekday_label }}</span>
-              {% if day.event_label %}<span class="day-head-event">{{ day.event_label }}</span>{% endif %}
             </span>
           </th>
         {% endfor %}
