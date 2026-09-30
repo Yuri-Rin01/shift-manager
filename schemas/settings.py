@@ -18,6 +18,7 @@ from data.flick_directions import default_cell_flick_directions, normalize_cell_
 from data.sheet_view_colors import default_sheet_view_colors, normalize_sheet_view_colors
 from data.sheet_views import normalize_custom_sheet_views, normalize_sheet_tab_order
 from data.student_labor_limits import default_student_labor_limits, normalize_student_labor_limits
+from data.calendar_events import normalize_calendar_events
 
 
 class AppSettings(BaseModel):
@@ -35,6 +36,7 @@ class AppSettings(BaseModel):
 
     default_color_cells: bool = True
     default_show_job_column: bool = True
+    default_show_position_column: bool = True
     default_show_dept_column: bool = True
     default_show_summary: bool = True
     show_shift_legend: bool = True
@@ -66,6 +68,8 @@ class AppSettings(BaseModel):
         description="1期間あたりの休み日数（全職員共通）。未設定時は土日数",
     )
     highlight_today: bool = False
+    highlight_event_days: bool = True
+    calendar_events: list[dict] = Field(default_factory=list, description="強調するイベント日")
     show_week_number: bool = False
     cell_flick_input_enabled: bool = True
     cell_long_press_ms: int = Field(default=450, ge=300, le=1500)
@@ -149,6 +153,11 @@ class AppSettings(BaseModel):
     @classmethod
     def normalize_custom_sheet_views_field(cls, value) -> list[dict]:
         return normalize_custom_sheet_views(value)
+
+    @field_validator("calendar_events", mode="before")
+    @classmethod
+    def normalize_calendar_events_field(cls, value) -> list[dict]:
+        return normalize_calendar_events(value)
 
     @model_validator(mode="after")
     def align_sheet_tab_order(self):

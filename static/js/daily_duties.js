@@ -9,11 +9,34 @@
     if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : '入力内容を確認してください。');
     return result;
   }
+  function warekiYear(iso) {
+    const [year, month, day] = iso.split('-').map(Number);
+    const current = new Date(year, month - 1, day);
+    if (current >= new Date(2019, 4, 1)) {
+      const number = year - 2018;
+      return `令和${number === 1 ? '元' : number}年`;
+    }
+    if (current >= new Date(1989, 0, 8)) {
+      const number = year - 1988;
+      return `平成${number === 1 ? '元' : number}年`;
+    }
+    return `${year}年`;
+  }
+  function warekiSpan(start, end) {
+    if (!start) return '';
+    const [sy, sm, sd] = start.split('-').map(Number);
+    const startLabel = `${warekiYear(start)}${sm}月${sd}日`;
+    if (!end || start === end) return startLabel;
+    const [ey, em, ed] = end.split('-').map(Number);
+    if (sy === ey && sm === em) return `${startLabel}〜${ed}日`;
+    if (sy === ey) return `${startLabel}〜${em}月${ed}日`;
+    return `${startLabel}〜${warekiYear(end)}${em}月${ed}日`;
+  }
   function roles() { $('daily-role-list').innerHTML = sheet.roles.map(r=>`<option value="${esc(r)}"></option>`).join(''); }
   function render() {
     const unfilled = sheet.rows.reduce((n,r)=>n+r.cells.filter(c=>(c.am_enabled&&!c.am)||(c.pm_enabled&&!c.pm)).length,0);
     $('daily-title').textContent = `${sheet.facility_name} デイリー役割表`;
-    $('daily-range').textContent = `${sheet.dates[0]} 〜 ${sheet.dates.at(-1)}${$('daily-floor').value ? ' ／ 担当可能フロア：'+$('daily-floor').value : ''}`;
+    $('daily-range').textContent = `${warekiSpan(sheet.dates[0], sheet.dates.at(-1))}${$('daily-floor').value ? ' ／ 担当可能フロア：'+$('daily-floor').value : ''}`;
     $('daily-status').textContent = `${sheet.rows.length}人 ／ 未入力の勤務 ${unfilled}件 ／ 勤務変更による要確認 ${sheet.review_count}件${sheet.review_count ? '。該当枠を開き、担当を確認・保存または解除してから印刷してください。' : ''}`;
     $('daily-print').disabled = sheet.review_count > 0 || !sheet.rows.length;
     $('daily-table').classList.toggle('daily-one-day', sheet.dates.length===1);

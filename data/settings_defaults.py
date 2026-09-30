@@ -21,6 +21,7 @@ DEFAULT_SETTINGS: dict = {
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
+    "default_show_position_column": True,
     "default_show_dept_column": True,
     "default_show_summary": True,
     "show_shift_legend": True,
@@ -31,6 +32,8 @@ DEFAULT_SETTINGS: dict = {
     "calendar_start_day": 1,
     "off_days_per_period": None,
     "highlight_today": False,
+    "highlight_event_days": True,
+    "calendar_events": [],
     "show_week_number": False,
     "cell_flick_input_enabled": True,
     "cell_long_press_ms": 450,
@@ -202,4 +205,4 @@ TABLE_ZOOM_OPTIONS = [50, 70, 80, 90, 100, 110, 120, 130, 150, 200]
 FAIRNESS_OPTIONS = list(FAIRNESS_UI_OPTIONS)
 
 PRINT_PAPER_OPTIONS = ["A4 横", "A4 縦", "A3 横"]
-PRINT_SCALE_OPTIONS = ["100%", "90%", "80%", "70%"]
+PRINT_SCALE_OPTIONS = ["100%", "90%", "80%", "70%", "60%"]

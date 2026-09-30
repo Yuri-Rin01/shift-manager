@@ -1,5 +1,13 @@
 from data.settings_defaults import CALENDAR_SORT_OPTIONS, TABLE_ZOOM_OPTIONS
-from data.calendar_period import build_period_days, format_period_label, period_bounds
+from data.calendar_events import event_entry_map
+from data.calendar_period import (
+    build_period_days,
+    format_period_label,
+    format_scope_range,
+    format_sheet_period,
+    period_bounds,
+    wareki_year_label,
+)
 from data.facility import get_facility_context
 from data.masters import (
     filter_staff_for_facility,
@@ -160,6 +168,14 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
     shift_daily_summary = _build_daily_summary(staff_rows, len(days), app_settings)
 
     legend = get_active_shift_legend(app_settings)
+    event_entries = event_entry_map(app_settings.get("calendar_events"))
+    show_events = bool(app_settings.get("highlight_event_days", True))
+    for day in days:
+        entry = event_entries.get(day["date"]) if show_events else None
+        label = entry["label"] if entry else ""
+        day["event_label"] = label
+        day["event_display"] = (entry.get("display") or label[:1]) if entry else ""
+        day["event_font_size"] = entry.get("font_size", 12) if entry else 12
 
     return {
         "symbol_class_map": build_symbol_class_map(app_settings),
@@ -171,6 +187,9 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
         "period_label": format_period_label(
             period_start, period_end, year=year, month=month, start_day=start_day
         ),
+        "period_range": format_scope_range(period_start, period_end),
+        "period_sheet_label": format_sheet_period(period_start, period_end),
+        "month_heading": f"{wareki_year_label(year, month, start_day)}{month}月",
         "year": year,
         "month": month,
         "days": days,
