@@ -1941,11 +1941,11 @@ function syncPreviewFromCalendar() {
   if (range) {
     const caption = document.createElement("caption");
     caption.className = "print-preview-range";
-    caption.textContent = `表示区間　${range}`;
+    caption.textContent = range;
     table.prepend(caption);
   }
   const rangeLabel = document.getElementById("print-preview-range");
-  if (rangeLabel) rangeLabel.textContent = range ? `表示区間　${range}` : "";
+  if (rangeLabel) rangeLabel.textContent = range;
   table.querySelectorAll("tbody tr").forEach((row) => {
     const sourceRow = sourceTable.querySelector(`tbody tr[data-staff-id="${row.dataset.staffId}"]`);
     if (sourceRow?.hidden) {
