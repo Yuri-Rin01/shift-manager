@@ -7523,10 +7523,6 @@ input[type="checkbox"]:focus-visible {
   border-color: var(--sheet-header-bg-strong);
 }
 
-.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td {
-  background: var(--sheet-accent-soft);
-}
-
 .shift-workspace.is-sheet-themed .shift-table td.shift-td {
   background: #fff;
 }
@@ -7548,13 +7544,6 @@ input[type="checkbox"]:focus-visible {
 .shift-workspace.is-sheet-themed .shift-table td.col-position,
 .shift-workspace.is-sheet-themed .shift-table td.col-dept {
   background-color: #fff;
-  color: #1e293b;
-}
-
-.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-job,
-.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-position,
-.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-dept {
-  background-color: var(--sheet-accent-soft);
   color: #1e293b;
 }
 
