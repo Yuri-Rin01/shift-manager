@@ -1221,6 +1221,9 @@ async function showStaffGaugePopover(link) {
 const EVENT_ROW_MIN = 20;
 const EVENT_ROW_MAX = 220;
 const EVENT_ROW_KEY = "shift-event-row-height";
+const EVENT_FONT_MIN = 10;
+const EVENT_FONT_MAX = 28;
+const EVENT_FONT_DEFAULT = 12;
 let eventEditPop = null;
 let eventEditClosing = false;
 
@@ -1261,10 +1264,18 @@ function initEventRowResize() {
   });
 }
 
-function paintEventCell(cell, label, display) {
+function clampEventFont(value) {
+  const size = Number(value);
+  if (!size) return EVENT_FONT_DEFAULT;
+  return Math.min(EVENT_FONT_MAX, Math.max(EVENT_FONT_MIN, Math.round(size)));
+}
+
+function paintEventCell(cell, label, display, fontSize) {
   const shown = display || (label ? Array.from(label)[0] : "");
+  const size = clampEventFont(fontSize);
   cell.dataset.eventLabel = label || "";
   cell.dataset.eventDisplay = display || "";
+  cell.dataset.eventSize = String(size);
   cell.classList.toggle("is-event", Boolean(label));
   if (!label) {
     cell.replaceChildren();
@@ -1278,27 +1289,29 @@ function paintEventCell(cell, label, display) {
   const box = document.createElement("span");
   box.className = "day-head-event-box";
   box.textContent = shown;
+  box.style.fontSize = `${size}px`;
   const full = document.createElement("span");
   full.className = "day-head-event-full";
   full.textContent = label;
+  full.style.fontSize = `${size}px`;
   span.append(box, full);
   cell.replaceChildren(span);
 }
 
-function syncEventColumn(date, label, display) {
+function syncEventColumn(date, label, display, fontSize) {
   document.querySelectorAll(`#shift-calendar [data-date="${date}"]`).forEach((el) => {
-    if (el.classList.contains("event-cell")) paintEventCell(el, label, display);
+    if (el.classList.contains("event-cell")) paintEventCell(el, label, display, fontSize);
     else el.classList.toggle("is-event", Boolean(label));
   });
   if (printModal && !printModal.classList.contains("hidden")) syncPreviewFromCalendar();
 }
 
-async function saveEventLabel(date, label, display) {
+async function saveEventLabel(date, label, display, fontSize) {
   const loaded = await fetch("/api/settings");
   if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
   const settings = await loaded.json();
   const events = Array.isArray(settings.calendar_events) ? settings.calendar_events.filter((item) => item?.date !== date) : [];
-  if (label || display) events.push({ date, label, display });
+  if (label || display) events.push({ date, label, display, font_size: clampEventFont(fontSize) });
   settings.calendar_events = events;
   const savedResponse = await fetch("/api/settings", {
     method: "PUT",
@@ -1309,7 +1322,24 @@ async function saveEventLabel(date, label, display) {
   const saved = await savedResponse.json();
   serverDefaults.calendar_events = Array.isArray(saved.calendar_events) ? saved.calendar_events : events;
   const stored = serverDefaults.calendar_events.find((item) => item.date === date);
-  return { label: stored?.label || "", display: stored?.display || "" };
+  return {
+    label: stored?.label || "",
+    display: stored?.display || "",
+    fontSize: clampEventFont(stored?.font_size),
+  };
+}
+
+function currentEventEditorFont() {
+  return clampEventFont(eventEditPop?.querySelector(".event-size-value")?.textContent);
+}
+
+function setEventEditorFont(size) {
+  const next = clampEventFont(size);
+  const value = eventEditPop?.querySelector(".event-size-value");
+  if (value) value.textContent = String(next);
+  eventEditPop?.cell?.querySelectorAll(".day-head-event-box, .day-head-event-full").forEach((el) => {
+    el.style.fontSize = `${next}px`;
+  });
 }
 
 function placeEventEditor(cell) {
@@ -1329,7 +1359,7 @@ function openEventEditor(cell) {
     eventEditPop = document.createElement("form");
     eventEditPop.className = "event-edit-pop";
     eventEditPop.hidden = true;
-    eventEditPop.innerHTML = `<label class="event-edit-field">表示<input type="text" class="event-edit-display" maxlength="20" placeholder="セルに出す文字"></label><label class="event-edit-field">名称<input type="text" class="event-edit-label" maxlength="40" placeholder="全ての名称"></label><button type="submit" class="btn btn-sm">保存</button>`;
+    eventEditPop.innerHTML = `<label class="event-edit-field">表示<input type="text" class="event-edit-display" maxlength="20" placeholder="セルに出す文字"></label><label class="event-edit-field">名称<input type="text" class="event-edit-label" maxlength="40" placeholder="全ての名称"></label><div class="event-edit-size"><span>文字サイズ</span><button type="button" class="event-size-down" aria-label="文字を小さく">−</button><span class="event-size-value">12</span><button type="button" class="event-size-up" aria-label="文字を大きく">+</button></div><button type="submit" class="btn btn-sm">保存</button>`;
     document.body.appendChild(eventEditPop);
     eventEditPop.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -1343,6 +1373,12 @@ function openEventEditor(cell) {
         }
       });
     });
+    eventEditPop.querySelector(".event-size-down").addEventListener("click", () => {
+      setEventEditorFont(currentEventEditorFont() - 2);
+    });
+    eventEditPop.querySelector(".event-size-up").addEventListener("click", () => {
+      setEventEditorFont(currentEventEditorFont() + 2);
+    });
     document.addEventListener("pointerdown", (event) => {
       if (!eventEditPop || eventEditPop.hidden) return;
       if (eventEditPop.contains(event.target)) return;
@@ -1354,9 +1390,11 @@ function openEventEditor(cell) {
   const labelInput = eventEditPop.querySelector(".event-edit-label");
   eventEditPop.originalLabel = cell.dataset.eventLabel || "";
   eventEditPop.originalDisplay = cell.dataset.eventDisplay || "";
+  eventEditPop.originalSize = clampEventFont(cell.dataset.eventSize);
   eventEditPop.cell = cell;
   displayInput.value = eventEditPop.originalDisplay;
   labelInput.value = eventEditPop.originalLabel;
+  setEventEditorFont(eventEditPop.originalSize);
   eventEditPop.hidden = false;
   placeEventEditor(cell);
   displayInput.focus();
@@ -1370,16 +1408,20 @@ async function commitEventEditor(save) {
   const date = cell?.dataset.date || "";
   const originalLabel = eventEditPop.originalLabel || "";
   const originalDisplay = eventEditPop.originalDisplay || "";
+  const originalSize = clampEventFont(eventEditPop.originalSize);
   const nextLabel = save ? eventEditPop.querySelector(".event-edit-label").value.trim() : originalLabel;
   const nextDisplay = save ? eventEditPop.querySelector(".event-edit-display").value.trim() : originalDisplay;
-  const unchanged = nextLabel === originalLabel && nextDisplay === originalDisplay;
+  const nextSize = save ? currentEventEditorFont() : originalSize;
+  const unchanged = nextLabel === originalLabel && nextDisplay === originalDisplay && nextSize === originalSize;
   eventEditPop.hidden = true;
   eventEditPop.cell = null;
   try {
-    const stored = !save || unchanged ? { label: originalLabel, display: originalDisplay } : await saveEventLabel(date, nextLabel, nextDisplay);
-    if (cell) syncEventColumn(date, stored.label, stored.display);
+    const stored = !save || unchanged
+      ? { label: originalLabel, display: originalDisplay, fontSize: originalSize }
+      : await saveEventLabel(date, nextLabel, nextDisplay, nextSize);
+    if (cell) syncEventColumn(date, stored.label, stored.display, stored.fontSize);
   } catch (error) {
-    if (cell) paintEventCell(cell, originalLabel, originalDisplay);
+    if (cell) paintEventCell(cell, originalLabel, originalDisplay, originalSize);
     window.alert(error.message || "イベントを保存できませんでした。");
   } finally {
     eventEditClosing = false;

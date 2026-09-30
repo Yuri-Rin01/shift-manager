@@ -39,11 +39,11 @@
           <th class="col-position{% if not compact %} sticky-col{% endif %}"></th>
           <th class="col-dept{% if not compact %} sticky-col{% endif %}"></th>
           {% for day in days %}
-            <th class="day-col event-cell{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}" data-date="{{ day.date }}" data-event-label="{{ day.event_label }}" data-event-display="{{ day.event_display }}" title="ダブルクリックで編集">
+            <th class="day-col event-cell{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}" data-date="{{ day.date }}" data-event-label="{{ day.event_label }}" data-event-display="{{ day.event_display }}" data-event-size="{{ day.event_font_size }}" title="ダブルクリックで編集">
               {% if day.event_label %}
                 <span class="day-head-event" tabindex="0" data-event-label="{{ day.event_label }}" aria-label="{{ day.event_label }}">
-                  <span class="day-head-event-box">{{ day.event_display }}</span>
-                  <span class="day-head-event-full">{{ day.event_label }}</span>
+                  <span class="day-head-event-box" style="font-size: {{ day.event_font_size }}px">{{ day.event_display }}</span>
+                  <span class="day-head-event-full" style="font-size: {{ day.event_font_size }}px">{{ day.event_label }}</span>
                 </span>
               {% endif %}
             </th>

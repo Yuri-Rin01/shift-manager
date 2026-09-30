@@ -757,7 +757,7 @@ function renderCalendarEvents(events = []) {
   const rows = Array.isArray(events) ? events : [];
   list.innerHTML = rows
     .map(
-      (item, index) => `<div class="calendar-event-row">
+      (item, index) => `<div class="calendar-event-row" data-font-size="${Number(item.font_size) || 12}">
         <input type="date" class="calendar-event-date" min="2000-01-01" max="2099-12-31" value="${escapeAttr(item.date || "")}" aria-label="イベント${index + 1}の日付">
         <input type="text" class="calendar-event-display input-text" maxlength="20" value="${escapeAttr(item.display || "")}" placeholder="表示" aria-label="イベント${index + 1}の表示">
         <input type="text" class="calendar-event-label input-text" maxlength="40" value="${escapeAttr(item.label || "")}" placeholder="名称" aria-label="イベント${index + 1}の名称">
@@ -775,6 +775,7 @@ function collectCalendarEvents() {
       date: row.querySelector(".calendar-event-date")?.value.trim() || "",
       display: row.querySelector(".calendar-event-display")?.value.trim() || "",
       label: row.querySelector(".calendar-event-label")?.value.trim() || "",
+      font_size: Number(row.dataset.fontSize) || 12,
     }))
     .filter((item) => item.date && (item.label || item.display));
 }

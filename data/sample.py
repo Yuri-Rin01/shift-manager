@@ -175,6 +175,7 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
         label = entry["label"] if entry else ""
         day["event_label"] = label
         day["event_display"] = (entry.get("display") or label[:1]) if entry else ""
+        day["event_font_size"] = entry.get("font_size", 12) if entry else 12
 
     return {
         "symbol_class_map": build_symbol_class_map(app_settings),
