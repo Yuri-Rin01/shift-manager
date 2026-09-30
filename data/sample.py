@@ -1,5 +1,5 @@
 from data.settings_defaults import CALENDAR_SORT_OPTIONS, TABLE_ZOOM_OPTIONS
-from data.calendar_period import build_period_days, format_period_label, period_bounds
+from data.calendar_period import build_period_days, format_period_label, format_scope_range, period_bounds
 from data.facility import get_facility_context
 from data.masters import (
     filter_staff_for_facility,
@@ -171,6 +171,7 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
         "period_label": format_period_label(
             period_start, period_end, year=year, month=month, start_day=start_day
         ),
+        "period_range": format_scope_range(period_start, period_end),
         "year": year,
         "month": month,
         "days": days,

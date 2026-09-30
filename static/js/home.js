@@ -1937,6 +1937,15 @@ function syncPreviewFromCalendar() {
 
   const table = sourceTable.cloneNode(true);
   table.classList.add("shift-table-compact");
+  const range = window.PERIOD_RANGE || window.PERIOD_LABEL || "";
+  if (range) {
+    const caption = document.createElement("caption");
+    caption.className = "print-preview-range";
+    caption.textContent = `表示区間　${range}`;
+    table.prepend(caption);
+  }
+  const rangeLabel = document.getElementById("print-preview-range");
+  if (rangeLabel) rangeLabel.textContent = range ? `表示区間　${range}` : "";
   table.querySelectorAll("tbody tr").forEach((row) => {
     const sourceRow = sourceTable.querySelector(`tbody tr[data-staff-id="${row.dataset.staffId}"]`);
     if (sourceRow?.hidden) {

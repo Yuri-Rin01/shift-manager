@@ -2913,6 +2913,23 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   color: var(--text-muted);
 }
 
+.print-preview-range-label {
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.print-preview-box .print-preview-range {
+  caption-side: top;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 0 0 8px;
+  color: #0f172a;
+}
+
 .print-modal-footer {
   display: flex;
   align-items: center;
