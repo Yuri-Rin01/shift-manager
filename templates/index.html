@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>シフト作成システム{% if facility_name %} - {{ facility_name }}{% endif %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=133">
+  <link rel="stylesheet" href="/static/css/style.css?v=134">
 </head>
 <body>
   <div class="app">
@@ -331,10 +331,11 @@
     window.STAFF_POSITION_ORDER = {{ positions | map(attribute='label') | list | tojson }};
     window.PERIOD_LABEL = {{ period_label | tojson }};
     window.PERIOD_RANGE = {{ period_range | tojson }};
+    window.PERIOD_SHEET_LABEL = {{ period_sheet_label | tojson }};
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=89"></script>
+  <script src="/static/js/home.js?v=90"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

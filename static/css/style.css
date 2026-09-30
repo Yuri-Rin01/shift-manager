@@ -3110,6 +3110,26 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   font-size: 13px;
 }
 
+.print-sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 6px;
+  color: #111;
+}
+
+.print-sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+}
+
+.print-sheet-period {
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .print-preview-box .shift-table-compact {
   font-size: 12px;
   margin-bottom: 0;
@@ -3121,7 +3141,16 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 .print-preview-box .shift-table td {
   background: #fff;
   color: #111;
-  border-color: #cbd5e1;
+  border: 1px solid #111;
+}
+
+.print-preview-box .print-row-no {
+  width: 1.6em;
+  min-width: 1.6em;
+  padding: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #fff;
 }
 
 .print-preview-box .shift-table th.col-name,

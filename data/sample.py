@@ -3,6 +3,7 @@ from data.calendar_period import (
     build_period_days,
     format_period_label,
     format_scope_range,
+    format_sheet_period,
     period_bounds,
     wareki_year_label,
 )
@@ -178,6 +179,7 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
             period_start, period_end, year=year, month=month, start_day=start_day
         ),
         "period_range": format_scope_range(period_start, period_end),
+        "period_sheet_label": format_sheet_period(period_start, period_end),
         "month_heading": f"{wareki_year_label(year, month, start_day)}{month}月",
         "year": year,
         "month": month,

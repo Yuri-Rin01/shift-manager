@@ -114,6 +114,16 @@ def wareki_year_label(year: int, month: int = 1, day: int = 1) -> str:
     return f"{era}{'元' if number == 1 else number}年"
 
 
+def format_sheet_period(start: date, end: date) -> str:
+    """勤務表の見出し用。令和8年9月〜10月 の形。"""
+    start_label = f"{wareki_year_label(start.year, start.month, start.day)}{start.month}月"
+    if start.year == end.year and start.month == end.month:
+        return start_label
+    if start.year == end.year:
+        return f"{start_label}〜{end.month}月"
+    return f"{start_label}〜{wareki_year_label(end.year, end.month, end.day)}{end.month}月"
+
+
 def format_scope_range(start: date, end: date) -> str:
     """自動生成の対象期間ラベル（表示区間）。和暦で出す。"""
     start_label = f"{wareki_year_label(start.year, start.month, start.day)}{start.month}月{start.day}日"

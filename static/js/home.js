@@ -1950,13 +1950,7 @@ function syncPreviewFromCalendar() {
 
   const table = sourceTable.cloneNode(true);
   table.classList.add("shift-table-compact");
-  const range = window.PERIOD_RANGE || window.PERIOD_LABEL || "";
-  if (range) {
-    const caption = document.createElement("caption");
-    caption.className = "print-preview-range";
-    caption.textContent = range;
-    table.prepend(caption);
-  }
+  const range = window.PERIOD_SHEET_LABEL || window.PERIOD_RANGE || window.PERIOD_LABEL || "";
   const rangeLabel = document.getElementById("print-preview-range");
   if (rangeLabel) rangeLabel.textContent = range;
   table.querySelectorAll("tbody tr").forEach((row) => {
@@ -1974,7 +1968,27 @@ function syncPreviewFromCalendar() {
   table.querySelectorAll(".staff-name-link").forEach((link) => {
     link.replaceWith(link.textContent);
   });
-  previewBox.replaceChildren(table);
+  table.querySelectorAll("thead tr, tfoot tr").forEach((row) => {
+    const cell = document.createElement(row.parentElement?.tagName === "TFOOT" ? "td" : "th");
+    cell.className = "print-row-no";
+    row.prepend(cell);
+  });
+  table.querySelectorAll("tbody tr").forEach((row, index) => {
+    const cell = document.createElement("td");
+    cell.className = "print-row-no";
+    cell.textContent = String(index + 1);
+    row.prepend(cell);
+  });
+  const head = document.createElement("div");
+  head.className = "print-sheet-head";
+  const title = document.createElement("span");
+  title.className = "print-sheet-title";
+  title.textContent = "勤務表";
+  const period = document.createElement("span");
+  period.className = "print-sheet-period";
+  period.textContent = range;
+  head.append(title, period);
+  previewBox.replaceChildren(head, table);
   layoutPrintPreview();
 }
 
