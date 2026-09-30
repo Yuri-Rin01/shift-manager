@@ -1646,6 +1646,7 @@ function setFiltersPanelCollapsed(collapsed) {
 
 function initFiltersPanelCollapse() {
   const toggle = document.getElementById("btn-toggle-filters");
+  const panel = document.getElementById("home-filters-body");
   if (!toggle) return;
   const saved = loadPrefs();
   const collapsed = saved.filtersPanelCollapsed !== false;
@@ -1653,6 +1654,25 @@ function initFiltersPanelCollapse() {
   toggle.addEventListener("click", () => {
     const block = document.getElementById("home-filters-collapse");
     setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
+  });
+
+  if (!panel) return;
+  let closeTimer = null;
+  const cancelClose = () => {
+    if (closeTimer) {
+      window.clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+  };
+  panel.addEventListener("mouseenter", cancelClose);
+  panel.addEventListener("mouseleave", () => {
+    cancelClose();
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null;
+      const block = document.getElementById("home-filters-collapse");
+      if (!block || block.classList.contains("is-collapsed")) return;
+      setFiltersPanelCollapsed(true);
+    }, 180);
   });
 }
 
