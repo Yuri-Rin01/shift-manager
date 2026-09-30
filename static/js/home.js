@@ -141,9 +141,25 @@ function syncControlsFromPrefs(prefs) {
   if (printColorMode) printColorMode.checked = prefs.colorCells;
 }
 
+const PRINT_PAPER_MM = {
+  "A4 横": [297, 210],
+  "A4 縦": [210, 297],
+  "A3 横": [420, 297],
+};
+
+function printPaperSpec() {
+  const paper = document.getElementById("print-paper")?.value ?? "A4 横";
+  return { paper, mm: PRINT_PAPER_MM[paper] ?? PRINT_PAPER_MM["A4 横"] };
+}
+
+function printUserScale() {
+  const raw = Number.parseInt(document.getElementById("print-scale")?.value ?? "100", 10);
+  return Number.isFinite(raw) ? raw / 100 : 1;
+}
+
 function updatePreviewNote() {
   if (!previewNote || !printModal) return;
-  const paper = document.getElementById("print-paper")?.value ?? "A4 横";
+  const { paper } = printPaperSpec();
   const scale = document.getElementById("print-scale")?.value ?? "100%";
   const prefs = getPrefs();
   const cols = ["職員名"];
@@ -151,6 +167,52 @@ function updatePreviewNote() {
   if (prefs.showPosition) cols.push("役職");
   if (prefs.showDept) cols.push("フロア");
   previewNote.textContent = `${paper} / ${scale} / ${cols.join("・")}${prefs.colorCells ? " / 色付き" : ""}`;
+}
+
+function layoutPrintPreview() {
+  const stage = document.getElementById("print-preview-stage");
+  const slot = document.getElementById("print-preview-slot");
+  const sheet = document.getElementById("print-preview-sheet");
+  if (!stage || !slot || !sheet || !previewBox) return;
+  const { paper, mm } = printPaperSpec();
+  const [pageWmm, pageHmm] = mm;
+  sheet.dataset.paper = paper;
+  const pxPerMm = 96 / 25.4;
+  const pageW = pageWmm * pxPerMm;
+  const pageH = pageHmm * pxPerMm;
+  sheet.style.width = `${pageW}px`;
+  sheet.style.height = `${pageH}px`;
+
+  const table = previewBox.querySelector(".shift-table");
+  if (table) {
+    table.style.zoom = "1";
+    const contentW = Math.max(1, (pageWmm - 12) * pxPerMm);
+    const natural = table.scrollWidth || table.offsetWidth || contentW;
+    table.style.zoom = String(Math.max(0.3, (contentW / natural) * printUserScale()));
+  }
+
+  const availW = Math.max(1, stage.clientWidth - 32);
+  const availH = Math.max(1, stage.clientHeight - 32);
+  const fit = Math.min(availW / pageW, availH / pageH);
+  slot.style.width = `${pageW * fit}px`;
+  slot.style.height = `${pageH * fit}px`;
+  sheet.style.transform = `scale(${fit})`;
+}
+
+function syncPrintPageStyle() {
+  let style = document.getElementById("print-page-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "print-page-style";
+    document.head.appendChild(style);
+  }
+  const { paper, mm } = printPaperSpec();
+  const size = paper.startsWith("A3") ? "A3" : "A4";
+  const orient = paper.includes("縦") ? "portrait" : "landscape";
+  const table = previewBox?.querySelector(".shift-table");
+  const zoom = table?.style.zoom || String(printUserScale());
+  style.textContent = `@page { size: ${size} ${orient}; margin: 6mm; } @media print { body.print-preview-active #print-preview-box .shift-table { zoom: ${zoom} !important; } }`;
+  return { size, orient, mm };
 }
 
 function getZoomOptions() {
@@ -1884,6 +1946,7 @@ function syncPreviewFromCalendar() {
     link.replaceWith(link.textContent);
   });
   previewBox.replaceChildren(table);
+  layoutPrintPreview();
 }
 
 function refreshDisplay() {
@@ -1893,6 +1956,8 @@ function refreshDisplay() {
   syncPreviewFromCalendar();
   applyDisplayPrefs(prefs);
   updatePreviewNote();
+  layoutPrintPreview();
+  syncPrintPageStyle();
   previewBox?.scrollTo(0, 0);
 }
 
@@ -1992,7 +2057,14 @@ document.querySelectorAll("[data-invert-group]").forEach((button) => {
 });
 
 printModal?.querySelectorAll(".print-form-field select").forEach((select) => {
-  select.addEventListener("change", updatePreviewNote);
+  select.addEventListener("change", () => {
+    updatePreviewNote();
+    layoutPrintPreview();
+    syncPrintPageStyle();
+  });
+});
+window.addEventListener("resize", () => {
+  if (printModal && !printModal.classList.contains("hidden")) layoutPrintPreview();
 });
 
 previewRefresh?.addEventListener("click", refreshDisplay);

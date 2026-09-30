@@ -67,23 +67,27 @@
                 <span>フロア</span>
               </label>
             </div>
-            <label class="print-form-field">
-              <span>用紙サイズ</span>
-              <select id="print-paper">
-                <option{% if app_settings.print_paper == "A4 横" %} selected{% endif %}>A4 横</option>
-                <option{% if app_settings.print_paper == "A4 縦" %} selected{% endif %}>A4 縦</option>
-                <option{% if app_settings.print_paper == "A3 横" %} selected{% endif %}>A3 横</option>
-              </select>
-            </label>
-            <label class="print-form-field">
-              <span>拡大縮小</span>
-              <select id="print-scale">
-                <option{% if app_settings.print_scale == "100%" %} selected{% endif %}>100%</option>
-                <option{% if app_settings.print_scale == "90%" %} selected{% endif %}>90%</option>
-                <option{% if app_settings.print_scale == "80%" %} selected{% endif %}>80%</option>
-                <option{% if app_settings.print_scale == "70%" %} selected{% endif %}>70%</option>
-              </select>
-            </label>
+            <div class="print-size-row">
+              <label class="print-form-field">
+                <span>用紙サイズ</span>
+                <select id="print-paper">
+                  <option{% if app_settings.print_paper == "A4 横" %} selected{% endif %}>A4 横</option>
+                  <option{% if app_settings.print_paper == "A4 縦" %} selected{% endif %}>A4 縦</option>
+                  <option{% if app_settings.print_paper == "A3 横" %} selected{% endif %}>A3 横</option>
+                </select>
+              </label>
+              <label class="print-form-field">
+                <span>拡大縮小</span>
+                <select id="print-scale">
+                  <option{% if app_settings.print_scale == "100%" %} selected{% endif %}>100%</option>
+                  <option{% if app_settings.print_scale == "90%" %} selected{% endif %}>90%</option>
+                  <option{% if app_settings.print_scale == "80%" %} selected{% endif %}>80%</option>
+                  <option{% if app_settings.print_scale == "70%" %} selected{% endif %}>70%</option>
+                  <option{% if app_settings.print_scale == "60%" %} selected{% endif %}>60%</option>
+                </select>
+              </label>
+            </div>
+            <p class="field-hint">100%は選んだ用紙の幅に表全体を合わせます。小さくすると余白が増えます。</p>
             <label class="check-row print-form-check" for="print-color-mode">
               <input type="checkbox" id="print-color-mode"{% if app_settings.print_color_cells %} checked{% endif %}>
               <span>セル色付き印刷</span>
@@ -97,8 +101,14 @@
           <h4 class="print-section-title">③ プレビュー</h4>
           <span class="print-preview-note" id="print-preview-note">A4 横 / 100%</span>
         </div>
-        <div class="print-preview-box color-cells" id="print-preview-box" aria-live="polite">
-          <p class="print-preview-placeholder">「印刷設定」を開くと、左のカレンダーからプレビューを表示します</p>
+        <div class="print-preview-stage" id="print-preview-stage">
+          <div class="print-preview-slot" id="print-preview-slot">
+            <div class="print-preview-sheet" id="print-preview-sheet" data-paper="A4 横">
+              <div class="print-preview-box color-cells" id="print-preview-box" aria-live="polite">
+                <p class="print-preview-placeholder">「印刷設定」を開くと、左のカレンダーからプレビューを表示します</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
