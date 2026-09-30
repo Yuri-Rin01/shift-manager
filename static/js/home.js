@@ -164,6 +164,15 @@ function printUserScale() {
   return Number.isFinite(raw) ? raw / 100 : 1;
 }
 
+let previewViewZoom = 1;
+
+function setPreviewViewZoom(next) {
+  previewViewZoom = Math.min(3, Math.max(0.25, next));
+  const label = document.getElementById("print-preview-zoom-label");
+  if (label) label.textContent = `${Math.round(previewViewZoom * 100)}%`;
+  layoutPrintPreview();
+}
+
 function updatePreviewNote() {
   if (!previewNote || !printModal) return;
   const { paper } = printPaperSpec();
@@ -201,9 +210,13 @@ function layoutPrintPreview() {
   const availW = Math.max(1, stage.clientWidth - 32);
   const availH = Math.max(1, stage.clientHeight - 32);
   const fit = Math.min(availW / pageW, availH / pageH);
-  slot.style.width = `${pageW * fit}px`;
-  slot.style.height = `${pageH * fit}px`;
-  sheet.style.transform = `scale(${fit})`;
+  const view = fit * previewViewZoom;
+  slot.style.width = `${pageW * view}px`;
+  slot.style.height = `${pageH * view}px`;
+  sheet.style.transform = `scale(${view})`;
+  stage.classList.toggle("is-pannable", previewViewZoom > 1.02);
+  const label = document.getElementById("print-preview-zoom-label");
+  if (label) label.textContent = `${Math.round(previewViewZoom * 100)}%`;
 }
 
 function syncPrintPageStyle() {
@@ -1980,6 +1993,7 @@ function refreshDisplay() {
 function openPrintModal() {
   if (!printModal) return;
   closeCellEditor();
+  previewViewZoom = 1;
   printModal.classList.remove("hidden");
   printModal.setAttribute("aria-hidden", "false");
   refreshDisplay();
@@ -2081,6 +2095,55 @@ printModal?.querySelectorAll(".print-form-field select").forEach((select) => {
 });
 window.addEventListener("resize", () => {
   if (printModal && !printModal.classList.contains("hidden")) layoutPrintPreview();
+});
+
+document.getElementById("print-preview-zoom-out")?.addEventListener("click", () => {
+  setPreviewViewZoom(previewViewZoom / 1.25);
+});
+document.getElementById("print-preview-zoom-in")?.addEventListener("click", () => {
+  setPreviewViewZoom(previewViewZoom * 1.25);
+});
+document.getElementById("print-preview-zoom-fit")?.addEventListener("click", () => {
+  setPreviewViewZoom(1);
+});
+
+const printPreviewStage = document.getElementById("print-preview-stage");
+printPreviewStage?.addEventListener(
+  "wheel",
+  (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setPreviewViewZoom(previewViewZoom * (event.deltaY < 0 ? 1.1 : 0.9));
+  },
+  { passive: false }
+);
+printPreviewStage?.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || previewViewZoom <= 1.02) return;
+  if (event.target.closest("button, a, input, select")) return;
+  const pan = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: printPreviewStage.scrollLeft,
+    top: printPreviewStage.scrollTop,
+  };
+  printPreviewStage.classList.add("is-panning");
+  printPreviewStage.setPointerCapture(event.pointerId);
+  const move = (ev) => {
+    if (ev.pointerId !== pan.id) return;
+    printPreviewStage.scrollLeft = pan.left - (ev.clientX - pan.x);
+    printPreviewStage.scrollTop = pan.top - (ev.clientY - pan.y);
+  };
+  const end = (ev) => {
+    if (ev.pointerId !== pan.id) return;
+    printPreviewStage.classList.remove("is-panning");
+    printPreviewStage.removeEventListener("pointermove", move);
+    printPreviewStage.removeEventListener("pointerup", end);
+    printPreviewStage.removeEventListener("pointercancel", end);
+  };
+  printPreviewStage.addEventListener("pointermove", move);
+  printPreviewStage.addEventListener("pointerup", end);
+  printPreviewStage.addEventListener("pointercancel", end);
 });
 
 previewRefresh?.addEventListener("click", refreshDisplay);

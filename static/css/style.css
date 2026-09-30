@@ -3010,12 +3010,71 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: #e8edf3;
-  border-radius: 8px;
+  background: #d5dbe3;
+  border-radius: 8px 8px 0 0;
   padding: 16px;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: safe center;
+  justify-content: safe center;
+  cursor: default;
+}
+
+.print-preview-stage.is-pannable {
+  cursor: grab;
+}
+
+.print-preview-stage.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.print-preview-zoombar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.print-preview-zoom-btn,
+.print-preview-zoom-fit {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+.print-preview-zoom-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.print-preview-zoom-fit {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.print-preview-zoom-btn:hover,
+.print-preview-zoom-fit:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+#print-preview-zoom-label {
+  min-width: 42px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .print-preview-slot {
