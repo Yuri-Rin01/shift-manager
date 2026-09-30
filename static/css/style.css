@@ -1162,15 +1162,25 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 .content-home .color-cells thead .col-sat,
-.content-home .mono-cells thead .col-sat {
-  background-color: #fff;
+.content-home .mono-cells thead .col-sat,
+.content-home .table-wrap .shift-table thead th.col-sat,
+.content-home .table-wrap .shift-table tfoot.shift-summary td.col-sat {
+  background-color: #dbeafe;
   color: #1d4ed8;
 }
 
 .content-home .color-cells thead .col-sun,
-.content-home .mono-cells thead .col-sun {
-  background-color: #fff;
+.content-home .mono-cells thead .col-sun,
+.content-home .table-wrap .shift-table thead th.col-sun,
+.content-home .table-wrap .shift-table tfoot.shift-summary td.col-sun {
+  background-color: #fee2e2;
   color: #dc2626;
+}
+
+.content-home .table-wrap .shift-table thead th.is-event,
+.content-home .table-wrap .shift-table tfoot.shift-summary td.is-event {
+  background-color: #fde68a;
+  color: #111;
 }
 
 .content-home .table-wrap .shift-table tbody tr:hover .sticky-col .staff-name-link {
@@ -2670,7 +2680,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 .shift-flick-dir.shift-training { background: #fef9c3; }
 .shift-flick-dir.shift-half-leave { background: #fce7f3; }
 
-.mono-cells .shift-td {
+.mono-cells .shift-td:not(.col-sat):not(.col-sun):not(.is-event) {
   background: #fff !important;
 }
 
@@ -3222,18 +3232,24 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 .shift-table td.col-sat,
 .color-cells .shift-td.col-sat,
 .print-preview-box .shift-table th.col-sat,
-.print-preview-box .shift-table td.col-sat,
+.print-preview-box .shift-table td.col-sat {
+  background-color: #dbeafe;
+}
+
 .shift-table th.col-sun,
 .shift-table td.col-sun,
 .color-cells .shift-td.col-sun,
 .print-preview-box .shift-table th.col-sun,
-.print-preview-box .shift-table td.col-sun,
+.print-preview-box .shift-table td.col-sun {
+  background-color: #fee2e2;
+}
+
 .shift-table th.is-event,
 .shift-table td.is-event,
 .color-cells .shift-td.is-event,
 .print-preview-box .shift-table th.is-event,
 .print-preview-box .shift-table td.is-event {
-  background-color: #fff;
+  background-color: #fde68a;
 }
 
 .print-preview-box .floor-badge {
@@ -3249,11 +3265,23 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
 
 .print-preview-box.color-cells .shift-td.col-sat,
 .print-preview-box.color-cells thead .col-sat,
+.print-preview-box .shift-table td.col-sat,
+.print-preview-box .shift-table th.col-sat {
+  background-color: #dbeafe;
+}
+
 .print-preview-box.color-cells .shift-td.col-sun,
 .print-preview-box.color-cells thead .col-sun,
+.print-preview-box .shift-table td.col-sun,
+.print-preview-box .shift-table th.col-sun {
+  background-color: #fee2e2;
+}
+
 .print-preview-box.color-cells .shift-td.is-event,
-.print-preview-box.color-cells thead .is-event {
-  background: #fff;
+.print-preview-box.color-cells thead .is-event,
+.print-preview-box .shift-table td.is-event,
+.print-preview-box .shift-table th.is-event {
+  background-color: #fde68a;
 }
 
 .print-preview-box.color-cells .shift-td.shift-early .shift-cell { color: #166534; }
@@ -7529,11 +7557,23 @@ input[type="checkbox"]:focus-visible {
 
 .shift-workspace.is-sheet-themed .shift-table th.col-sat,
 .shift-workspace.is-sheet-themed .shift-table td.col-sat,
+.shift-workspace.is-sheet-themed .shift-table tfoot td.col-sat {
+  background-color: #dbeafe;
+  color: #1e293b;
+}
+
 .shift-workspace.is-sheet-themed .shift-table th.col-sun,
 .shift-workspace.is-sheet-themed .shift-table td.col-sun,
+.shift-workspace.is-sheet-themed .shift-table tfoot td.col-sun {
+  background-color: #fee2e2;
+  color: #1e293b;
+}
+
 .shift-workspace.is-sheet-themed .shift-table th.is-event,
-.shift-workspace.is-sheet-themed .shift-table td.is-event {
-  background: #fff;
+.shift-workspace.is-sheet-themed .shift-table td.is-event,
+.shift-workspace.is-sheet-themed .shift-table tfoot td.is-event {
+  background-color: #fde68a;
+  color: #1e293b;
 }
 
 /* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
