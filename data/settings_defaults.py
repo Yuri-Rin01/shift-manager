@@ -32,6 +32,8 @@ DEFAULT_SETTINGS: dict = {
     "calendar_start_day": 1,
     "off_days_per_period": None,
     "highlight_today": False,
+    "highlight_event_days": True,
+    "calendar_events": [],
     "show_week_number": False,
     "cell_flick_input_enabled": True,
     "cell_long_press_ms": 450,

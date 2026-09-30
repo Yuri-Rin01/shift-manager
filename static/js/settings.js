@@ -748,6 +748,33 @@ function populateForm(data) {
   refreshTimeSlotCoverageHints();
   syncWorkTypeSymbolBadges();
   renderCustomSheets(Array.isArray(data.custom_sheet_views) ? data.custom_sheet_views : []);
+  renderCalendarEvents(Array.isArray(data.calendar_events) ? data.calendar_events : []);
+}
+
+function renderCalendarEvents(events = []) {
+  const list = document.getElementById("calendar-event-list");
+  if (!list) return;
+  const rows = Array.isArray(events) ? events : [];
+  list.innerHTML = rows
+    .map(
+      (item, index) => `<div class="calendar-event-row">
+        <input type="date" class="calendar-event-date" min="2000-01-01" max="2099-12-31" value="${escapeAttr(item.date || "")}" aria-label="イベント${index + 1}の日付">
+        <input type="text" class="calendar-event-label input-text" maxlength="40" value="${escapeAttr(item.label || "")}" placeholder="イベント名" aria-label="イベント${index + 1}の名前">
+        <button type="button" class="btn btn-sm" data-remove-calendar-event>削除</button>
+      </div>`
+    )
+    .join("");
+}
+
+function collectCalendarEvents() {
+  const list = document.getElementById("calendar-event-list");
+  if (!list) return [];
+  return [...list.querySelectorAll(".calendar-event-row")]
+    .map((row) => ({
+      date: row.querySelector(".calendar-event-date")?.value.trim() || "",
+      label: row.querySelector(".calendar-event-label")?.value.trim() || "",
+    }))
+    .filter((item) => item.date && item.label);
 }
 
 function collectVisibleWorkTypes() {
@@ -820,6 +847,7 @@ function collectFormData() {
   data.floors = collectFloors();
   data.job_filter_visibility = collectJobFilterVisibility();
   data.custom_sheet_views = collectCustomSheets();
+  data.calendar_events = collectCalendarEvents();
   data.min_staff_by_floor = collectMinStaffByFloor();
   data.min_staff_by_work_type = collectMinStaffByWorkType();
   data.time_slot_staffing_rules = collectTimeSlotStaffingRules();
@@ -950,6 +978,17 @@ addStaffingBasisButton?.addEventListener("click", () => {
   renderStaffingBasisRows([...collectStaffingBasisOptions(), defaultWorkTypeRow()]);
   syncWorkTypeMinStaffFromBasis();
   staffingBasisTbody.lastElementChild?.querySelector(".staffing-basis-label")?.focus();
+  markDirty();
+});
+document.getElementById("btn-add-calendar-event")?.addEventListener("click", () => {
+  renderCalendarEvents([...collectCalendarEvents(), { date: "", label: "" }]);
+  document.querySelector("#calendar-event-list .calendar-event-row:last-child .calendar-event-date")?.focus();
+  markDirty();
+});
+document.getElementById("calendar-event-list")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-calendar-event]");
+  if (!button) return;
+  button.closest(".calendar-event-row")?.remove();
   markDirty();
 });
 addCustomSheetButton?.addEventListener("click", () => {

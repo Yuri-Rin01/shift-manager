@@ -311,7 +311,16 @@
                   <input type="checkbox" name="show_shift_legend">
                   <span>シフト凡例を表示</span>
                 </label>
+                <label class="check-row settings-check">
+                  <input type="checkbox" name="highlight_event_days">
+                  <span>イベント日を強調する</span>
+                </label>
               </div>
+
+              <h3 class="settings-subtitle">イベント日</h3>
+              <p class="field-hint">日付と名前を追加すると、カレンダーと印刷プレビューのその日に赤字で出します。土日は土曜が青、日曜が赤です。</p>
+              <div id="calendar-event-list" class="calendar-event-list"></div>
+              <button type="button" class="btn btn-sm" id="btn-add-calendar-event">＋ イベントを追加</button>
 
               <h3 class="settings-subtitle">職種の絞り込み候補</h3>
               <p class="field-hint">ホームの「職種」絞り込みに表示する候補を選びます。職員情報や通常のカレンダー表示から職種が削除されることはありません。</p>
@@ -497,6 +506,6 @@
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
     window.JOB_TYPES = {{ job_types | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=13"></script>
+  <script src="/static/js/settings.js?v=14"></script>
 </body>
 </html>
