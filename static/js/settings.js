@@ -759,7 +759,8 @@ function renderCalendarEvents(events = []) {
     .map(
       (item, index) => `<div class="calendar-event-row">
         <input type="date" class="calendar-event-date" min="2000-01-01" max="2099-12-31" value="${escapeAttr(item.date || "")}" aria-label="イベント${index + 1}の日付">
-        <input type="text" class="calendar-event-label input-text" maxlength="40" value="${escapeAttr(item.label || "")}" placeholder="イベント名" aria-label="イベント${index + 1}の名前">
+        <input type="text" class="calendar-event-display input-text" maxlength="20" value="${escapeAttr(item.display || "")}" placeholder="表示" aria-label="イベント${index + 1}の表示">
+        <input type="text" class="calendar-event-label input-text" maxlength="40" value="${escapeAttr(item.label || "")}" placeholder="名称" aria-label="イベント${index + 1}の名称">
         <button type="button" class="btn btn-sm" data-remove-calendar-event>削除</button>
       </div>`
     )
@@ -772,9 +773,10 @@ function collectCalendarEvents() {
   return [...list.querySelectorAll(".calendar-event-row")]
     .map((row) => ({
       date: row.querySelector(".calendar-event-date")?.value.trim() || "",
+      display: row.querySelector(".calendar-event-display")?.value.trim() || "",
       label: row.querySelector(".calendar-event-label")?.value.trim() || "",
     }))
-    .filter((item) => item.date && item.label);
+    .filter((item) => item.date && (item.label || item.display));
 }
 
 function collectVisibleWorkTypes() {

@@ -1,5 +1,5 @@
 from data.settings_defaults import CALENDAR_SORT_OPTIONS, TABLE_ZOOM_OPTIONS
-from data.calendar_events import event_label_map
+from data.calendar_events import event_entry_map
 from data.calendar_period import (
     build_period_days,
     format_period_label,
@@ -168,10 +168,13 @@ def build_calendar(year: int, month: int, display_group: str | None = None) -> d
     shift_daily_summary = _build_daily_summary(staff_rows, len(days), app_settings)
 
     legend = get_active_shift_legend(app_settings)
-    event_labels = event_label_map(app_settings.get("calendar_events"))
+    event_entries = event_entry_map(app_settings.get("calendar_events"))
     show_events = bool(app_settings.get("highlight_event_days", True))
     for day in days:
-        day["event_label"] = event_labels.get(day["date"], "") if show_events else ""
+        entry = event_entries.get(day["date"]) if show_events else None
+        label = entry["label"] if entry else ""
+        day["event_label"] = label
+        day["event_display"] = (entry.get("display") or label[:1]) if entry else ""
 
     return {
         "symbol_class_map": build_symbol_class_map(app_settings),

@@ -1261,8 +1261,10 @@ function initEventRowResize() {
   });
 }
 
-function paintEventCell(cell, label) {
-  cell.dataset.eventLabel = label;
+function paintEventCell(cell, label, display) {
+  const shown = display || (label ? Array.from(label)[0] : "");
+  cell.dataset.eventLabel = label || "";
+  cell.dataset.eventDisplay = display || "";
   cell.classList.toggle("is-event", Boolean(label));
   if (!label) {
     cell.replaceChildren();
@@ -1275,25 +1277,28 @@ function paintEventCell(cell, label) {
   span.setAttribute("aria-label", label);
   const box = document.createElement("span");
   box.className = "day-head-event-box";
-  box.textContent = label;
-  span.append(box);
+  box.textContent = shown;
+  const full = document.createElement("span");
+  full.className = "day-head-event-full";
+  full.textContent = label;
+  span.append(box, full);
   cell.replaceChildren(span);
 }
 
-function syncEventColumn(date, label) {
+function syncEventColumn(date, label, display) {
   document.querySelectorAll(`#shift-calendar [data-date="${date}"]`).forEach((el) => {
-    if (el.classList.contains("event-cell")) paintEventCell(el, label);
+    if (el.classList.contains("event-cell")) paintEventCell(el, label, display);
     else el.classList.toggle("is-event", Boolean(label));
   });
   if (printModal && !printModal.classList.contains("hidden")) syncPreviewFromCalendar();
 }
 
-async function saveEventLabel(date, label) {
+async function saveEventLabel(date, label, display) {
   const loaded = await fetch("/api/settings");
   if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
   const settings = await loaded.json();
   const events = Array.isArray(settings.calendar_events) ? settings.calendar_events.filter((item) => item?.date !== date) : [];
-  if (label) events.push({ date, label });
+  if (label || display) events.push({ date, label, display });
   settings.calendar_events = events;
   const savedResponse = await fetch("/api/settings", {
     method: "PUT",
@@ -1304,16 +1309,18 @@ async function saveEventLabel(date, label) {
   const saved = await savedResponse.json();
   serverDefaults.calendar_events = Array.isArray(saved.calendar_events) ? saved.calendar_events : events;
   const stored = serverDefaults.calendar_events.find((item) => item.date === date);
-  return stored?.label || "";
+  return { label: stored?.label || "", display: stored?.display || "" };
 }
 
-function closeEventEditor(restore) {
-  if (!eventEditPop || eventEditPop.hidden) return;
-  const cell = eventEditPop.cell;
-  const label = restore ? eventEditPop.original : eventEditPop.querySelector("input")?.value.trim() || "";
-  eventEditPop.hidden = true;
-  eventEditPop.cell = null;
-  if (cell) paintEventCell(cell, label);
+function placeEventEditor(cell) {
+  const rect = cell.getBoundingClientRect();
+  const popRect = eventEditPop.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
+  let top = rect.top + rect.height / 2 - popRect.height / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - popRect.height - 8));
+  eventEditPop.style.left = `${Math.round(left)}px`;
+  eventEditPop.style.top = `${Math.round(top)}px`;
 }
 
 function openEventEditor(cell) {
@@ -1322,17 +1329,19 @@ function openEventEditor(cell) {
     eventEditPop = document.createElement("form");
     eventEditPop.className = "event-edit-pop";
     eventEditPop.hidden = true;
-    eventEditPop.innerHTML = `<input type="text" maxlength="40" aria-label="イベント名" placeholder="イベント名"><button type="submit" class="btn btn-sm">保存</button>`;
+    eventEditPop.innerHTML = `<label class="event-edit-field">表示<input type="text" class="event-edit-display" maxlength="20" placeholder="セルに出す文字"></label><label class="event-edit-field">名称<input type="text" class="event-edit-label" maxlength="40" placeholder="全ての名称"></label><button type="submit" class="btn btn-sm">保存</button>`;
     document.body.appendChild(eventEditPop);
     eventEditPop.addEventListener("submit", (event) => {
       event.preventDefault();
       commitEventEditor(true);
     });
-    eventEditPop.querySelector("input").addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        commitEventEditor(false);
-      }
+    eventEditPop.querySelectorAll("input").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          commitEventEditor(false);
+        }
+      });
     });
     document.addEventListener("pointerdown", (event) => {
       if (!eventEditPop || eventEditPop.hidden) return;
@@ -1341,21 +1350,17 @@ function openEventEditor(cell) {
     });
   }
   document.querySelector(".event-label-tip")?.setAttribute("hidden", "");
-  const input = eventEditPop.querySelector("input");
-  eventEditPop.original = cell.dataset.eventLabel || "";
+  const displayInput = eventEditPop.querySelector(".event-edit-display");
+  const labelInput = eventEditPop.querySelector(".event-edit-label");
+  eventEditPop.originalLabel = cell.dataset.eventLabel || "";
+  eventEditPop.originalDisplay = cell.dataset.eventDisplay || "";
   eventEditPop.cell = cell;
-  input.value = eventEditPop.original;
+  displayInput.value = eventEditPop.originalDisplay;
+  labelInput.value = eventEditPop.originalLabel;
   eventEditPop.hidden = false;
-  const rect = cell.getBoundingClientRect();
-  const popRect = eventEditPop.getBoundingClientRect();
-  let left = rect.left + rect.width / 2 - popRect.width / 2;
-  let top = rect.bottom + 6;
-  if (top + popRect.height > window.innerHeight - 8) top = Math.max(8, rect.top - popRect.height - 6);
-  left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
-  eventEditPop.style.left = `${Math.round(left)}px`;
-  eventEditPop.style.top = `${Math.round(top)}px`;
-  input.focus();
-  input.select();
+  placeEventEditor(cell);
+  displayInput.focus();
+  displayInput.select();
 }
 
 async function commitEventEditor(save) {
@@ -1363,15 +1368,18 @@ async function commitEventEditor(save) {
   eventEditClosing = true;
   const cell = eventEditPop.cell;
   const date = cell?.dataset.date || "";
-  const original = eventEditPop.original || "";
-  const next = save ? eventEditPop.querySelector("input").value.trim() : original;
+  const originalLabel = eventEditPop.originalLabel || "";
+  const originalDisplay = eventEditPop.originalDisplay || "";
+  const nextLabel = save ? eventEditPop.querySelector(".event-edit-label").value.trim() : originalLabel;
+  const nextDisplay = save ? eventEditPop.querySelector(".event-edit-display").value.trim() : originalDisplay;
+  const unchanged = nextLabel === originalLabel && nextDisplay === originalDisplay;
   eventEditPop.hidden = true;
   eventEditPop.cell = null;
   try {
-    const label = !save || next === original ? original : await saveEventLabel(date, next);
-    if (cell) syncEventColumn(date, save ? (next === original ? original : label) : original);
+    const stored = !save || unchanged ? { label: originalLabel, display: originalDisplay } : await saveEventLabel(date, nextLabel, nextDisplay);
+    if (cell) syncEventColumn(date, stored.label, stored.display);
   } catch (error) {
-    if (cell) paintEventCell(cell, original);
+    if (cell) paintEventCell(cell, originalLabel, originalDisplay);
     window.alert(error.message || "イベントを保存できませんでした。");
   } finally {
     eventEditClosing = false;
@@ -1407,9 +1415,8 @@ function initEventLabelHover() {
   };
   const place = (anchor) => {
     const label = anchor.dataset.eventLabel || "";
-    if (!label) return;
-    const rowHeight = anchor.clientHeight || anchor.parentElement?.clientHeight || 0;
-    if (rowHeight >= label.length * 12) return;
+    const shown = anchor.querySelector(".day-head-event-box")?.textContent || "";
+    if (!label || label === shown) return;
     tip.textContent = label;
     tip.hidden = false;
     const cell = anchor.closest("th, td") || anchor;

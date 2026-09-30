@@ -318,7 +318,7 @@
               </div>
 
               <h3 class="settings-subtitle">イベント日</h3>
-              <p class="field-hint">カレンダーの日付の上をダブルクリックしても名前を直せます。左端をドラッグすると、見える高さを変えられます。土日は土曜が青、日曜が赤です。</p>
+              <p class="field-hint">表示はセルに出す文字、名称はカーソルを合わせたときの全文です。カレンダーの日付の上をダブルクリックしても直せます。土日は土曜が青、日曜が赤です。</p>
               <div id="calendar-event-list" class="calendar-event-list"></div>
               <button type="button" class="btn btn-sm" id="btn-add-calendar-event">＋ イベントを追加</button>
 
@@ -506,6 +506,6 @@
     window.FLOOR_LABELS = {{ departments | map(attribute='label') | list | tojson }};
     window.JOB_TYPES = {{ job_types | map(attribute='label') | list | tojson }};
   </script>
-  <script src="/static/js/settings.js?v=14"></script>
+  <script src="/static/js/settings.js?v=15"></script>
 </body>
 </html>
