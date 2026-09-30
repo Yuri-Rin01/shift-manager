@@ -42,7 +42,12 @@
           <th class="col-dept{% if not compact %} sticky-col{% endif %}"></th>
           {% for day in days %}
             <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}">
-              {% if day.event_label %}<span class="day-head-event">{{ day.event_label }}</span>{% endif %}
+              {% if day.event_label %}
+                <span class="day-head-event" tabindex="0" data-event-label="{{ day.event_label }}" aria-label="{{ day.event_label }}">
+                  <span class="day-head-event-char" aria-hidden="true">{{ day.event_label[0] }}</span>
+                  <span class="day-head-event-full">{{ day.event_label }}</span>
+                </span>
+              {% endif %}
             </th>
           {% endfor %}
         </tr>

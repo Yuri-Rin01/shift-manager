@@ -1218,6 +1218,62 @@ async function showStaffGaugePopover(link) {
   renderStaffGaugePopover(link, staffId);
 }
 
+function initEventLabelHover() {
+  const calendar = document.getElementById("shift-calendar");
+  if (!calendar || calendar.dataset.eventTipReady) return;
+  calendar.dataset.eventTipReady = "1";
+
+  const tip = document.createElement("div");
+  tip.className = "event-label-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.hidden = true;
+  document.body.appendChild(tip);
+
+  const hide = () => {
+    tip.hidden = true;
+  };
+  const place = (anchor) => {
+    const label = anchor.dataset.eventLabel || "";
+    if (!label) return;
+    tip.textContent = label;
+    tip.hidden = false;
+    const rect = anchor.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    let top = rect.bottom + 6;
+    if (top + tipRect.height > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - tipRect.height - 6);
+    }
+    left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+  };
+
+  calendar.addEventListener("pointerover", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    place(el);
+  });
+  calendar.addEventListener("pointerout", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && el.contains(next)) return;
+    hide();
+  });
+  calendar.addEventListener("focusin", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (el && calendar.contains(el)) place(el);
+  });
+  calendar.addEventListener("focusout", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    hide();
+  });
+  document.getElementById("sheet-main-scroll")?.addEventListener("scroll", hide, { passive: true });
+  tableWrap?.addEventListener("scroll", hide, { passive: true });
+}
+
 function initStaffGaugeHover() {
   const calendar = document.getElementById("shift-calendar");
   const pop = document.getElementById("staff-gauge-popover");
@@ -1606,6 +1662,7 @@ function initSheetViews() {
   installCustomSheetTabs();
   syncSheetTabColors();
   initSheetAddPopover();
+  initEventLabelHover();
   initStaffGaugeHover();
 
   initSheetTabDrag();

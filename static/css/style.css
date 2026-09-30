@@ -1985,16 +1985,19 @@ body.sidebar-collapsed .nav-item-glyph {
   color: #dc2626;
 }
 
-.shift-table thead tr.event-row > th {
+.shift-table thead tr.event-row > th,
+.content-home .shift-table thead tr.event-row > th {
   top: 0;
-  height: 72px;
-  padding: 2px 0;
-  vertical-align: bottom;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  vertical-align: middle;
   z-index: 4;
 }
 
-.shift-table thead tr.event-row + tr > th {
-  top: 72px;
+.shift-table thead tr.event-row + tr > th,
+.content-home .shift-table thead tr.event-row + tr > th {
+  top: 20px;
 }
 
 .shift-table thead tr.week-number-row + tr.event-row > th {
@@ -2002,11 +2005,76 @@ body.sidebar-collapsed .nav-item-glyph {
 }
 
 .shift-table thead tr.week-number-row + tr.event-row + tr > th {
-  top: 90px;
+  top: 38px;
 }
 
 .day-head-event {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+}
+
+.day-head-event:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: -2px;
+}
+
+.day-head-event-full {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.event-label-tip {
+  position: fixed;
+  z-index: 40;
+  max-width: min(280px, 80vw);
+  padding: 4px 8px;
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  pointer-events: none;
+}
+
+.event-label-tip[hidden] {
+  display: none;
+}
+
+.print-preview-box .shift-table thead tr.event-row > th {
+  height: 72px;
+  padding: 2px 0;
+  vertical-align: bottom;
+}
+
+.print-preview-box .day-head-event-char {
+  display: none;
+}
+
+.print-preview-box .day-head-event-full {
+  position: static;
   display: inline-block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
   writing-mode: vertical-rl;
   max-height: 68px;
   font-size: 10px;
