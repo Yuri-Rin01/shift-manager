@@ -35,6 +35,7 @@ class AppSettings(BaseModel):
 
     default_color_cells: bool = True
     default_show_job_column: bool = True
+    default_show_position_column: bool = True
     default_show_dept_column: bool = True
     default_show_summary: bool = True
     show_shift_legend: bool = True

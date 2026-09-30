@@ -12,6 +12,7 @@ function escapeHtml(value) {
 function defaultPrefs() {
   return {
     showJob: serverDefaults.default_show_job_column ?? true,
+    showPosition: serverDefaults.default_show_position_column ?? true,
     showDept: serverDefaults.default_show_dept_column ?? true,
     colorCells: serverDefaults.default_color_cells ?? true,
     showSummary: serverDefaults.default_show_summary ?? true,
@@ -32,6 +33,7 @@ const calendarZoomSelect = document.getElementById("calendar-zoom-select");
 const calendarSortSelect = document.getElementById("calendar-sort-mode");
 const homeColorCells = document.getElementById("home-color-cells");
 const homeShowJob = document.getElementById("home-show-job");
+const homeShowPosition = document.getElementById("home-show-position");
 const homeShowDept = document.getElementById("home-show-dept");
 const homeShowSummary = document.getElementById("home-show-summary");
 
@@ -43,6 +45,7 @@ const SUPPORTS_CSS_ZOOM = typeof CSS !== "undefined" && CSS.supports?.("zoom", "
 let tableZoom = defaultPrefs().tableZoom;
 const previewBox = document.getElementById("print-preview-box");
 const printColJob = document.getElementById("print-col-job");
+const printColPosition = document.getElementById("print-col-position");
 const printColDept = document.getElementById("print-col-dept");
 const printColorMode = document.getElementById("print-color-mode");
 const btnPrevMonth = document.getElementById("btn-prev-month");
@@ -87,6 +90,7 @@ function getHomeDisplayInputs() {
   return {
     colorCells: document.getElementById("home-color-cells"),
     showJob: document.getElementById("home-show-job"),
+    showPosition: document.getElementById("home-show-position"),
     showDept: document.getElementById("home-show-dept"),
     showSummary: document.getElementById("home-show-summary"),
   };
@@ -97,6 +101,7 @@ function getPrefs() {
   const homeInputs = getHomeDisplayInputs();
   return {
     showJob: homeInputs.showJob?.checked ?? printColJob?.checked ?? defaults.showJob,
+    showPosition: homeInputs.showPosition?.checked ?? printColPosition?.checked ?? defaults.showPosition,
     showDept: homeInputs.showDept?.checked ?? printColDept?.checked ?? defaults.showDept,
     colorCells: homeInputs.colorCells?.checked ?? printColorMode?.checked ?? defaults.colorCells,
     showSummary: homeInputs.showSummary?.checked ?? defaults.showSummary,
@@ -107,6 +112,7 @@ function applyDisplayPrefs(prefs = getPrefs()) {
   if (shiftCalendar) {
     const foreignSheet = getCurrentSheetView() === "foreign-students";
     shiftCalendar.classList.toggle("hide-col-job", foreignSheet || !prefs.showJob);
+    shiftCalendar.classList.toggle("hide-col-position", !prefs.showPosition);
     shiftCalendar.classList.toggle("hide-col-dept", !prefs.showDept);
     shiftCalendar.classList.toggle("hide-summary", foreignSheet || !prefs.showSummary);
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
@@ -114,6 +120,7 @@ function applyDisplayPrefs(prefs = getPrefs()) {
   }
   if (previewBox?.querySelector(".shift-table")) {
     previewBox.classList.toggle("hide-col-job", !prefs.showJob);
+    previewBox.classList.toggle("hide-col-position", !prefs.showPosition);
     previewBox.classList.toggle("hide-col-dept", !prefs.showDept);
     previewBox.classList.toggle("hide-summary", !prefs.showSummary);
     previewBox.classList.toggle("color-cells", prefs.colorCells);
@@ -124,10 +131,12 @@ function applyDisplayPrefs(prefs = getPrefs()) {
 function syncControlsFromPrefs(prefs) {
   const homeInputs = getHomeDisplayInputs();
   if (homeInputs.showJob) homeInputs.showJob.checked = prefs.showJob;
+  if (homeInputs.showPosition) homeInputs.showPosition.checked = prefs.showPosition;
   if (homeInputs.showDept) homeInputs.showDept.checked = prefs.showDept;
   if (homeInputs.colorCells) homeInputs.colorCells.checked = prefs.colorCells;
   if (homeInputs.showSummary) homeInputs.showSummary.checked = prefs.showSummary;
   if (printColJob) printColJob.checked = prefs.showJob;
+  if (printColPosition) printColPosition.checked = prefs.showPosition;
   if (printColDept) printColDept.checked = prefs.showDept;
   if (printColorMode) printColorMode.checked = prefs.colorCells;
 }
@@ -139,6 +148,7 @@ function updatePreviewNote() {
   const prefs = getPrefs();
   const cols = ["職員名"];
   if (prefs.showJob) cols.push("職種");
+  if (prefs.showPosition) cols.push("役職");
   if (prefs.showDept) cols.push("フロア");
   previewNote.textContent = `${paper} / ${scale} / ${cols.join("・")}${prefs.colorCells ? " / 色付き" : ""}`;
 }
@@ -953,6 +963,7 @@ function applySheetViewContent(next, prev) {
     } else {
       const prefs = getPrefs();
       shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+      shiftCalendar.classList.toggle("hide-col-position", !prefs.showPosition);
       shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
     }
   }
@@ -1703,7 +1714,7 @@ function initCalendarControls() {
   filtersBody?.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    if (!["home-color-cells", "home-show-job", "home-show-dept", "home-show-summary"].includes(input.id)) {
+    if (!["home-color-cells", "home-show-job", "home-show-position", "home-show-dept", "home-show-summary"].includes(input.id)) {
       return;
     }
     onHomeDisplayChange();
@@ -1761,6 +1772,7 @@ function initDisplayFromSettings() {
   const prefs = {
     ...defaultPrefs(),
     showJob: saved.showJob ?? defaultPrefs().showJob,
+    showPosition: saved.showPosition ?? defaultPrefs().showPosition,
     showDept: saved.showDept ?? defaultPrefs().showDept,
     colorCells: saved.colorCells ?? defaultPrefs().colorCells,
     showSummary: saved.showSummary ?? defaultPrefs().showSummary,
@@ -1931,7 +1943,7 @@ document.querySelectorAll("[data-invert-group]").forEach((button) => {
   });
 });
 
-[printColJob, printColDept, printColorMode].forEach((input) => {
+[printColJob, printColPosition, printColDept, printColorMode].forEach((input) => {
   input?.addEventListener("change", refreshDisplay);
 });
 

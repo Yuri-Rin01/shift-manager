@@ -58,6 +58,10 @@
                 <input type="checkbox" id="print-col-job"{% if app_settings.default_show_job_column %} checked{% endif %}>
                 <span>職種</span>
               </label>
+              <label class="check-row print-form-check" for="print-col-position">
+                <input type="checkbox" id="print-col-position"{% if app_settings.default_show_position_column %} checked{% endif %}>
+                <span>役職</span>
+              </label>
               <label class="check-row print-form-check" for="print-col-dept">
                 <input type="checkbox" id="print-col-dept"{% if app_settings.default_show_dept_column %} checked{% endif %}>
                 <span>フロア</span>

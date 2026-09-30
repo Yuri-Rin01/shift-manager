@@ -21,6 +21,7 @@ DEFAULT_SETTINGS: dict = {
     "calendar_sort_mode": "dept",
     "default_color_cells": True,
     "default_show_job_column": True,
+    "default_show_position_column": True,
     "default_show_dept_column": True,
     "default_show_summary": True,
     "show_shift_legend": True,

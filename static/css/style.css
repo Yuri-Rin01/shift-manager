@@ -1985,7 +1985,9 @@ body.sidebar-collapsed .nav-item-glyph {
   }
 }
 .shift-table .col-job { left: 56px; min-width: 96px; text-align: center; }
-.shift-table .col-dept { left: 152px; min-width: 108px; text-align: center; }
+.shift-table .col-position { left: 152px; min-width: 88px; text-align: center; white-space: nowrap; }
+.shift-table .col-dept { left: 240px; min-width: 108px; text-align: center; }
+.shift-table-compact .col-position { min-width: 88px; text-align: center; white-space: nowrap; }
 .shift-table-compact .col-dept { min-width: 108px; text-align: center; white-space: normal; }
 
 .floor-badges {
@@ -2595,12 +2597,28 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   display: none;
 }
 
+.hide-col-position .col-position {
+  display: none;
+}
+
 .hide-col-dept .col-dept {
   display: none;
 }
 
-/* 職種／フロアを隠したとき、隣の sticky 列の left を詰め直す */
-.hide-col-job .col-dept {
+/* 職種／役職／フロアを隠したとき、隣の sticky 列の left を詰め直す */
+.hide-col-job .col-position {
+  left: 56px;
+}
+
+.hide-col-job:not(.hide-col-position) .col-dept {
+  left: 144px;
+}
+
+.hide-col-position:not(.hide-col-job) .col-dept {
+  left: 152px;
+}
+
+.hide-col-job.hide-col-position .col-dept {
   left: 56px;
 }
 
@@ -3003,6 +3021,7 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   }
 
   body.print-preview-active #print-preview-box.hide-col-job .col-job,
+  body.print-preview-active #print-preview-box.hide-col-position .col-position,
   body.print-preview-active #print-preview-box.hide-col-dept .col-dept {
     display: none;
   }
@@ -4226,11 +4245,24 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
     left: 64px;
     min-width: 108px;
   }
+  .shift-table .col-position {
+    left: 172px;
+    min-width: 96px;
+  }
   .shift-table .col-dept {
-    left: 172px; /* 64 + 108 */
+    left: 268px; /* 64 + 108 + 96 */
     min-width: 120px;
   }
-  .hide-col-job .col-dept {
+  .hide-col-job .col-position {
+    left: 64px;
+  }
+  .hide-col-job:not(.hide-col-position) .col-dept {
+    left: 160px; /* 64 + 96 */
+  }
+  .hide-col-position:not(.hide-col-job) .col-dept {
+    left: 172px; /* 64 + 108 */
+  }
+  .hide-col-job.hide-col-position .col-dept {
     left: 64px;
   }
   .hide-col-dept .col-job {
@@ -6218,8 +6250,10 @@ input[type="checkbox"]:focus-visible {
 
   /* Phone: keep name sticky, hide job/dept to free day columns */
   .content-home .shift-table .col-job,
+  .content-home .shift-table .col-position,
   .content-home .shift-table .col-dept,
   .content-home .shift-table thead th.col-job,
+  .content-home .shift-table thead th.col-position,
   .content-home .shift-table thead th.col-dept {
     display: none;
   }
@@ -7027,20 +7061,24 @@ input[type="checkbox"]:focus-visible {
 
 /* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
 .content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-job,
+.content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-position,
 .content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-dept,
 .shift-workspace.is-sheet-themed .shift-table td.col-job,
+.shift-workspace.is-sheet-themed .shift-table td.col-position,
 .shift-workspace.is-sheet-themed .shift-table td.col-dept {
   background-color: #fff;
   color: #1e293b;
 }
 
 .shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-job,
+.shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-position,
 .shift-workspace.is-sheet-themed .shift-table tbody tr:nth-child(even) td.col-dept {
   background-color: var(--sheet-accent-soft);
   color: #1e293b;
 }
 
 .shift-workspace.is-sheet-themed .shift-table thead th.col-job,
+.shift-workspace.is-sheet-themed .shift-table thead th.col-position,
 .shift-workspace.is-sheet-themed .shift-table thead th.col-dept {
   background: var(--sheet-header-bg);
   color: #fff;
@@ -7064,6 +7102,7 @@ input[type="checkbox"]:focus-visible {
 }
 
 .shift-workspace.is-sheet-themed .shift-table tbody tr:hover td.col-job,
+.shift-workspace.is-sheet-themed .shift-table tbody tr:hover td.col-position,
 .shift-workspace.is-sheet-themed .shift-table tbody tr:hover td.col-dept {
   background-color: var(--sheet-accent-soft);
 }
@@ -7846,6 +7885,7 @@ body.is-phone .content-home .calendar-scroll {
 }
 
 body.is-phone .content-home .shift-table .col-job,
+body.is-phone .content-home .shift-table .col-position,
 body.is-phone .content-home .shift-table .col-dept {
   display: none;
 }
