@@ -29,7 +29,7 @@
                     <button type="button" class="home-period-skip" id="btn-prev-year" aria-label="前年">«</button>
                     <button type="button" class="home-period-step" id="btn-prev-month" aria-label="前月">‹</button>
                     <span class="home-period-label" id="home-period-label">
-                      <span class="home-period-ym">{{ month }}月</span>{% if calendar_start_day > 1 %}<span class="home-period-sub">（{{ calendar_start_day }}日始まり）</span>{% endif %}
+                      <span class="home-period-ym">{{ month_heading }}</span>{% if calendar_start_day > 1 %}<span class="home-period-sub">（{{ calendar_start_day }}日始まり）</span>{% endif %}
                     </span>
                     <button type="button" class="home-period-step" id="btn-next-month" aria-label="翌月">›</button>
                     <button type="button" class="home-period-skip" id="btn-next-year" aria-label="翌年">»</button>
@@ -334,7 +334,7 @@
     window.STAFF_EDITOR_OVERLAY = true;
   </script>
   <script src="/static/js/staff.js?v=22"></script>
-  <script src="/static/js/home.js?v=86"></script>
+  <script src="/static/js/home.js?v=87"></script>
   <script src="/static/js/generation.js?v=3"></script>
 </body>
 </html>

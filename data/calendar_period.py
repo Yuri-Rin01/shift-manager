@@ -100,13 +100,31 @@ def filter_period_days(
     return [item for item in days if start_s <= item["date"] <= end_s]
 
 
+def wareki_year_label(year: int, month: int = 1, day: int = 1) -> str:
+    """西暦の年を和暦（令和・平成・昭和）で返す。"""
+    current = date(year, month, day)
+    if current >= date(2019, 5, 1):
+        era, number = "令和", year - 2018
+    elif current >= date(1989, 1, 8):
+        era, number = "平成", year - 1988
+    elif current >= date(1926, 12, 25):
+        era, number = "昭和", year - 1925
+    else:
+        return f"{year}年"
+    return f"{era}{'元' if number == 1 else number}年"
+
+
 def format_scope_range(start: date, end: date) -> str:
-    """自動生成の対象期間ラベル（表示区間）。西暦は出さない。"""
+    """自動生成の対象期間ラベル（表示区間）。和暦で出す。"""
+    start_label = f"{wareki_year_label(start.year, start.month, start.day)}{start.month}月{start.day}日"
     if start == end:
-        return f"{start.month}月{start.day}日"
-    if start.month == end.month and start.year == end.year:
-        return f"{start.month}月{start.day}日〜{end.day}日"
-    return f"{start.month}月{start.day}日〜{end.month}月{end.day}日"
+        return start_label
+    if start.year == end.year and start.month == end.month:
+        return f"{start_label}〜{end.day}日"
+    if start.year == end.year:
+        return f"{start_label}〜{end.month}月{end.day}日"
+    end_label = f"{wareki_year_label(end.year, end.month, end.day)}{end.month}月{end.day}日"
+    return f"{start_label}〜{end_label}"
 
 
 def _week_number(day_index: int, period_start: date, week_start: str) -> int:
@@ -199,10 +217,12 @@ def resolve_configured_period_off_days(
 
 
 def format_month_label(year: int, month: int, start_day: int = 1) -> str:
-    """職員管理・カレンダーで使う月ラベル。"""
-    if normalize_start_day(start_day) <= 1:
-        return f"{month}月"
-    return f"{month}月（{normalize_start_day(start_day)}日始まり）"
+    """職員管理・カレンダーで使う月ラベル。和暦。"""
+    day = normalize_start_day(start_day)
+    label = f"{wareki_year_label(year, month, day)}{month}月"
+    if day <= 1:
+        return label
+    return f"{label}（{day}日始まり）"
 
 
 def format_period_label(start: date, end: date, *, year: int | None = None, month: int | None = None, start_day: int = 1) -> str:

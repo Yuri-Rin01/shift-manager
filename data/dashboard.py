@@ -7,6 +7,7 @@ from datetime import date
 
 from data.calendar_period import (
     format_month_label,
+    format_scope_range,
     period_bounds,
     resolve_configured_period_off_days,
 )
@@ -240,6 +241,7 @@ def build_dashboard(year: int | None = None, month: int | None = None) -> dict:
         settings, resolved_year, resolved_month, calendar_start_day
     )
     period_label = format_month_label(resolved_year, resolved_month, calendar_start_day)
+    period_range = format_scope_range(period_start, period_end)
 
     staff = list_staff()
     staff_ids = {person["id"] for person in staff}
@@ -284,6 +286,7 @@ def build_dashboard(year: int | None = None, month: int | None = None) -> dict:
         "period_label": period_label,
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
+        "period_range": period_range,
         "period_days": period_days,
         "off_days": off_days,
         "working_days": working_days,

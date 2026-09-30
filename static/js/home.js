@@ -3801,7 +3801,8 @@ function ensureAutoGenerateYearOptions(selectedYear) {
     if (existing.has(year)) continue;
     const option = document.createElement("option");
     option.value = String(year);
-    option.textContent = `${year}年`;
+    const reiwa = year - 2018;
+    option.textContent = year >= 2019 ? `令和${reiwa === 1 ? "元" : reiwa}年` : `${year}年`;
     autoGenerateYear.appendChild(option);
     existing.add(year);
   }
