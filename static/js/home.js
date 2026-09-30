@@ -99,11 +99,18 @@ function getHomeDisplayInputs() {
 function getPrefs() {
   const defaults = defaultPrefs();
   const homeInputs = getHomeDisplayInputs();
+  const printOpen = printModal && !printModal.classList.contains("hidden");
+  const pick = (printInput, homeInput, fallback) => {
+    if (printOpen && printInput) return printInput.checked;
+    if (homeInput) return homeInput.checked;
+    if (printInput) return printInput.checked;
+    return fallback;
+  };
   return {
-    showJob: homeInputs.showJob?.checked ?? printColJob?.checked ?? defaults.showJob,
-    showPosition: homeInputs.showPosition?.checked ?? printColPosition?.checked ?? defaults.showPosition,
-    showDept: homeInputs.showDept?.checked ?? printColDept?.checked ?? defaults.showDept,
-    colorCells: homeInputs.colorCells?.checked ?? printColorMode?.checked ?? defaults.colorCells,
+    showJob: pick(printColJob, homeInputs.showJob, defaults.showJob),
+    showPosition: pick(printColPosition, homeInputs.showPosition, defaults.showPosition),
+    showDept: pick(printColDept, homeInputs.showDept, defaults.showDept),
+    colorCells: pick(printColorMode, homeInputs.colorCells, defaults.colorCells),
     showSummary: homeInputs.showSummary?.checked ?? defaults.showSummary,
   };
 }
