@@ -6254,14 +6254,42 @@ input[type="checkbox"]:focus-visible {
   }
 
   .home-toolbar-row-actions {
+    flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .home-toolbar-leading,
+  .home-toolbar-inline-tools {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .home-toolbar-inline-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .home-toolbar-actions {
+    width: 100%;
+    margin-left: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .home-toolbar-actions .btn {
+    flex: 1 1 140px;
+    min-height: 40px;
+    justify-content: center;
   }
 
   .home-period-step,
   .home-period-skip,
-  .btn.btn-sm.btn-icon {
-    min-width: 36px;
-    min-height: 36px;
+  .btn.btn-sm.btn-icon,
+  .home-filters-btn {
+    min-width: 40px;
+    min-height: 40px;
   }
 
   .student-labor-panel {
@@ -6270,6 +6298,111 @@ input[type="checkbox"]:focus-visible {
 
   .student-labor-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .content-home .shift-calendar-shell,
+  .content-home .sheet-main-scroll,
+  .content-home .calendar-scroll {
+    min-height: 36dvh;
+  }
+}
+
+/* iPhone landscape is often wider than 768px and shorter than 520px,
+   so the phone rules above never apply and the calendar collapses. */
+@media (max-width: 1024px) and (max-height: 520px),
+       (max-width: 1024px) and (orientation: landscape) {
+  .home-period-skip,
+  .home-period-sub,
+  .home-toolbar-note {
+    display: none;
+  }
+
+  .topbar {
+    min-height: 40px;
+    padding: 4px 8px;
+    padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  }
+
+  .topbar-facility {
+    display: none;
+  }
+
+  .card-header,
+  .card-header-stacked {
+    padding: 4px 8px;
+  }
+
+  .home-toolbar-leading,
+  .home-toolbar-inline-tools {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .home-toolbar-row-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .home-toolbar-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    margin-left: 0;
+    gap: 6px;
+  }
+
+  .home-toolbar-actions .btn {
+    flex: 1 1 0;
+    width: auto;
+    min-height: 40px;
+    padding-left: 6px;
+    padding-right: 6px;
+    justify-content: center;
+  }
+
+  .home-toolbar-actions .btn-danger,
+  .home-toolbar-actions .btn-primary {
+    grid-column: auto;
+  }
+
+  .home-bottom-bar {
+    gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .home-bottom-bar-status {
+    display: none;
+  }
+
+  .home-bottom-print-btn {
+    width: 100%;
+    margin-left: 0;
+    min-height: 40px;
+  }
+
+  .content-home {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .content-home .shift-calendar-shell,
+  .content-home .sheet-main-scroll,
+  .content-home .calendar-scroll {
+    min-height: 40dvh;
+  }
+
+  .content-home .shift-table .col-job,
+  .content-home .shift-table .col-position,
+  .content-home .shift-table .col-dept,
+  .content-home .shift-table thead th.col-job,
+  .content-home .shift-table thead th.col-position,
+  .content-home .shift-table thead th.col-dept {
+    display: none;
+  }
+
+  .sheet-legend {
+    display: none;
   }
 }
 
@@ -8071,9 +8204,34 @@ body.is-short-viewport .card-header-stacked {
   padding: 6px 8px;
 }
 
+body.is-phone.is-landscape .home-toolbar-row-actions,
+body.is-short-viewport .home-toolbar-row-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+body.is-phone.is-landscape .home-toolbar-leading,
+body.is-phone.is-landscape .home-toolbar-inline-tools,
+body.is-short-viewport .home-toolbar-leading,
+body.is-short-viewport .home-toolbar-inline-tools {
+  flex: 1 1 auto;
+  width: auto;
+}
+
 body.is-phone.is-landscape .home-toolbar-actions,
 body.is-short-viewport .home-toolbar-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  grid-template-columns: none;
+}
+
+body.is-phone.is-landscape .home-toolbar-actions .btn,
+body.is-short-viewport .home-toolbar-actions .btn {
+  flex: 1 1 0;
+  width: auto;
+  min-height: 40px;
 }
 
 body.is-phone.is-landscape .home-toolbar-actions .btn-primary,
