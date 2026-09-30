@@ -3114,6 +3114,65 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   font-size: 12px;
   margin-bottom: 0;
   width: max-content;
+  border: 2.5px solid #111;
+}
+
+.print-preview-box .shift-table th,
+.print-preview-box .shift-table td {
+  background: #fff;
+  color: #111;
+  border-color: #cbd5e1;
+}
+
+.print-preview-box .shift-table th.col-name,
+.print-preview-box .shift-table td.col-name {
+  background: #e5e7eb;
+  color: #111;
+  font-weight: 700;
+}
+
+.print-preview-box .floor-badge {
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  min-width: 0;
+}
+
+.print-preview-box.color-cells .shift-td[class*="shift-"] {
+  background: #fff;
+}
+
+.print-preview-box.color-cells thead .col-sat {
+  background: #fff;
+  color: #1d4ed8;
+}
+
+.print-preview-box.color-cells thead .col-sun {
+  background: #fff;
+  color: #b91c1c;
+}
+
+.print-preview-box.color-cells .shift-td.shift-early .shift-cell { color: #166534; }
+.print-preview-box.color-cells .shift-td.shift-late .shift-cell { color: #075985; }
+.print-preview-box.color-cells .shift-td.shift-special .shift-cell { color: #6b21a8; }
+.print-preview-box.color-cells .shift-td.shift-night .shift-cell { color: #5b21b6; }
+.print-preview-box.color-cells .shift-td.shift-semi-early .shift-cell { color: #047857; }
+.print-preview-box.color-cells .shift-td.shift-semi-late .shift-cell { color: #0369a1; }
+.print-preview-box.color-cells .shift-td.shift-semi-night .shift-cell { color: #6d28d9; }
+.print-preview-box.color-cells .shift-td.shift-morning-off .shift-cell { color: #a16207; }
+.print-preview-box.color-cells .shift-td.shift-paid-leave .shift-cell { color: #b91c1c; }
+.print-preview-box.color-cells .shift-td.shift-off .shift-cell { color: #334155; }
+.print-preview-box.color-cells .floor-badge--1f { color: #1d4ed8; }
+.print-preview-box.color-cells .floor-badge--2f { color: #15803d; }
+.print-preview-box.color-cells .floor-badge--3f { color: #c2410c; }
+.print-preview-box.color-cells .floor-badge--4f { color: #7c3aed; }
+
+.print-preview-box .shift-td.is-manual {
+  box-shadow: none;
+}
+
+.print-preview-box .shift-td.is-manual .shift-cell {
+  font-weight: 800;
 }
 
 .print-preview-box .shift-table-compact th,
