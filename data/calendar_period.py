@@ -101,12 +101,12 @@ def filter_period_days(
 
 
 def format_scope_range(start: date, end: date) -> str:
-    """自動生成の対象期間ラベル（表示区間）。"""
+    """自動生成の対象期間ラベル（表示区間）。西暦は出さない。"""
     if start == end:
-        return f"{start.year}年{start.month}月{start.day}日"
-    if start.year == end.year and start.month == end.month:
-        return f"{start.year}年{start.month}月{start.day}日〜{end.day}日"
-    return f"{start.year}年{start.month}月{start.day}日〜{end.year}年{end.month}月{end.day}日"
+        return f"{start.month}月{start.day}日"
+    if start.month == end.month and start.year == end.year:
+        return f"{start.month}月{start.day}日〜{end.day}日"
+    return f"{start.month}月{start.day}日〜{end.month}月{end.day}日"
 
 
 def _week_number(day_index: int, period_start: date, week_start: str) -> int:
@@ -201,8 +201,8 @@ def resolve_configured_period_off_days(
 def format_month_label(year: int, month: int, start_day: int = 1) -> str:
     """職員管理・カレンダーで使う月ラベル。"""
     if normalize_start_day(start_day) <= 1:
-        return f"{year}年{month}月"
-    return f"{year}年{month}月（{normalize_start_day(start_day)}日始まり）"
+        return f"{month}月"
+    return f"{month}月（{normalize_start_day(start_day)}日始まり）"
 
 
 def format_period_label(start: date, end: date, *, year: int | None = None, month: int | None = None, start_day: int = 1) -> str:

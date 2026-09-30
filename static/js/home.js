@@ -3943,7 +3943,7 @@ function showAutoGenerateConfirm(preflight, { syncControls = true } = {}) {
     const advanced = (preflight.advanced_settings_used || []).join("、") || "標準のみ";
     autoGenerateConfirmSummary.innerHTML = `
       <ul class="auto-generate-confirm-list">
-        <li><span>対象年月</span><strong>${preflight.year}年${preflight.month}月</strong></li>
+        <li><span>対象年月</span><strong>${preflight.month}月</strong></li>
         <li><span>対象フロア</span><strong>${(preflight.departments || []).join("、") || "—"}</strong></li>
         <li><span>職員数</span><strong>${preflight.staff_count} 人</strong></li>
         <li><span>希望休</span><strong>${preflight.leave_count} 件</strong></li>
@@ -4155,7 +4155,7 @@ async function executeAutoGenerate() {
     const applied = data.applied === true;
     const success = applied && errorCount === 0;
 
-    const scopeLabel = data.stats?.scope_label || `${year}年${month}月`;
+    const scopeLabel = data.stats?.scope_label || `${month}月`;
     const scopeRange =
       data.stats?.scope_start && data.stats?.scope_end
         ? `${data.stats.scope_start} 〜 ${data.stats.scope_end}`
@@ -4225,7 +4225,7 @@ async function runClearShifts() {
   if (!year || !month) return;
 
   const confirmed = window.confirm(
-    `${year}年${month}月の表示期間のシフトをすべて削除します。\n` +
+    `${month}月の表示期間のシフトをすべて削除します。\n` +
       "手動入力・希望休・自動生成の区別なく、すべてのセルが空白になります。\n\n実行しますか？"
   );
   if (!confirmed) return;
@@ -4248,7 +4248,7 @@ async function runClearShifts() {
       data.period_start && data.period_end
         ? `\n対象: ${data.period_start} 〜 ${data.period_end}`
         : "";
-    window.alert(`${year}年${month}月のシフトをクリアしました。${range}\n削除: ${data.deleted_count ?? 0} 件`);
+    window.alert(`${month}月のシフトをクリアしました。${range}\n削除: ${data.deleted_count ?? 0} 件`);
     window.location.reload();
   } catch (error) {
     window.alert(error instanceof Error ? error.message : "シフトのクリア中に通信エラーが発生しました。");

@@ -598,7 +598,7 @@ function renderCalendar() {
 
   portalStaffName.textContent = calendarData.staff_name;
   portalPeriodLabel.textContent = calendarData.period_label;
-  portalMonthNavLabel.textContent = `${calendarData.year}年${calendarData.month}月`;
+  portalMonthNavLabel.textContent = `${calendarData.month}月`;
   syncRequestCount();
 
   const limitShown = syncLimitWarning();
