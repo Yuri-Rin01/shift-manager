@@ -2045,10 +2045,11 @@ body.sidebar-collapsed .nav-item-glyph {
 .day-head-event-full {
   display: inline-block;
   max-height: 100%;
+  max-width: 100%;
   overflow: hidden;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  writing-mode: horizontal-tb;
   white-space: nowrap;
+  text-align: center;
   color: #111;
   font-size: 12px;
   font-weight: 700;
