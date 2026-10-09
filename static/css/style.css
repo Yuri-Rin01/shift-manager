@@ -2012,6 +2012,24 @@ body.sidebar-collapsed .nav-item-glyph {
   top: calc(18px + var(--event-row-height, 20px));
 }
 
+/* イベント行と日付行は、セルごとに別の top で固定するとスクロール中に隙間が開く。
+   見出し全体を一塊で固定する。 */
+.content-home .calendar-scroll .shift-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.content-home .calendar-scroll .shift-table thead th {
+  position: static;
+  top: auto;
+}
+
+.content-home .calendar-scroll .shift-table thead th.sticky-col {
+  position: sticky;
+  z-index: 5;
+}
+
 .event-row-size {
   cursor: ns-resize;
   touch-action: none;
