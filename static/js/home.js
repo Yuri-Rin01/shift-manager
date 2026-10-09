@@ -2857,7 +2857,10 @@ function applyCellSymbol(td, symbol, options = {}) {
     delete td.dataset.source;
   }
 
+  const flags = ["col-sat", "col-sun", "is-event"].filter((name) => td.classList.contains(name));
+  if (!String(symbol || "").trim()) flags.push("is-unset");
   let className = `day-col shift-td shift-td-editable ${shiftClass}`;
+  if (flags.length) className += ` ${flags.join(" ")}`;
   if (source === "manual") className += " is-manual";
   if (source === "leave") className += " is-leave-request";
   td.className = className;

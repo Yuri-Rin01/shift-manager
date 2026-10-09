@@ -84,7 +84,7 @@
             {% set day = days[loop.index0] %}
             {% if editable %}
               <td
-                class="day-col shift-td shift-td-editable {{ cell.class }}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
+                class="day-col shift-td shift-td-editable {{ cell.class }}{% if not cell.symbol %} is-unset{% endif %}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
                 data-date="{{ day.date }}"
                 data-staff-id="{{ row.id }}"
                 data-year="{{ cell.year }}"
@@ -101,7 +101,7 @@
                 {% if cell.placement_badge %}<small class="placement-badge" aria-label="{{ cell.placement_label }}">{{ cell.placement_badge }}</small>{% endif %}
               </td>
             {% else %}
-              <td class="day-col shift-td {{ cell.class }}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-date="{{ day.date }}">
+              <td class="day-col shift-td {{ cell.class }}{% if not cell.symbol %} is-unset{% endif %}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-date="{{ day.date }}">
                 <span class="shift-cell-hit" aria-hidden="true"></span>
                 <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
               </td>
