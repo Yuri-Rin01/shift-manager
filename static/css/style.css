@@ -7821,6 +7821,43 @@ input[type="checkbox"]:focus-visible {
     0 0 0 2px rgba(37, 99, 235, 0.35);
 }
 
+/* 勤務未設定のセルは暗くして、空きが穴として見えるようにする */
+.content-home .table-wrap .shift-table tbody td.shift-td.is-unset {
+  background-color: #b7c1cd;
+  box-shadow: inset 0 0 0 999px #b7c1cd;
+}
+
+.content-home .table-wrap .shift-table tbody td.col-sat.is-unset {
+  background-color: #7eaeef;
+  box-shadow: inset 0 0 0 999px #7eaeef;
+}
+
+.content-home .table-wrap .shift-table tbody td.col-sun.is-unset {
+  background-color: #f0a3a3;
+  box-shadow: inset 0 0 0 999px #f0a3a3;
+}
+
+.content-home .table-wrap .shift-table tbody td.is-event.is-unset {
+  background-color: #e3b52e;
+  box-shadow: inset 0 0 0 999px #e3b52e, inset 0 -2px 0 #111;
+}
+
+.content-home .table-wrap .shift-table tbody td.shift-td.is-unset.is-editing {
+  box-shadow: inset 0 0 0 999px #b7c1cd, 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.content-home .table-wrap .shift-table tbody td.col-sat.is-unset.is-editing {
+  box-shadow: inset 0 0 0 999px #7eaeef, 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.content-home .table-wrap .shift-table tbody td.col-sun.is-unset.is-editing {
+  box-shadow: inset 0 0 0 999px #f0a3a3, 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.content-home .table-wrap .shift-table tbody td.is-event.is-unset.is-editing {
+  box-shadow: inset 0 0 0 999px #e3b52e, inset 0 -2px 0 #111, 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
 /* sticky の職種・フロアもテーマ色で塗りつぶし、文字は常に濃色 */
 .content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-job,
 .content-home .shift-workspace.is-sheet-themed .table-wrap .shift-table .sticky-col.col-position,
