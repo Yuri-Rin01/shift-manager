@@ -21,6 +21,7 @@
         <tr class="week-number-row">
           <th class="col-name{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
           <th class="col-job{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
+          <th class="col-position{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
           <th class="col-dept{% if not compact %} sticky-col{% endif %}" colspan="1"></th>
           {% for day in days %}
             <th class="day-col day-week-number{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
@@ -29,12 +30,33 @@
           {% endfor %}
         </tr>
       {% endif %}
+      {% if app_settings.highlight_event_days %}
+        <tr class="event-row">
+          <th class="col-name event-row-size{% if not compact %} sticky-col{% endif %}" title="ドラッグで高さを変える">
+            <span class="event-row-resize-grip" aria-hidden="true">↕</span>
+          </th>
+          <th class="col-job{% if not compact %} sticky-col{% endif %}"></th>
+          <th class="col-position{% if not compact %} sticky-col{% endif %}"></th>
+          <th class="col-dept{% if not compact %} sticky-col{% endif %}"></th>
+          {% for day in days %}
+            <th class="day-col event-cell{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}" data-date="{{ day.date }}" data-event-label="{{ day.event_label }}" data-event-display="{{ day.event_display }}" data-event-size="{{ day.event_font_size }}" title="ダブルクリックで編集">
+              {% if day.event_label %}
+                <span class="day-head-event" tabindex="0" data-event-label="{{ day.event_label }}" aria-label="{{ day.event_label }}">
+                  <span class="day-head-event-box" style="font-size: {{ day.event_font_size }}px">{{ day.event_display }}</span>
+                  <span class="day-head-event-full" style="font-size: {{ day.event_font_size }}px">{{ day.event_label }}</span>
+                </span>
+              {% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      {% endif %}
       <tr>
         <th class="col-name{% if not compact %} sticky-col{% endif %}">職員名</th>
         <th class="col-job{% if not compact %} sticky-col{% endif %}">職種</th>
+        <th class="col-position{% if not compact %} sticky-col{% endif %}">役職</th>
         <th class="col-dept{% if not compact %} sticky-col{% endif %}">フロア</th>
         {% for day in days %}
-          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}">
+          <th class="day-col{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}" data-date="{{ day.date }}">
             <span class="day-head">
               <span class="day-head-num">{{ day.day }}</span>
               <span class="day-head-weekday">{{ day.weekday_label }}</span>
@@ -54,13 +76,16 @@
             {% endif %}
           </td>
           <td class="col-job{% if not compact %} sticky-col{% endif %}">{{ row.job }}</td>
+          <td class="col-position{% if not compact %} sticky-col{% endif %}">{{ row.position }}</td>
           <td class="col-dept{% if not compact %} sticky-col{% endif %}">
             {{ floor_badges(row.departments if row.departments else ([row.dept] if row.dept else [])) }}
           </td>
           {% for cell in row.cells %}
+            {% set day = days[loop.index0] %}
             {% if editable %}
               <td
-                class="day-col shift-td shift-td-editable {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
+                class="day-col shift-td shift-td-editable {{ cell.class }}{% if not cell.symbol %} is-unset{% endif %}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}"
+                data-date="{{ day.date }}"
                 data-staff-id="{{ row.id }}"
                 data-year="{{ cell.year }}"
                 data-month="{{ cell.month }}"
@@ -76,7 +101,7 @@
                 {% if cell.placement_badge %}<small class="placement-badge" aria-label="{{ cell.placement_label }}">{{ cell.placement_badge }}</small>{% endif %}
               </td>
             {% else %}
-              <td class="day-col shift-td {{ cell.class }}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}">
+              <td class="day-col shift-td {{ cell.class }}{% if not cell.symbol %} is-unset{% endif %}{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}{% if cell.is_manual %} is-manual{% endif %}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-date="{{ day.date }}">
                 <span class="shift-cell-hit" aria-hidden="true"></span>
                 <span class="shift-cell {{ cell.class }}{% if cell.is_leave_request %} is-leave-request{% endif %}" data-symbol="{{ cell.symbol }}" aria-label="{{ cell.symbol or '未入力' }}"></span>
               </td>
@@ -91,9 +116,11 @@
           <tr data-summary-symbol="{{ row.symbol }}">
             <td class="col-name summary-label{% if not compact %} sticky-col{% endif %}">{{ row.label }}</td>
             <td class="col-job{% if not compact %} sticky-col{% endif %}"></td>
+            <td class="col-position{% if not compact %} sticky-col{% endif %}"></td>
             <td class="col-dept{% if not compact %} sticky-col{% endif %}"></td>
             {% for count in row.counts %}
-              <td class="day-col summary-count">{{ count }}</td>
+              {% set day = days[loop.index0] %}
+              <td class="day-col summary-count{% if day.is_saturday %} col-sat{% elif day.is_sunday %} col-sun{% endif %}{% if day.event_label %} is-event{% endif %}" data-date="{{ day.date }}">{{ count }}</td>
             {% endfor %}
           </tr>
         {% endfor %}

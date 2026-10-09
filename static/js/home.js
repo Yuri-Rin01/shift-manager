@@ -12,6 +12,7 @@ function escapeHtml(value) {
 function defaultPrefs() {
   return {
     showJob: serverDefaults.default_show_job_column ?? true,
+    showPosition: serverDefaults.default_show_position_column ?? true,
     showDept: serverDefaults.default_show_dept_column ?? true,
     colorCells: serverDefaults.default_color_cells ?? true,
     showSummary: serverDefaults.default_show_summary ?? true,
@@ -32,6 +33,7 @@ const calendarZoomSelect = document.getElementById("calendar-zoom-select");
 const calendarSortSelect = document.getElementById("calendar-sort-mode");
 const homeColorCells = document.getElementById("home-color-cells");
 const homeShowJob = document.getElementById("home-show-job");
+const homeShowPosition = document.getElementById("home-show-position");
 const homeShowDept = document.getElementById("home-show-dept");
 const homeShowSummary = document.getElementById("home-show-summary");
 
@@ -43,6 +45,7 @@ const SUPPORTS_CSS_ZOOM = typeof CSS !== "undefined" && CSS.supports?.("zoom", "
 let tableZoom = defaultPrefs().tableZoom;
 const previewBox = document.getElementById("print-preview-box");
 const printColJob = document.getElementById("print-col-job");
+const printColPosition = document.getElementById("print-col-position");
 const printColDept = document.getElementById("print-col-dept");
 const printColorMode = document.getElementById("print-color-mode");
 const btnPrevMonth = document.getElementById("btn-prev-month");
@@ -87,6 +90,7 @@ function getHomeDisplayInputs() {
   return {
     colorCells: document.getElementById("home-color-cells"),
     showJob: document.getElementById("home-show-job"),
+    showPosition: document.getElementById("home-show-position"),
     showDept: document.getElementById("home-show-dept"),
     showSummary: document.getElementById("home-show-summary"),
   };
@@ -95,10 +99,18 @@ function getHomeDisplayInputs() {
 function getPrefs() {
   const defaults = defaultPrefs();
   const homeInputs = getHomeDisplayInputs();
+  const printOpen = printModal && !printModal.classList.contains("hidden");
+  const pick = (printInput, homeInput, fallback) => {
+    if (printOpen && printInput) return printInput.checked;
+    if (homeInput) return homeInput.checked;
+    if (printInput) return printInput.checked;
+    return fallback;
+  };
   return {
-    showJob: homeInputs.showJob?.checked ?? printColJob?.checked ?? defaults.showJob,
-    showDept: homeInputs.showDept?.checked ?? printColDept?.checked ?? defaults.showDept,
-    colorCells: homeInputs.colorCells?.checked ?? printColorMode?.checked ?? defaults.colorCells,
+    showJob: pick(printColJob, homeInputs.showJob, defaults.showJob),
+    showPosition: pick(printColPosition, homeInputs.showPosition, defaults.showPosition),
+    showDept: pick(printColDept, homeInputs.showDept, defaults.showDept),
+    colorCells: pick(printColorMode, homeInputs.colorCells, defaults.colorCells),
     showSummary: homeInputs.showSummary?.checked ?? defaults.showSummary,
   };
 }
@@ -107,6 +119,7 @@ function applyDisplayPrefs(prefs = getPrefs()) {
   if (shiftCalendar) {
     const foreignSheet = getCurrentSheetView() === "foreign-students";
     shiftCalendar.classList.toggle("hide-col-job", foreignSheet || !prefs.showJob);
+    shiftCalendar.classList.toggle("hide-col-position", !prefs.showPosition);
     shiftCalendar.classList.toggle("hide-col-dept", !prefs.showDept);
     shiftCalendar.classList.toggle("hide-summary", foreignSheet || !prefs.showSummary);
     shiftCalendar.classList.toggle("color-cells", prefs.colorCells);
@@ -114,6 +127,7 @@ function applyDisplayPrefs(prefs = getPrefs()) {
   }
   if (previewBox?.querySelector(".shift-table")) {
     previewBox.classList.toggle("hide-col-job", !prefs.showJob);
+    previewBox.classList.toggle("hide-col-position", !prefs.showPosition);
     previewBox.classList.toggle("hide-col-dept", !prefs.showDept);
     previewBox.classList.toggle("hide-summary", !prefs.showSummary);
     previewBox.classList.toggle("color-cells", prefs.colorCells);
@@ -124,23 +138,101 @@ function applyDisplayPrefs(prefs = getPrefs()) {
 function syncControlsFromPrefs(prefs) {
   const homeInputs = getHomeDisplayInputs();
   if (homeInputs.showJob) homeInputs.showJob.checked = prefs.showJob;
+  if (homeInputs.showPosition) homeInputs.showPosition.checked = prefs.showPosition;
   if (homeInputs.showDept) homeInputs.showDept.checked = prefs.showDept;
   if (homeInputs.colorCells) homeInputs.colorCells.checked = prefs.colorCells;
   if (homeInputs.showSummary) homeInputs.showSummary.checked = prefs.showSummary;
   if (printColJob) printColJob.checked = prefs.showJob;
+  if (printColPosition) printColPosition.checked = prefs.showPosition;
   if (printColDept) printColDept.checked = prefs.showDept;
   if (printColorMode) printColorMode.checked = prefs.colorCells;
 }
 
+const PRINT_PAPER_MM = {
+  "A4 横": [297, 210],
+  "A4 縦": [210, 297],
+  "A3 横": [420, 297],
+};
+
+function printPaperSpec() {
+  const paper = document.getElementById("print-paper")?.value ?? "A4 横";
+  return { paper, mm: PRINT_PAPER_MM[paper] ?? PRINT_PAPER_MM["A4 横"] };
+}
+
+function printUserScale() {
+  const raw = Number.parseInt(document.getElementById("print-scale")?.value ?? "100", 10);
+  return Number.isFinite(raw) ? raw / 100 : 1;
+}
+
+let previewViewZoom = 1;
+
+function setPreviewViewZoom(next) {
+  previewViewZoom = Math.min(3, Math.max(0.25, next));
+  const label = document.getElementById("print-preview-zoom-label");
+  if (label) label.textContent = `${Math.round(previewViewZoom * 100)}%`;
+  layoutPrintPreview();
+}
+
 function updatePreviewNote() {
   if (!previewNote || !printModal) return;
-  const paper = document.getElementById("print-paper")?.value ?? "A4 横";
+  const { paper } = printPaperSpec();
   const scale = document.getElementById("print-scale")?.value ?? "100%";
   const prefs = getPrefs();
   const cols = ["職員名"];
   if (prefs.showJob) cols.push("職種");
+  if (prefs.showPosition) cols.push("役職");
   if (prefs.showDept) cols.push("フロア");
   previewNote.textContent = `${paper} / ${scale} / ${cols.join("・")}${prefs.colorCells ? " / 色付き" : ""}`;
+}
+
+function layoutPrintPreview() {
+  const stage = document.getElementById("print-preview-stage");
+  const slot = document.getElementById("print-preview-slot");
+  const sheet = document.getElementById("print-preview-sheet");
+  if (!stage || !slot || !sheet || !previewBox) return;
+  const { paper, mm } = printPaperSpec();
+  const [pageWmm, pageHmm] = mm;
+  sheet.dataset.paper = paper;
+  const pxPerMm = 96 / 25.4;
+  const pageW = pageWmm * pxPerMm;
+  const pageH = pageHmm * pxPerMm;
+  sheet.style.width = `${pageW}px`;
+  sheet.style.height = `${pageH}px`;
+
+  const table = previewBox.querySelector(".shift-table");
+  if (table) {
+    table.style.zoom = "1";
+    const contentW = Math.max(1, (pageWmm - 12) * pxPerMm);
+    const natural = table.scrollWidth || table.offsetWidth || contentW;
+    table.style.zoom = String(Math.max(0.3, (contentW / natural) * printUserScale()));
+  }
+
+  const availW = Math.max(1, stage.clientWidth - 32);
+  const availH = Math.max(1, stage.clientHeight - 32);
+  const fit = Math.min(availW / pageW, availH / pageH);
+  const view = fit * previewViewZoom;
+  slot.style.width = `${pageW * view}px`;
+  slot.style.height = `${pageH * view}px`;
+  sheet.style.transform = `scale(${view})`;
+  stage.classList.toggle("is-pannable", previewViewZoom > 1.02);
+  const label = document.getElementById("print-preview-zoom-label");
+  if (label) label.textContent = `${Math.round(previewViewZoom * 100)}%`;
+}
+
+function syncPrintPageStyle() {
+  let style = document.getElementById("print-page-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "print-page-style";
+    document.head.appendChild(style);
+  }
+  const { paper, mm } = printPaperSpec();
+  const size = paper.startsWith("A3") ? "A3" : "A4";
+  const orient = paper.includes("縦") ? "portrait" : "landscape";
+  const table = previewBox?.querySelector(".shift-table");
+  const zoom = table?.style.zoom || String(printUserScale());
+  style.textContent = `@page { size: ${size} ${orient}; margin: 6mm; } @media print { body.print-preview-active #print-preview-box .shift-table { zoom: ${zoom} !important; } }`;
+  return { size, orient, mm };
 }
 
 function getZoomOptions() {
@@ -953,6 +1045,7 @@ function applySheetViewContent(next, prev) {
     } else {
       const prefs = getPrefs();
       shiftCalendar.classList.toggle("hide-col-job", !prefs.showJob);
+      shiftCalendar.classList.toggle("hide-col-position", !prefs.showPosition);
       shiftCalendar.classList.toggle("hide-summary", !prefs.showSummary);
     }
   }
@@ -1123,6 +1216,287 @@ async function showStaffGaugePopover(link) {
   if (!readLaborCache("partTime")) await loadPartTimeHours();
   if (staffGaugeHoverId !== staffId) return;
   renderStaffGaugePopover(link, staffId);
+}
+
+const EVENT_ROW_MIN = 20;
+const EVENT_ROW_MAX = 220;
+const EVENT_ROW_KEY = "shift-event-row-height";
+const EVENT_FONT_MIN = 10;
+const EVENT_FONT_MAX = 28;
+const EVENT_FONT_DEFAULT = 12;
+let eventEditPop = null;
+let eventEditClosing = false;
+
+function applyEventRowHeight(px) {
+  const height = Math.round(Math.min(EVENT_ROW_MAX, Math.max(EVENT_ROW_MIN, Number(px) || EVENT_ROW_MIN)));
+  document.documentElement.style.setProperty("--event-row-height", `${height}px`);
+  try {
+    localStorage.setItem(EVENT_ROW_KEY, String(height));
+  } catch {
+    /* 高さは画面上だけ使う */
+  }
+  return height;
+}
+
+function initEventRowResize() {
+  const grip = document.querySelector("#shift-calendar .event-row-size");
+  if (!grip || grip.dataset.resizeReady) return;
+  grip.dataset.resizeReady = "1";
+  const saved = Number(localStorage.getItem(EVENT_ROW_KEY));
+  if (saved) applyEventRowHeight(saved);
+
+  grip.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startY = event.clientY;
+    const start = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--event-row-height"), 10) || EVENT_ROW_MIN;
+    const scale = tableZoom || 1;
+    const move = (ev) => {
+      applyEventRowHeight(start + (ev.clientY - startY) / scale);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
+}
+
+function clampEventFont(value) {
+  const size = Number(value);
+  if (!size) return EVENT_FONT_DEFAULT;
+  return Math.min(EVENT_FONT_MAX, Math.max(EVENT_FONT_MIN, Math.round(size)));
+}
+
+function paintEventCell(cell, label, display, fontSize) {
+  const shown = display || (label ? Array.from(label)[0] : "");
+  const size = clampEventFont(fontSize);
+  cell.dataset.eventLabel = label || "";
+  cell.dataset.eventDisplay = display || "";
+  cell.dataset.eventSize = String(size);
+  cell.classList.toggle("is-event", Boolean(label));
+  if (!label) {
+    cell.replaceChildren();
+    return;
+  }
+  const span = document.createElement("span");
+  span.className = "day-head-event";
+  span.tabIndex = 0;
+  span.dataset.eventLabel = label;
+  span.setAttribute("aria-label", label);
+  const box = document.createElement("span");
+  box.className = "day-head-event-box";
+  box.textContent = shown;
+  box.style.fontSize = `${size}px`;
+  const full = document.createElement("span");
+  full.className = "day-head-event-full";
+  full.textContent = label;
+  full.style.fontSize = `${size}px`;
+  span.append(box, full);
+  cell.replaceChildren(span);
+}
+
+function syncEventColumn(date, label, display, fontSize) {
+  document.querySelectorAll(`#shift-calendar [data-date="${date}"]`).forEach((el) => {
+    if (el.classList.contains("event-cell")) paintEventCell(el, label, display, fontSize);
+    else el.classList.toggle("is-event", Boolean(label));
+  });
+  if (printModal && !printModal.classList.contains("hidden")) syncPreviewFromCalendar();
+}
+
+async function saveEventLabel(date, label, display, fontSize) {
+  const loaded = await fetch("/api/settings");
+  if (!loaded.ok) throw new Error("設定を読み込めませんでした。");
+  const settings = await loaded.json();
+  const events = Array.isArray(settings.calendar_events) ? settings.calendar_events.filter((item) => item?.date !== date) : [];
+  if (label || display) events.push({ date, label, display, font_size: clampEventFont(fontSize) });
+  settings.calendar_events = events;
+  const savedResponse = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  if (!savedResponse.ok) throw new Error("イベントを保存できませんでした。");
+  const saved = await savedResponse.json();
+  serverDefaults.calendar_events = Array.isArray(saved.calendar_events) ? saved.calendar_events : events;
+  const stored = serverDefaults.calendar_events.find((item) => item.date === date);
+  return {
+    label: stored?.label || "",
+    display: stored?.display || "",
+    fontSize: clampEventFont(stored?.font_size),
+  };
+}
+
+function currentEventEditorFont() {
+  return clampEventFont(eventEditPop?.querySelector(".event-size-value")?.textContent);
+}
+
+function setEventEditorFont(size) {
+  const next = clampEventFont(size);
+  const value = eventEditPop?.querySelector(".event-size-value");
+  if (value) value.textContent = String(next);
+  eventEditPop?.cell?.querySelectorAll(".day-head-event-box, .day-head-event-full").forEach((el) => {
+    el.style.fontSize = `${next}px`;
+  });
+}
+
+function placeEventEditor(cell) {
+  const rect = cell.getBoundingClientRect();
+  const popRect = eventEditPop.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
+  let top = rect.top + rect.height / 2 - popRect.height / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - popRect.height - 8));
+  eventEditPop.style.left = `${Math.round(left)}px`;
+  eventEditPop.style.top = `${Math.round(top)}px`;
+}
+
+function openEventEditor(cell) {
+  if (!cell) return;
+  if (!eventEditPop) {
+    eventEditPop = document.createElement("form");
+    eventEditPop.className = "event-edit-pop";
+    eventEditPop.hidden = true;
+    eventEditPop.innerHTML = `<label class="event-edit-field">表示<input type="text" class="event-edit-display" maxlength="20" placeholder="セルに出す文字"></label><label class="event-edit-field">名称<input type="text" class="event-edit-label" maxlength="40" placeholder="全ての名称"></label><div class="event-edit-size"><span>文字サイズ</span><button type="button" class="event-size-down" aria-label="文字を小さく">−</button><span class="event-size-value">12</span><button type="button" class="event-size-up" aria-label="文字を大きく">+</button></div><button type="submit" class="btn btn-sm">保存</button>`;
+    document.body.appendChild(eventEditPop);
+    eventEditPop.addEventListener("submit", (event) => {
+      event.preventDefault();
+      commitEventEditor(true);
+    });
+    eventEditPop.querySelectorAll("input").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          commitEventEditor(false);
+        }
+      });
+    });
+    eventEditPop.querySelector(".event-size-down").addEventListener("click", () => {
+      setEventEditorFont(currentEventEditorFont() - 2);
+    });
+    eventEditPop.querySelector(".event-size-up").addEventListener("click", () => {
+      setEventEditorFont(currentEventEditorFont() + 2);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!eventEditPop || eventEditPop.hidden) return;
+      if (eventEditPop.contains(event.target)) return;
+      commitEventEditor(true);
+    });
+  }
+  document.querySelector(".event-label-tip")?.setAttribute("hidden", "");
+  const displayInput = eventEditPop.querySelector(".event-edit-display");
+  const labelInput = eventEditPop.querySelector(".event-edit-label");
+  eventEditPop.originalLabel = cell.dataset.eventLabel || "";
+  eventEditPop.originalDisplay = cell.dataset.eventDisplay || "";
+  eventEditPop.originalSize = clampEventFont(cell.dataset.eventSize);
+  eventEditPop.cell = cell;
+  displayInput.value = eventEditPop.originalDisplay;
+  labelInput.value = eventEditPop.originalLabel;
+  setEventEditorFont(eventEditPop.originalSize);
+  eventEditPop.hidden = false;
+  placeEventEditor(cell);
+  displayInput.focus();
+  displayInput.select();
+}
+
+async function commitEventEditor(save) {
+  if (!eventEditPop || eventEditPop.hidden || eventEditClosing) return;
+  eventEditClosing = true;
+  const cell = eventEditPop.cell;
+  const date = cell?.dataset.date || "";
+  const originalLabel = eventEditPop.originalLabel || "";
+  const originalDisplay = eventEditPop.originalDisplay || "";
+  const originalSize = clampEventFont(eventEditPop.originalSize);
+  const nextLabel = save ? eventEditPop.querySelector(".event-edit-label").value.trim() : originalLabel;
+  const nextDisplay = save ? eventEditPop.querySelector(".event-edit-display").value.trim() : originalDisplay;
+  const nextSize = save ? currentEventEditorFont() : originalSize;
+  const unchanged = nextLabel === originalLabel && nextDisplay === originalDisplay && nextSize === originalSize;
+  eventEditPop.hidden = true;
+  eventEditPop.cell = null;
+  try {
+    const stored = !save || unchanged
+      ? { label: originalLabel, display: originalDisplay, fontSize: originalSize }
+      : await saveEventLabel(date, nextLabel, nextDisplay, nextSize);
+    if (cell) syncEventColumn(date, stored.label, stored.display, stored.fontSize);
+  } catch (error) {
+    if (cell) paintEventCell(cell, originalLabel, originalDisplay, originalSize);
+    window.alert(error.message || "イベントを保存できませんでした。");
+  } finally {
+    eventEditClosing = false;
+  }
+}
+
+function initEventCellEditor() {
+  const calendar = document.getElementById("shift-calendar");
+  if (!calendar || calendar.dataset.eventEditReady) return;
+  calendar.dataset.eventEditReady = "1";
+  calendar.addEventListener("dblclick", (event) => {
+    const cell = event.target.closest(".event-cell");
+    if (!cell || !calendar.contains(cell)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openEventEditor(cell);
+  });
+}
+
+function initEventLabelHover() {
+  const calendar = document.getElementById("shift-calendar");
+  if (!calendar || calendar.dataset.eventTipReady) return;
+  calendar.dataset.eventTipReady = "1";
+
+  const tip = document.createElement("div");
+  tip.className = "event-label-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.hidden = true;
+  document.body.appendChild(tip);
+
+  const hide = () => {
+    tip.hidden = true;
+  };
+  const place = (anchor) => {
+    const label = anchor.dataset.eventLabel || "";
+    const shown = anchor.querySelector(".day-head-event-box")?.textContent || "";
+    if (!label || label === shown) return;
+    tip.textContent = label;
+    tip.hidden = false;
+    const cell = anchor.closest("th, td") || anchor;
+    const rect = cell.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    let top = rect.bottom + 6;
+    if (top + tipRect.height > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - tipRect.height - 6);
+    }
+    left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+  };
+
+  calendar.addEventListener("pointerover", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    place(el);
+  });
+  calendar.addEventListener("pointerout", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && el.contains(next)) return;
+    hide();
+  });
+  calendar.addEventListener("focusin", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (el && calendar.contains(el)) place(el);
+  });
+  calendar.addEventListener("focusout", (event) => {
+    const el = event.target.closest(".day-head-event");
+    if (!el || !calendar.contains(el)) return;
+    hide();
+  });
+  document.getElementById("sheet-main-scroll")?.addEventListener("scroll", hide, { passive: true });
+  tableWrap?.addEventListener("scroll", hide, { passive: true });
 }
 
 function initStaffGaugeHover() {
@@ -1513,6 +1887,9 @@ function initSheetViews() {
   installCustomSheetTabs();
   syncSheetTabColors();
   initSheetAddPopover();
+  initEventLabelHover();
+  initEventRowResize();
+  initEventCellEditor();
   initStaffGaugeHover();
 
   initSheetTabDrag();
@@ -1610,20 +1987,50 @@ function updateFiltersSummary() {
   }
 }
 
-function setFiltersPanelCollapsed(collapsed) {
+let filterPanelMotion = 0;
+
+function prefersReducedFilterMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
+
+function setFiltersPanelCollapsed(collapsed, options = {}) {
   const block = document.getElementById("home-filters-collapse");
   const toggle = document.getElementById("btn-toggle-filters");
   const body = document.getElementById("home-filters-body");
   if (!block || !toggle) return;
-  block.classList.toggle("is-collapsed", collapsed);
+  const animate = options.animate !== false && !prefersReducedFilterMotion();
+  const motion = ++filterPanelMotion;
+
   toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  if (body) {
-    body.hidden = collapsed;
-  }
-  updateFiltersSummary();
+
   if (!collapsed) {
-    scheduleSortSegmentIndicatorUpdate();
+    if (body) body.hidden = false;
+    if (!animate) {
+      block.classList.remove("is-collapsed");
+      scheduleSortSegmentIndicatorUpdate();
+    } else {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (motion !== filterPanelMotion) return;
+          block.classList.remove("is-collapsed");
+          scheduleSortSegmentIndicatorUpdate();
+        });
+      });
+    }
+  } else {
+    block.classList.add("is-collapsed");
+    const finish = () => {
+      if (motion !== filterPanelMotion || !block.classList.contains("is-collapsed")) return;
+      if (body) body.hidden = true;
+    };
+    if (!animate || !body || body.hidden) {
+      finish();
+    } else {
+      window.setTimeout(finish, 340);
+    }
   }
+
+  updateFiltersSummary();
   savePrefs({
     ...loadPrefs(),
     ...getPrefs(),
@@ -1635,13 +2042,27 @@ function setFiltersPanelCollapsed(collapsed) {
 
 function initFiltersPanelCollapse() {
   const toggle = document.getElementById("btn-toggle-filters");
+  const panel = document.getElementById("home-filters-body");
   if (!toggle) return;
   const saved = loadPrefs();
   const collapsed = saved.filtersPanelCollapsed !== false;
-  setFiltersPanelCollapsed(collapsed);
+  setFiltersPanelCollapsed(collapsed, { animate: false });
   toggle.addEventListener("click", () => {
     const block = document.getElementById("home-filters-collapse");
     setFiltersPanelCollapsed(!block?.classList.contains("is-collapsed"));
+  });
+
+  if (!panel) return;
+  panel.addEventListener("mouseenter", () => {
+    const block = document.getElementById("home-filters-collapse");
+    if (block?.classList.contains("is-collapsed") && !panel.hidden) {
+      setFiltersPanelCollapsed(false);
+    }
+  });
+  panel.addEventListener("mouseleave", () => {
+    const block = document.getElementById("home-filters-collapse");
+    if (!block || block.classList.contains("is-collapsed")) return;
+    setFiltersPanelCollapsed(true);
   });
 }
 
@@ -1703,7 +2124,7 @@ function initCalendarControls() {
   filtersBody?.addEventListener("change", (event) => {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
-    if (!["home-color-cells", "home-show-job", "home-show-dept", "home-show-summary"].includes(input.id)) {
+    if (!["home-color-cells", "home-show-job", "home-show-position", "home-show-dept", "home-show-summary"].includes(input.id)) {
       return;
     }
     onHomeDisplayChange();
@@ -1761,6 +2182,7 @@ function initDisplayFromSettings() {
   const prefs = {
     ...defaultPrefs(),
     showJob: saved.showJob ?? defaultPrefs().showJob,
+    showPosition: saved.showPosition ?? defaultPrefs().showPosition,
     showDept: saved.showDept ?? defaultPrefs().showDept,
     colorCells: saved.colorCells ?? defaultPrefs().colorCells,
     showSummary: saved.showSummary ?? defaultPrefs().showSummary,
@@ -1812,6 +2234,9 @@ function syncPreviewFromCalendar() {
 
   const table = sourceTable.cloneNode(true);
   table.classList.add("shift-table-compact");
+  const range = window.PERIOD_SHEET_LABEL || window.PERIOD_RANGE || window.PERIOD_LABEL || "";
+  const rangeLabel = document.getElementById("print-preview-range");
+  if (rangeLabel) rangeLabel.textContent = range;
   table.querySelectorAll("tbody tr").forEach((row) => {
     const sourceRow = sourceTable.querySelector(`tbody tr[data-staff-id="${row.dataset.staffId}"]`);
     if (sourceRow?.hidden) {
@@ -1827,7 +2252,28 @@ function syncPreviewFromCalendar() {
   table.querySelectorAll(".staff-name-link").forEach((link) => {
     link.replaceWith(link.textContent);
   });
-  previewBox.replaceChildren(table);
+  table.querySelectorAll("thead tr, tfoot tr").forEach((row) => {
+    const cell = document.createElement(row.parentElement?.tagName === "TFOOT" ? "td" : "th");
+    cell.className = "print-row-no";
+    row.prepend(cell);
+  });
+  table.querySelectorAll("tbody tr").forEach((row, index) => {
+    const cell = document.createElement("td");
+    cell.className = "print-row-no";
+    cell.textContent = String(index + 1);
+    row.prepend(cell);
+  });
+  const head = document.createElement("div");
+  head.className = "print-sheet-head";
+  const title = document.createElement("span");
+  title.className = "print-sheet-title";
+  title.textContent = "勤務表";
+  const period = document.createElement("span");
+  period.className = "print-sheet-period";
+  period.textContent = range;
+  head.append(title, period);
+  previewBox.replaceChildren(head, table);
+  layoutPrintPreview();
 }
 
 function refreshDisplay() {
@@ -1837,12 +2283,15 @@ function refreshDisplay() {
   syncPreviewFromCalendar();
   applyDisplayPrefs(prefs);
   updatePreviewNote();
+  layoutPrintPreview();
+  syncPrintPageStyle();
   previewBox?.scrollTo(0, 0);
 }
 
 function openPrintModal() {
   if (!printModal) return;
   closeCellEditor();
+  previewViewZoom = 1;
   printModal.classList.remove("hidden");
   printModal.setAttribute("aria-hidden", "false");
   refreshDisplay();
@@ -1931,12 +2380,68 @@ document.querySelectorAll("[data-invert-group]").forEach((button) => {
   });
 });
 
-[printColJob, printColDept, printColorMode].forEach((input) => {
+[printColJob, printColPosition, printColDept, printColorMode].forEach((input) => {
   input?.addEventListener("change", refreshDisplay);
 });
 
 printModal?.querySelectorAll(".print-form-field select").forEach((select) => {
-  select.addEventListener("change", updatePreviewNote);
+  select.addEventListener("change", () => {
+    updatePreviewNote();
+    layoutPrintPreview();
+    syncPrintPageStyle();
+  });
+});
+window.addEventListener("resize", () => {
+  if (printModal && !printModal.classList.contains("hidden")) layoutPrintPreview();
+});
+
+document.getElementById("print-preview-zoom-out")?.addEventListener("click", () => {
+  setPreviewViewZoom(previewViewZoom / 1.25);
+});
+document.getElementById("print-preview-zoom-in")?.addEventListener("click", () => {
+  setPreviewViewZoom(previewViewZoom * 1.25);
+});
+document.getElementById("print-preview-zoom-fit")?.addEventListener("click", () => {
+  setPreviewViewZoom(1);
+});
+
+const printPreviewStage = document.getElementById("print-preview-stage");
+printPreviewStage?.addEventListener(
+  "wheel",
+  (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setPreviewViewZoom(previewViewZoom * (event.deltaY < 0 ? 1.1 : 0.9));
+  },
+  { passive: false }
+);
+printPreviewStage?.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || previewViewZoom <= 1.02) return;
+  if (event.target.closest("button, a, input, select")) return;
+  const pan = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: printPreviewStage.scrollLeft,
+    top: printPreviewStage.scrollTop,
+  };
+  printPreviewStage.classList.add("is-panning");
+  printPreviewStage.setPointerCapture(event.pointerId);
+  const move = (ev) => {
+    if (ev.pointerId !== pan.id) return;
+    printPreviewStage.scrollLeft = pan.left - (ev.clientX - pan.x);
+    printPreviewStage.scrollTop = pan.top - (ev.clientY - pan.y);
+  };
+  const end = (ev) => {
+    if (ev.pointerId !== pan.id) return;
+    printPreviewStage.classList.remove("is-panning");
+    printPreviewStage.removeEventListener("pointermove", move);
+    printPreviewStage.removeEventListener("pointerup", end);
+    printPreviewStage.removeEventListener("pointercancel", end);
+  };
+  printPreviewStage.addEventListener("pointermove", move);
+  printPreviewStage.addEventListener("pointerup", end);
+  printPreviewStage.addEventListener("pointercancel", end);
 });
 
 previewRefresh?.addEventListener("click", refreshDisplay);
@@ -1973,7 +2478,7 @@ function ensureShiftPicker() {
 
 function hideShiftPicker() {
   shiftPicker?.classList.add("hidden");
-  shiftPicker?.classList.remove("is-bulk");
+  shiftPicker?.classList.remove("is-bulk", "has-picker-actions");
   shiftPicker?.replaceChildren();
 }
 
@@ -2352,7 +2857,10 @@ function applyCellSymbol(td, symbol, options = {}) {
     delete td.dataset.source;
   }
 
+  const flags = ["col-sat", "col-sun", "is-event"].filter((name) => td.classList.contains(name));
+  if (!String(symbol || "").trim()) flags.push("is-unset");
   let className = `day-col shift-td shift-td-editable ${shiftClass}`;
+  if (flags.length) className += ` ${flags.join(" ")}`;
   if (source === "manual") className += " is-manual";
   if (source === "leave") className += " is-leave-request";
   td.className = className;
@@ -2552,9 +3060,19 @@ function openCellEditor(td) {
 
   const picker = ensureShiftPicker();
   picker.classList.remove("is-bulk");
+  picker.classList.add("has-picker-actions");
   const currentSymbol = td.dataset.symbol ?? "";
+  const hasManual = td.dataset.source === "manual";
 
   picker.replaceChildren();
+
+  const body = document.createElement("div");
+  body.className = "shift-picker-bulk-body";
+
+  const optionsCol = document.createElement("div");
+  optionsCol.className = "shift-picker-bulk-options";
+  optionsCol.setAttribute("role", "listbox");
+
   shiftOptions.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -2578,8 +3096,37 @@ function openCellEditor(td) {
       event.stopPropagation();
       saveCellSymbol(td, option.symbol);
     });
-    picker.appendChild(button);
+    optionsCol.appendChild(button);
   });
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "shift-picker-bulk-actions";
+
+  const unlockBtn = document.createElement("button");
+  unlockBtn.type = "button";
+  unlockBtn.className = "shift-picker-action shift-picker-action-unlock";
+  unlockBtn.textContent = "固定解除";
+  unlockBtn.title = "このセルの手動固定を解除";
+  unlockBtn.disabled = !hasManual;
+  unlockBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeCellEditor();
+    unlockManualCell(td);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "shift-picker-action shift-picker-action-delete";
+  deleteBtn.textContent = "削除";
+  deleteBtn.title = "このセルのシフトを削除";
+  deleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    saveCellSymbol(td, "", { source: "" });
+  });
+
+  actionsRow.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsRow);
+  picker.appendChild(body);
 
   picker.classList.remove("hidden");
   picker.setAttribute("aria-label", "シフトを選択");
@@ -2796,7 +3343,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   const previousSource = td.dataset.source;
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
-  applyCellSymbol(td, symbol, { source: "manual" });
+  applyCellSymbol(td, symbol, { source: options.source ?? "manual" });
 
   const response = await fetch("/api/shifts/cell", {
     method: "PUT",
@@ -3657,7 +4204,8 @@ function ensureAutoGenerateYearOptions(selectedYear) {
     if (existing.has(year)) continue;
     const option = document.createElement("option");
     option.value = String(year);
-    option.textContent = `${year}年`;
+    const reiwa = year - 2018;
+    option.textContent = year >= 2019 ? `令和${reiwa === 1 ? "元" : reiwa}年` : `${year}年`;
     autoGenerateYear.appendChild(option);
     existing.add(year);
   }
@@ -3799,7 +4347,7 @@ function showAutoGenerateConfirm(preflight, { syncControls = true } = {}) {
     const advanced = (preflight.advanced_settings_used || []).join("、") || "標準のみ";
     autoGenerateConfirmSummary.innerHTML = `
       <ul class="auto-generate-confirm-list">
-        <li><span>対象年月</span><strong>${preflight.year}年${preflight.month}月</strong></li>
+        <li><span>対象年月</span><strong>${preflight.month}月</strong></li>
         <li><span>対象フロア</span><strong>${(preflight.departments || []).join("、") || "—"}</strong></li>
         <li><span>職員数</span><strong>${preflight.staff_count} 人</strong></li>
         <li><span>希望休</span><strong>${preflight.leave_count} 件</strong></li>
@@ -4011,7 +4559,7 @@ async function executeAutoGenerate() {
     const applied = data.applied === true;
     const success = applied && errorCount === 0;
 
-    const scopeLabel = data.stats?.scope_label || `${year}年${month}月`;
+    const scopeLabel = data.stats?.scope_label || `${month}月`;
     const scopeRange =
       data.stats?.scope_start && data.stats?.scope_end
         ? `${data.stats.scope_start} 〜 ${data.stats.scope_end}`
@@ -4081,7 +4629,7 @@ async function runClearShifts() {
   if (!year || !month) return;
 
   const confirmed = window.confirm(
-    `${year}年${month}月の表示期間のシフトをすべて削除します。\n` +
+    `${month}月の表示期間のシフトをすべて削除します。\n` +
       "手動入力・希望休・自動生成の区別なく、すべてのセルが空白になります。\n\n実行しますか？"
   );
   if (!confirmed) return;
@@ -4104,7 +4652,7 @@ async function runClearShifts() {
       data.period_start && data.period_end
         ? `\n対象: ${data.period_start} 〜 ${data.period_end}`
         : "";
-    window.alert(`${year}年${month}月のシフトをクリアしました。${range}\n削除: ${data.deleted_count ?? 0} 件`);
+    window.alert(`${month}月のシフトをクリアしました。${range}\n削除: ${data.deleted_count ?? 0} 件`);
     window.location.reload();
   } catch (error) {
     window.alert(error instanceof Error ? error.message : "シフトのクリア中に通信エラーが発生しました。");

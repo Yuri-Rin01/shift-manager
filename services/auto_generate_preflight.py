@@ -110,7 +110,7 @@ def build_auto_generate_preflight(
     scope_label = (
         format_scope_range(resolved_start, resolved_end)
         if resolved_start and resolved_end
-        else f"{year}年{month}月"
+        else f"{month}月"
     )
 
     available_floors = get_floor_labels()

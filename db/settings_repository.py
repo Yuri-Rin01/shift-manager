@@ -109,6 +109,10 @@ def _merge_settings(data: dict | None) -> dict:
             merged[key] = normalize_cell_flick_directions(value)
         elif key == "floors" and isinstance(value, list):
             merged[key] = normalize_floors(value)
+        elif key == "calendar_events" and isinstance(value, list):
+            from data.calendar_events import normalize_calendar_events
+
+            merged[key] = normalize_calendar_events(value)
         else:
             merged[key] = value
     from data.shift_symbols import normalize_visible_work_types
