@@ -2589,7 +2589,8 @@ body.is-phone .shift-table.has-xl-symbols .shift-td .shift-cell.is-long-symbol {
   color: #0f172a;
 }
 
-.shift-cell-picker.is-bulk {
+.shift-cell-picker.is-bulk,
+.shift-cell-picker.has-picker-actions {
   min-width: 196px;
   max-width: 240px;
   max-height: min(380px, 72vh);

@@ -2478,7 +2478,7 @@ function ensureShiftPicker() {
 
 function hideShiftPicker() {
   shiftPicker?.classList.add("hidden");
-  shiftPicker?.classList.remove("is-bulk");
+  shiftPicker?.classList.remove("is-bulk", "has-picker-actions");
   shiftPicker?.replaceChildren();
 }
 
@@ -3057,9 +3057,19 @@ function openCellEditor(td) {
 
   const picker = ensureShiftPicker();
   picker.classList.remove("is-bulk");
+  picker.classList.add("has-picker-actions");
   const currentSymbol = td.dataset.symbol ?? "";
+  const hasManual = td.dataset.source === "manual";
 
   picker.replaceChildren();
+
+  const body = document.createElement("div");
+  body.className = "shift-picker-bulk-body";
+
+  const optionsCol = document.createElement("div");
+  optionsCol.className = "shift-picker-bulk-options";
+  optionsCol.setAttribute("role", "listbox");
+
   shiftOptions.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -3083,8 +3093,37 @@ function openCellEditor(td) {
       event.stopPropagation();
       saveCellSymbol(td, option.symbol);
     });
-    picker.appendChild(button);
+    optionsCol.appendChild(button);
   });
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "shift-picker-bulk-actions";
+
+  const unlockBtn = document.createElement("button");
+  unlockBtn.type = "button";
+  unlockBtn.className = "shift-picker-action shift-picker-action-unlock";
+  unlockBtn.textContent = "固定解除";
+  unlockBtn.title = "このセルの手動固定を解除";
+  unlockBtn.disabled = !hasManual;
+  unlockBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeCellEditor();
+    unlockManualCell(td);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "shift-picker-action shift-picker-action-delete";
+  deleteBtn.textContent = "削除";
+  deleteBtn.title = "このセルのシフトを削除";
+  deleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    saveCellSymbol(td, "", { source: "" });
+  });
+
+  actionsRow.append(unlockBtn, deleteBtn);
+  body.append(optionsCol, actionsRow);
+  picker.appendChild(body);
 
   picker.classList.remove("hidden");
   picker.setAttribute("aria-label", "シフトを選択");
@@ -3301,7 +3340,7 @@ async function saveCellSymbol(td, symbol, options = {}) {
   const previousSource = td.dataset.source;
   const primaryBefore = options.skipHistory ? null : captureCellState(td);
   closeCellEditor();
-  applyCellSymbol(td, symbol, { source: "manual" });
+  applyCellSymbol(td, symbol, { source: options.source ?? "manual" });
 
   const response = await fetch("/api/shifts/cell", {
     method: "PUT",
