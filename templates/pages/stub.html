@@ -24,7 +24,12 @@
       <div class="content content-no-footer">
         <section class="card">
           <div class="card-body stub-message">
-            <p>この画面は準備中です。</p>
+            {% if guide_message %}
+              <p>{{ guide_message }}</p>
+              <p><a class="btn" href="{{ guide_href }}">{{ guide_label }}</a></p>
+            {% else %}
+              <p>この画面は準備中です。</p>
+            {% endif %}
           </div>
         </section>
       </div>

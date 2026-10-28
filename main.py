@@ -44,7 +44,7 @@ from data.account_plan import get_account_plan_context
 from data.settings_panels import SETTINGS_PANELS, resolve_settings_panel
 from data.shift_symbols import get_work_type_setting_groups
 from data.flick_directions import FLICK_DIRECTIONS, FLICK_GRID_ORDER
-from data.routes import ROUTES, STUB_PAGES
+from data.routes import ROUTES, STUB_GUIDES, STUB_PAGES
 from db.database import init_db
 from db.settings_repository import get_settings
 from routers.leave_requests import router as leave_requests_router
@@ -243,10 +243,14 @@ def _register_stub_pages() -> None:
             page_title: str = title,
             page_subtitle: str = subtitle,
         ):
+            guide = STUB_GUIDES.get(active_key)
             context = _page_context(
                 active_key,
                 page_title=page_title,
                 page_subtitle=page_subtitle,
+                guide_message=guide[0] if guide else None,
+                guide_href=guide[1] if guide else None,
+                guide_label=guide[2] if guide else None,
             )
             return templates.TemplateResponse(request, "pages/stub.html", context)
 
