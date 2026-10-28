@@ -17,6 +17,12 @@ from data.staffing_basis import (
 from data.work_type_templates import get_work_type_templates
 from data.navigation import get_sidebar
 from data.dashboard import build_dashboard
+from db.database import init_db as _init_db_early
+
+# data.sample 等が import 時に DB を参照するため、lifespan より前に初期化する
+# （DB が無い環境＝新規PC・復旧時でも起動できるようにする。init_db は冪等）
+_init_db_early()
+
 from data.sample import build_calendar
 from data.settings_defaults import (
     CALENDAR_SORT_OPTIONS,
